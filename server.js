@@ -473,6 +473,7 @@ async function checkOnlineStatusAndUpdateHeartbeat() {
   }
 }
 
+let onlineCheckInterval;
 /**
  * Function to periodically update the Google Sheet with telemetry data.
  */
@@ -528,7 +529,7 @@ async function main() {
         // Parse the XML message
         xmlParser.parseString(message, async (err, result) => { // Make this callback async
           if (err) {
-            console.error('Error parsing XML:', err, 'Message:', message);
+            console.error('Error parsing XML. Skipping message:', err, 'Message:', message);
             return; // Skip this message and continue
           }
           if (!result) {
