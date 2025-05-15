@@ -72,64 +72,71 @@ async function readTargetCarNumber() {
 /**
  * Function to read reference data (headshot URLs, pct images) from the Google Sheet.
  */
-async function readReferenceData() {
+ async function readReferenceData() {
   try {
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_ID,
-      ranges: [
-        `${DATABASE_SHEET_NAME}!A2:H28`, // Driver data: Car Number, Car Logo, Team, Team Logo, First Name, Last Name, Display Name, Headshot URL
-        `${DATABASE_SHEET_NAME}!A31:B33`, // Tire image URLs: Tire Type, Tire Image URL
-        `${DATABASE_SHEET_NAME}!A36:B39`, // Indicator image URLs: Indicator Type, Indicator Image URL
-      ],
-    });
+    referenceData = {
+      drivers: {},
+      tireImages: {},
+      indicatorImages: {},
+    };
 
-    const values = response.data.valueRanges;
+    // Define the ranges we want to retrieve
+    const ranges = [
+      `${DATABASE_SHEET_NAME}!A2:H28`, // Driver data
+      `${DATABASE_SHEET_NAME}!A31:B33`, // Tire image URLs
+      `${DATABASE_SHEET_NAME}!A36:B39`, // Indicator image URLs
+    ];
 
-    if (values && values.length > 0) {
-      // Process driver data
-      if (values[0] && values[0].values && values[0].values.length > 1) {
-        for (let i = 1; i < values[0].values.length; i++) {
-          const row = values[0].values[i];
-          const carNumber = row[0];
-          referenceData.drivers[carNumber] = {
-            carLogo: row[1],
-            team: row[2],
-            teamLogo: row[3],
-            firstName: row[4],
-            lastName: row[5],
-            displayName: row[6],
-            headshot: row[7],
-          };
+    // Loop through the ranges and fetch the data for each
+    for (const range of ranges) {
+      const response = await sheets.spreadsheets.values.get({
+        spreadsheetId: SPREADSHEET_ID,
+        range: range, // Use singular 'range' here
+      });
+
+      const values = response.data.values;
+
+      if (values && values.length > 0) {
+        // Process data based on the current range
+        if (range === `${DATABASE_SHEET_NAME}!A2:H28`) {
+          // Process driver data
+          for (let i = 0; i < values.length; i++) { // Start from 0
+            const row = values[i];
+            const carNumber = row[0];
+            referenceData.drivers[carNumber] = {
+              carLogo: row[1],
+              team: row[2],
+              teamLogo: row[3],
+              firstName: row[4],
+              lastName: row[5],
+              displayName: row[6],
+              headshot: row[7],
+            };
+          }
+        } else if (range === `${DATABASE_SHEET_NAME}!A31:B33`) {
+          // Process tire image URLs
+          for (let i = 0; i < values.length; i++) {
+            const row = values[i];
+            const tireType = row[0];
+            const tireImageUrl = row[1];
+            referenceData.tireImages[tireType] = tireImageUrl;
+          }
+        } else if (range === `${DATABASE_SHEET_NAME}!A36:B39`) {
+          // Process indicator image URLs
+          for (let i = 0; i < values.length; i++) {
+            const row = values[i];
+            const indicatorType = row[0];
+            const indicatorImageUrl = row[1];
+            referenceData.indicatorImages[indicatorType] = indicatorImageUrl;
+          }
         }
+      } else {
+        console.warn(`Range ${range} in reference data sheet is empty.`);
       }
-
-      // Process tire image URLs
-      if (values[1] && values[1].values && values[1].values.length > 1) {
-        for (let i = 1; i < values[1].values.length; i++) {
-          const row = values[1].values[i];
-          const tireType = row[0];
-          const tireImageUrl = row[1];
-          referenceData.tireImages[tireType] = tireImageUrl;
-        }
-      }
-
-      // Process indicator image URLs
-      if (values[2] && values[2].values && values[2].values.length > 1) {
-        for (let i = 1; i < values[2].values.length; i++) {
-          const row = values[2].values[i];
-          const indicatorType = row[0];
-          const indicatorImageUrl = row[1];
-          referenceData.indicatorImages[indicatorType] = indicatorImageUrl;
-        }
-      }
-      console.log('Reference data read from Google Sheet:', referenceData);
-    } else {
-      console.warn('Reference data sheet is empty or missing data.');
-      // Don't throw an error, as the application can run with defaults.
     }
+    console.log('Reference data read from Google Sheet:', referenceData);
   } catch (error) {
     console.error('Error reading reference data:', error);
-    // Don't throw.  Use default values.
   }
 }
 
