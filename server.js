@@ -13,7 +13,7 @@ const TELEMETRY_SHEET_NAME = 'Telemetry Test'; // Sheet to write telemetry data
 const DATABASE_SHEET_NAME = 'Database'; // Sheet containing driver and reference data
 const CONTROLLER_SHEET_NAME = 'Live Data Controller'; // Sheet for the controller tab
 const ONLINE_CHECKBOX_CELL = 'B4'; // Cell containing the online checkbox
-const TARGET_CAR_CELL = 'B12';    // Cell containing the target car
+const TARGET_CAR_CELL = 'B5';    // Cell containing the target car
 
 // Global Variables
 let client;
