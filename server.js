@@ -4,7 +4,7 @@ const { google } = require('googleapis');
 const { JWT } = require('google-auth-library');
 
 // Constants - REPLACE THESE WITH YOUR ACTUAL VALUES
-const TCP_HOST = '52.38.150.236';
+const TCP_HOST = 'localhost';
 const TCP_PORT = 5000;
 const SPREADSHEET_ID = '1UIpgq72cvEUT-qvEB4gmwDjvFU4CDIXf2rllNseYEUM';
 const GOOGLE_SERVICE_ACCOUNT_KEY_PATH = 'indycar-live-data-8bbb32c95e6b.json';
