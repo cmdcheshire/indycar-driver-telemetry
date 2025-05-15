@@ -16,7 +16,7 @@ const ONLINE_CHECKBOX_CELL = 'B4'; // Cell containing the online checkbox
 const TARGET_CAR_CELL = 'B5';    // Cell containing the target car
 
 // Global Variables
-let client;
+let client = new net.Socket();
 let xmlParser = new xml2js.Parser({ explicitRoot: false, ignoreAttributes: false, trim: true });
 let googleAuthClient;
 let sheets;  // Store the sheets object
