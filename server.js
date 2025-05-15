@@ -4,7 +4,7 @@ const { google } = require('googleapis');
 const { JWT } = require('google-auth-library');
 
 // Constants - REPLACE THESE WITH YOUR ACTUAL VALUES
-const TCP_HOST = '18.236.162.180';
+const TCP_HOST = '52.38.150.236';
 const TCP_PORT = '5000';
 const SPREADSHEET_ID = '1UIpgq72cvEUT-qvEB4gmwDjvFU4CDIXf2rllNseYEUM';
 const GOOGLE_SERVICE_ACCOUNT_KEY_PATH = 'indycar-live-data-8bbb32c95e6b.json';
@@ -497,6 +497,11 @@ async function periodicUpdateTelemetrySheet() {
  */
 async function main() {
   try {
+    await authenticate(); // Authenticate with Google Sheets API
+    await readReferenceData(); //read reference data
+    targetCarNumber = await readTargetCarNumber();
+    console.log(`Target car number: ${targetCarNumber}`); // Log the target car number
+
     client = net.connect({ host: TCP_HOST, port: TCP_PORT }, () => {
         console.log(`Connected to ${TCP_HOST}:${TCP_PORT}`);
       })
@@ -512,12 +517,8 @@ async function main() {
       console.log(`Successfully connected to TCP server at ${TCP_HOST}:${TCP_PORT}`);
     });
     
-    await authenticate(); // Authenticate with Google Sheets API
-    await readReferenceData(); //read reference data
-    targetCarNumber = await readTargetCarNumber();
-    console.log(`Target car number: ${targetCarNumber}`); // Log the target car number
-
     console.log(client);
+    
     let buffer = ''; // Buffer to accumulate data
 
     client.on('data', async (data) => { // Make the callback async to use await
