@@ -26,7 +26,7 @@ const MAX_RPM = 12000;
 const MAX_THROTTLE = 100;
 const MAX_BRAKE = 100;
 let onlineCheckInterval;
-let latestTelemetryData = {};
+let latestTelemetryData = {}; // Declare it only once here
 
 /**
  * Function to authenticate with the Google Sheets API using a service account.
@@ -97,7 +97,9 @@ async function readReferenceData() {
       const values = response.data?.values;  // Add nullish check
 
       if (values && values.length > 0) {
+        // Process data based on the current range
         if (range === `${DATABASE_SHEET_NAME}!A2:H28`) {
+          // Process driver data
           for (let i = 0; i < values.length; i++) {
             const row = values[i];
             const carNumber = row[0];
@@ -112,6 +114,7 @@ async function readReferenceData() {
             };
           }
         } else if (range === `${DATABASE_SHEET_NAME}!A31:B33`) {
+          // Process tire image URLs
           for (let i = 0; i < values.length; i++) {
             const row = values[i];
             const tireType = row[0];
@@ -119,6 +122,7 @@ async function readReferenceData() {
             referenceData.tireImages[tireType] = tireImageUrl;
           }
         } else if (range === `${DATABASE_SHEET_NAME}!A36:B39`) {
+          // Process indicator image URLs
           for (let i = 0; i < values.length; i++) {
             const row = values[i];
             const indicatorType = row[0];
@@ -135,6 +139,7 @@ async function readReferenceData() {
     console.error('Error reading reference data:', error);
   }
 }
+
 
 /**
  * Function to get the ordinal suffix for a number (1st, 2nd, 3rd, 4th, etc.).
@@ -453,7 +458,7 @@ async function periodicUpdateTelemetrySheet() {
   if (Object.keys(latestTelemetryData).length > 0) {
         const result = await updateTelemetrySheet(Object.values(latestTelemetryData)[0]); //send the first car.
         if(result){
-           console.log("periodicUpdateTelemetrySheet ran successfully")
+           console.log("periodicUpdateTelemetrySheet ran successfully", result.data); //log
         }
         else{
           console.log("periodicUpdateTelemetrySheet had an error")
@@ -575,3 +580,4 @@ main().catch(error => {
   console.error('Application failed to start:', error);
   //  Handle the error appropriately (e.g., exit, try to reconnect, send an alert).
 });
+
