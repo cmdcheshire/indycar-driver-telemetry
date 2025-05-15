@@ -502,10 +502,11 @@ async function main() {
     targetCarNumber = await readTargetCarNumber();
     console.log(`Target car number: ${targetCarNumber}`); // Log the target car number
 
+    console.log(client);
 
-    client = net.connect({ host: TCP_HOST, port: TCP_PORT }, () => {
+    client = client.connect({ host: TCP_HOST, port: TCP_PORT }, () => {
       console.log(`Connected to ${TCP_HOST}:${TCP_PORT}`); // Log connection
-    });
+    }
 
     client.on('connect', () => {
       console.log(`Successfully connected to TCP server at ${TCP_HOST}:${TCP_PORT}`);
