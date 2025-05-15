@@ -16,7 +16,7 @@ const ONLINE_CHECKBOX_CELL = 'B4'; // Cell containing the online checkbox
 const TARGET_CAR_CELL = 'B5';    // Cell containing the target car
 
 // Global Variables
-let client = new net.Socket();
+let client;
 let xmlParser = new xml2js.Parser({ explicitRoot: false, ignoreAttributes: false, trim: true });
 let googleAuthClient;
 let sheets;  // Store the sheets object
@@ -504,8 +504,15 @@ async function main() {
 
     console.log(client);
 
-    client = client.connect({ host: TCP_HOST, port: TCP_PORT }, () => {
-      console.log(`Connected to ${TCP_HOST}:${TCP_PORT}`); // Log connection
+    client = net.connect({ host: TCP_HOST, port: TCP_PORT }, () => {
+        console.log(`Connected to ${TCP_HOST}:${TCP_PORT}`);
+      })
+      .on('error', (err) => {
+        console.error('Error connecting to TCP server:', err);
+        // Handle the error appropriately:
+        // 1.  Retry the connection (with a delay).
+        // 2.  Terminate the application.
+        // 3.  Notify the user.
     });
 
     client.on('connect', () => {
