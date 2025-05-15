@@ -5,7 +5,7 @@ const { JWT } = require('google-auth-library');
 
 // Constants - REPLACE THESE WITH YOUR ACTUAL VALUES
 const TCP_HOST = '18.236.162.180';
-const TCP_PORT = 5000;
+const TCP_PORT = '5000';
 const SPREADSHEET_ID = '1UIpgq72cvEUT-qvEB4gmwDjvFU4CDIXf2rllNseYEUM';
 const GOOGLE_SERVICE_ACCOUNT_KEY_PATH = 'indycar-live-data-8bbb32c95e6b.json';
 const TARGET_CAR_SHEET_NAME = 'Live Data Controller'; // Sheet containing the target car number and online checkbox
