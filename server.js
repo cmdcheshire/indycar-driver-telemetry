@@ -27,6 +27,8 @@ const MAX_THROTTLE = 100;
 const MAX_BRAKE = 100;
 let onlineCheckInterval; // To store the interval ID
 let isOnline = false;
+let latestTelemetryData = {};
+let carData = {};
 
 /**
  * Function to authenticate with the Google Sheets API using a service account.
@@ -191,7 +193,7 @@ async function updateTelemetrySheet(telemetryData) {
     for (let i = 1; i <= 5; i++) {
       brakePctBools.push(telemetryData.brake > (MAX_BRAKE * i / 10));
     }
-    const headshotUrl = referenceData[telemetryData.carNumber] ? referenceData.drivers[telemetryData.carNumber].headshot : '';
+    const headshotUrl = referenceData.drivers[telemetryData.carNumber]?.headshot || '';
     const rpmImgUrls = [
       rpmPctBools[0] ? referenceData.indicatorImages['RPM 10%'] || '' : referenceData.indicatorImages['RPM 0%'] || '', // K2
       rpmPctBools[1] ? referenceData.indicatorImages['RPM 20%'] || '' : referenceData.indicatorImages['RPM 0%'] || '', // K3
@@ -447,7 +449,7 @@ async function checkOnlineStatusAndUpdateHeartbeat() {
     if (isOnline) {
       console.log('Online checkbox is TRUE.  Updating heartbeat.');
       // Update the heartbeat cell (e.g., set it to the current timestamp)
-      try{
+      try {
         await sheets.spreadsheets.values.update({
           spreadsheetId: SPREADSHEET_ID,
           range: `${CONTROLLER_SHEET_NAME}!A2`, // Example:  Update cell A2 with the heartbeat
@@ -456,10 +458,10 @@ async function checkOnlineStatusAndUpdateHeartbeat() {
             values: [[new Date().toISOString()]],
           },
         });
-       }
-       catch(e){
+      }
+      catch (e) {
         console.error("Error updating heartbeat: ", e);
-       }
+      }
       return true;
     } else {
       console.log('Online checkbox is FALSE.  Not processing data.');
@@ -470,21 +472,23 @@ async function checkOnlineStatusAndUpdateHeartbeat() {
     return false; // Assume offline in case of error to prevent further processing
   }
 }
+
+let onlineCheckInterval;
 /**
  * Function to periodically update the Google Sheet with telemetry data.
  */
 async function periodicUpdateTelemetrySheet() {
   if (isOnline && Object.keys(latestTelemetryData).length > 0) {
-    try{
-        console.log("periodicUpdateTelemetrySheet called");
-        await updateTelemetrySheet(latestTelemetryData); //send the  data.
-     }
-     catch(e){
-       console.error("Error in sending data to sheet", e);
-     }
+    try {
+      console.log("periodicUpdateTelemetrySheet called");
+      await updateTelemetrySheet(latestTelemetryData); //send the  data.
+    }
+    catch (e) {
+      console.error("Error in sending data to sheet", e);
+    }
   }
-  else{
-    console.log("Not updating sheet. isOnline: ", isOnline, " data available: ", Object.keys(latestTelemetryData).length > 0 );
+  else {
+    console.log("Not updating sheet. isOnline: ", isOnline, " data available: ", Object.keys(latestTelemetryData).length > 0);
   }
 }
 
@@ -497,6 +501,7 @@ async function main() {
     await authenticate(); // Authenticate with Google Sheets API
     await readReferenceData(); //read reference data
     targetCarNumber = await readTargetCarNumber();
+    console.log(`Target car number: ${targetCarNumber}`); // Log the target car number
 
 
     client = net.connect({ host: TCP_HOST, port: TCP_PORT }, () => {
@@ -511,6 +516,7 @@ async function main() {
 
     client.on('data', async (data) => { // Make the callback async to use await
       buffer += data.toString(); // Append data to the buffer
+      console.log(`Received data from TCP server: ${data.toString().substring(0, 50)}...`); // Log received data
 
       // Process the buffer for complete XML messages
       let messageEndIndex;
@@ -544,18 +550,18 @@ async function main() {
       }
     });
 
-    client.on('end', () => { // Fix: Change 'client' to 'server'
+    client.on('end', () => {
       console.log('Disconnected from server');
     });
 
-    client.on('error', (err) => { // Fix: Change 'client' to 'server'
+    client.on('error', (err) => {
       console.error('Socket error:', err);
       // Consider implementing a reconnection strategy here (e.g., with a delay).
       client.destroy();
       setTimeout(main, 5000); // Reconnect after 5 seconds
     });
 
-    client.on('close', () => { // Fix: Change 'client' to 'server'
+    client.on('close', () => {
       console.log('Socket closed');
     });
 
@@ -565,6 +571,7 @@ async function main() {
         const onlineStatus = await checkOnlineStatusAndUpdateHeartbeat(); // Await the result
         if (onlineStatus) {
           targetCarNumber = await readTargetCarNumber(); // Read target car number
+          console.log(`Target car number: ${targetCarNumber}`);
           if (!onlineCheckInterval) {
             onlineCheckInterval = setInterval(periodicUpdateTelemetrySheet, 250); // Update sheet every 250ms if online
           }
