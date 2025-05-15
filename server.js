@@ -33,6 +33,7 @@ let isOnline = false;
  */
 async function authenticate() {
   try {
+    console.log('Authenticating with Google Sheets API...');
     googleAuthClient = new JWT({
       keyFile: GOOGLE_SERVICE_ACCOUNT_KEY_PATH,
       scopes: ['https://www.googleapis.com/auth/spreadsheets'],
@@ -51,6 +52,7 @@ async function authenticate() {
  */
 async function readTargetCarNumber() {
   try {
+    console.log('Reading target car number from Google Sheet...');
     const response = await sheets.spreadsheets.values.get({ // Use the 'sheets' object
       spreadsheetId: SPREADSHEET_ID,
       range: `${TARGET_CAR_SHEET_NAME}!${TARGET_CAR_CELL}`,
@@ -76,6 +78,7 @@ async function readTargetCarNumber() {
  */
 async function readReferenceData() {
   try {
+    console.log('Reading reference data from Google Sheet...');
     referenceData = {
       drivers: {},
       tireImages: {},
@@ -157,6 +160,7 @@ function getOrdinal(n) {
  */
 async function updateTelemetrySheet(telemetryData) {
   try {
+    console.log('Updating telemetry data in Google Sheet...');
     const sheet = await sheets.spreadsheets.getSheetByName(TELEMETRY_SHEET_NAME);
     if (!sheet) {
       const ss = await sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID });
@@ -187,7 +191,7 @@ async function updateTelemetrySheet(telemetryData) {
     for (let i = 1; i <= 5; i++) {
       brakePctBools.push(telemetryData.brake > (MAX_BRAKE * i / 10));
     }
-    const headshotUrl = referenceData[telemetryData.carNumber] ? referenceData[telemetryData.carNumber].headshot : '';
+    const headshotUrl = referenceData[telemetryData.carNumber] ? referenceData.drivers[telemetryData.carNumber].headshot : '';
     const rpmImgUrls = [
       rpmPctBools[0] ? referenceData.indicatorImages['RPM 10%'] || '' : referenceData.indicatorImages['RPM 0%'] || '', // K2
       rpmPctBools[1] ? referenceData.indicatorImages['RPM 20%'] || '' : referenceData.indicatorImages['RPM 0%'] || '', // K3
@@ -197,11 +201,11 @@ async function updateTelemetrySheet(telemetryData) {
       rpmPctBools[5] ? referenceData.indicatorImages['RPM 60%'] || '' : referenceData.indicatorImages['RPM 0%'] || '', // K7
     ];
     const throttleImgUrls = [
-      throttlePctBools[0] ? referenceData.indicatorImages['Throttle 20%'] || '' : referenceData.indicatorImages['Throttle 0%'] || '', // N2
-      throttlePctBools[1] ? referenceData.indicatorImages['Throttle 40%'] || '' : referenceData.indicatorImages['Throttle 0%'] || '', // O2
-      throttlePctBools[2] ? referenceData.indicatorImages['Throttle 60%'] || '' : referenceData.indicatorImages['Throttle 0%'] || '', // P2
-      throttlePctBools[3] ? referenceData.indicatorImages['Throttle 80%'] || '' : referenceData.indicatorImages['Throttle 0%'] || '', // Q2
-      throttlePctBools[4] ? referenceData.indicatorImages['Throttle 100%'] || '' : referenceData.indicatorImages['Throttle 0%'] || '', // R2
+      throttlePctBools[0] ? referenceData.indicatorImages['Throttle 20%'] || '' : referenceData.indicatorImages['Throttle 0%'] || '', // R2
+      throttlePctBools[1] ? referenceData.indicatorImages['Throttle 40%'] || '' : referenceData.indicatorImages['Throttle 0%'] || '', // S2
+      throttlePctBools[2] ? referenceData.indicatorImages['Throttle 60%'] || '' : referenceData.indicatorImages['Throttle 0%'] || '', // T2
+      throttlePctBools[3] ? referenceData.indicatorImages['Throttle 80%'] || '' : referenceData.indicatorImages['Throttle 0%'] || '', // U2
+      throttlePctBools[4] ? referenceData.indicatorImages['Throttle 100%'] || '' : referenceData.indicatorImages['Throttle 0%'] || '', // V2
     ];
     const brakeImgUrls = [
       brakePctBools[0] ? referenceData.indicatorImages['Brake 20%'] || '' : referenceData.indicatorImages['Brake 0%'] || '', // W2
@@ -331,7 +335,7 @@ function processTelemetryMessage(xml) {
         pitStop
       };
       latestTelemetryData = telemetryData;
-
+      console.log("Telemetry data for target car:", telemetryData); // Log the data being processed
     }
     else {
       console.log(`Target car number ${targetCarNumber} not found in Telemetry_Leaderboard`);
@@ -430,13 +434,14 @@ function processDriverMessage(xml) {
  */
 async function checkOnlineStatusAndUpdateHeartbeat() {
   try {
+    console.log('Checking online status and updating heartbeat...');
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
       range: `${CONTROLLER_SHEET_NAME}!${ONLINE_CHECKBOX_CELL}`,
     });
 
     const values = response.data.values;
-    const isOnline = values && values.length > 0 && values[0].length > 0 && values[0][0] === 'TRUE'; // Check if the checkbox is TRUE
+    isOnline = values && values.length > 0 && values[0].length > 0 && values[0][0] === 'TRUE'; // Check if the checkbox is TRUE
     console.log(`Online status from sheet: ${isOnline}`);
 
     if (isOnline) {
@@ -471,13 +476,17 @@ let onlineCheckInterval;
  * Function to periodically update the Google Sheet with telemetry data.
  */
 async function periodicUpdateTelemetrySheet() {
-  if (Object.keys(latestTelemetryData).length > 0) {
+  if (isOnline && Object.keys(latestTelemetryData).length > 0) {
     try{
-        await updateTelemetrySheet(latestTelemetryData); //send the first car.
+        console.log("periodicUpdateTelemetrySheet called")
+        await updateTelemetrySheet(latestTelemetryData); //send the  data.
      }
      catch(e){
        console.error("Error in sending data to sheet", e);
      }
+  }
+  else{
+    console.log("Not updating sheet. isOnline: ", isOnline, " data available: ", Object.keys(latestTelemetryData).length > 0 )
   }
 }
 
@@ -489,18 +498,24 @@ async function main() {
   await authenticate(); // Authenticate with Google Sheets API
   await readReferenceData(); //read reference data
   targetCarNumber = await readTargetCarNumber();
+  const onlineStatus = await checkOnlineStatusAndUpdateHeartbeat();
 
-  const server = net.connect({ host: TCP_HOST, port: TCP_PORT }, () => {
+  if (onlineStatus) {
+    onlineCheckInterval = setInterval(periodicUpdateTelemetrySheet, 250);
+  }
+
+
+  client = net.connect({ host: TCP_HOST, port: TCP_PORT }, () => {
     console.log(`Connected to ${TCP_HOST}:${TCP_PORT}`); // Log connection
   });
 
-  server.on('connect', () => {
+  client.on('connect', () => {
     console.log(`Successfully connected to TCP server at ${TCP_HOST}:${TCP_PORT}`);
   });
 
   let buffer = ''; // Buffer to accumulate data
 
-  server.on('data', async (data) => { // Make the callback async to use await
+  client.on('data', async (data) => { // Make the callback async to use await
     buffer += data.toString(); // Append data to the buffer
 
     // Process the buffer for complete XML messages
@@ -550,28 +565,26 @@ async function main() {
     console.log('Socket closed');
   });
 
-  // Initial call and set interval
-  const isOnline = await checkOnlineStatusAndUpdateHeartbeat();
-  if (isOnline) {
-    targetCarNumber = await readTargetCarNumber(); //read target car number
-     onlineCheckInterval = setInterval(periodicUpdateTelemetrySheet, 250);
-  }
-
-  setInterval(async () => {
-    const onlineStatus = await checkOnlineStatusAndUpdateHeartbeat(); // Await the result
-    if (onlineStatus) {
-      if (!onlineCheckInterval) {
-        targetCarNumber = await readTargetCarNumber();
-        onlineCheckInterval = setInterval(periodicUpdateTelemetrySheet, 250); // Update sheet every 250ms if online
+  // Check online status, read target car, and process data
+  setInterval(async () => { // Changed to an arrow function
+    try {
+      const onlineStatus = await checkOnlineStatusAndUpdateHeartbeat(); // Await the result
+      if (onlineStatus) {
+        targetCarNumber = await readTargetCarNumber(); // Read target car number
+        if (!onlineCheckInterval) {
+          onlineCheckInterval = setInterval(periodicUpdateTelemetrySheet, 250); // Update sheet every 250ms if online
+        }
+      } else {
+        // Clear the interval if offline
+        if (onlineCheckInterval) {
+          clearInterval(onlineCheckInterval);
+          onlineCheckInterval = null;
+          latestTelemetryData = {};
+        }
+        console.log('Offline: Stopping data updates.');
       }
-    } else {
-      //clear interval
-      if(onlineCheckInterval){
-        clearInterval(onlineCheckInterval);
-        onlineCheckInterval = null;
-        latestTelemetryData = {};
-      }
-      console.log('Offline: Stopping data updates.');
+    } catch (error) {
+      console.error("Error in main interval:", error);
     }
   }, 5000); // Check every 5 seconds
 }
@@ -581,3 +594,4 @@ main().catch(error => {
   console.error('Application failed to start:', error);
   //  Handle the error appropriately (e.g., exit, try to reconnect, send an alert).
 });
+
