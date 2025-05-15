@@ -19,13 +19,14 @@ const TARGET_CAR_CELL = 'B5';    // Cell containing the target car
 let client;
 let xmlParser = new xml2js.Parser({ explicitRoot: false, ignoreAttributes: false, trim: true });
 let googleAuthClient;
-let sheets;
+let sheets;  // Store the sheets object
 let targetCarNumber;
 let referenceData = {}; // Store reference data from the sheet
 const MAX_RPM = 12000;
 const MAX_THROTTLE = 100;
 const MAX_BRAKE = 100;
 let onlineCheckInterval; // To store the interval ID
+let isOnline = false;
 
 /**
  * Function to authenticate with the Google Sheets API using a service account.
@@ -37,7 +38,7 @@ async function authenticate() {
       scopes: ['https://www.googleapis.com/auth/spreadsheets'],
     });
     await googleAuthClient.authorize();
-    sheets = google.sheets({ version: 'v4', auth: googleAuthClient });
+    sheets = google.sheets({ version: 'v4', auth: googleAuthClient }); // Store the sheets object here!!!
     console.log('Successfully authenticated with Google Sheets API.');
   } catch (error) {
     console.error('Error authenticating with Google Sheets API:', error);
@@ -50,7 +51,7 @@ async function authenticate() {
  */
 async function readTargetCarNumber() {
   try {
-    const response = await sheets.spreadsheets.values.get({
+    const response = await sheets.spreadsheets.values.get({ // Use the 'sheets' object
       spreadsheetId: SPREADSHEET_ID,
       range: `${TARGET_CAR_SHEET_NAME}!${TARGET_CAR_CELL}`,
     });
@@ -329,9 +330,7 @@ function processTelemetryMessage(xml) {
         headshot,
         pitStop
       };
-      //updateTelemetrySheet(telemetryData); // REMOVE THIS LINE
-      // Instead of calling updateTelemetrySheet here, we store the latest data.
-      latestTelemetryData[carNumber] = telemetryData;
+      latestTelemetryData = telemetryData;
 
     }
     else {
@@ -438,18 +437,24 @@ async function checkOnlineStatusAndUpdateHeartbeat() {
 
     const values = response.data.values;
     const isOnline = values && values.length > 0 && values[0].length > 0 && values[0][0] === 'TRUE'; // Check if the checkbox is TRUE
+    console.log(`Online status from sheet: ${isOnline}`);
 
     if (isOnline) {
       console.log('Online checkbox is TRUE.  Updating heartbeat.');
       // Update the heartbeat cell (e.g., set it to the current timestamp)
-      await sheets.spreadsheets.values.update({
-        spreadsheetId: SPREADSHEET_ID,
-        range: `${CONTROLLER_SHEET_NAME}!A2`, // Example:  Update cell A2 with the heartbeat
-        valueInputOption: 'RAW',
-        resource: {
-          values: [[new Date().toISOString()]],
-        },
-      });
+      try{
+        await sheets.spreadsheets.values.update({
+          spreadsheetId: SPREADSHEET_ID,
+          range: `${CONTROLLER_SHEET_NAME}!A2`, // Example:  Update cell A2 with the heartbeat
+          valueInputOption: 'RAW',
+          resource: {
+            values: [[new Date().toISOString()]],
+          },
+        });
+       }
+       catch(e){
+        console.error("Error updating heartbeat: ", e);
+       }
       return true;
     } else {
       console.log('Online checkbox is FALSE.  Not processing data.');
@@ -461,13 +466,18 @@ async function checkOnlineStatusAndUpdateHeartbeat() {
   }
 }
 
-let latestTelemetryData = {};
+let onlineCheckInterval;
 /**
  * Function to periodically update the Google Sheet with telemetry data.
  */
 async function periodicUpdateTelemetrySheet() {
   if (Object.keys(latestTelemetryData).length > 0) {
-        await updateTelemetrySheet(Object.values(latestTelemetryData)[0]); //send the first car.
+    try{
+        await updateTelemetrySheet(latestTelemetryData); //send the first car.
+     }
+     catch(e){
+       console.error("Error in sending data to sheet", e);
+     }
   }
 }
 
@@ -478,18 +488,19 @@ async function periodicUpdateTelemetrySheet() {
 async function main() {
   await authenticate(); // Authenticate with Google Sheets API
   await readReferenceData(); //read reference data
+  targetCarNumber = await readTargetCarNumber();
 
-  client = net.connect({ host: TCP_HOST, port: TCP_PORT }, () => {
+  const server = net.connect({ host: TCP_HOST, port: TCP_PORT }, () => {
     console.log(`Connected to ${TCP_HOST}:${TCP_PORT}`); // Log connection
   });
 
-  client.on('connect', () => {
+  server.on('connect', () => {
     console.log(`Successfully connected to TCP server at ${TCP_HOST}:${TCP_PORT}`);
   });
 
   let buffer = ''; // Buffer to accumulate data
 
-  client.on('data', async (data) => { // Make the callback async to use await
+  server.on('data', async (data) => { // Make the callback async to use await
     buffer += data.toString(); // Append data to the buffer
 
     // Process the buffer for complete XML messages
@@ -516,25 +527,6 @@ async function main() {
           } else if (result.Pit_Summary) {
             processPitSummaryMessage(result.Pit_Summary);
           }
-          //  Add this block to update the target car and online status
-          else if (result.Controller) {
-            const isOnline = await checkOnlineStatusAndUpdateHeartbeat();
-            targetCarNumber = await readTargetCarNumber(); //read target car number
-            if (isOnline) {
-              console.log(`Controller message: Online status: ${isOnline}, Target Car: ${targetCarNumber}`);
-              // Start the interval if online
-              if (!onlineCheckInterval) {
-                onlineCheckInterval = setInterval(periodicUpdateTelemetrySheet, 250); // Update sheet every 250ms
-              }
-            } else {
-              // Clear the interval if offline
-              if (onlineCheckInterval) {
-                clearInterval(onlineCheckInterval);
-                onlineCheckInterval = null;
-              }
-            }
-
-          }
           // Ignore other message types
         } catch (error) {
           console.error('Error processing XML message:', error, 'Message:', message);
@@ -543,36 +535,43 @@ async function main() {
     }
   });
 
-  client.on('end', () => {
+  server.on('end', () => {
     console.log('Disconnected from server');
   });
 
-  client.on('error', (err) => {
+  server.on('error', (err) => {
     console.error('Socket error:', err);
     // Consider implementing a reconnection strategy here (e.g., with a delay).
-    client.destroy();
+    server.destroy();
     setTimeout(main, 5000); // Reconnect after 5 seconds
   });
 
-  client.on('close', () => {
+  server.on('close', () => {
     console.log('Socket closed');
   });
 
-  // Main loop: Check online status, read target car, and process data
+  // Initial call and set interval
+  const isOnline = await checkOnlineStatusAndUpdateHeartbeat();
+  if (isOnline) {
+    targetCarNumber = await readTargetCarNumber(); //read target car number
+     onlineCheckInterval = setInterval(periodicUpdateTelemetrySheet, 250);
+  }
+
   setInterval(async () => {
-    const isOnline = await checkOnlineStatusAndUpdateHeartbeat();
-    if (isOnline) {
-      targetCarNumber = await readTargetCarNumber(); // Read target car number.
-      if (!onlineCheckInterval)
-      {
-         onlineCheckInterval = setInterval(periodicUpdateTelemetrySheet, 250);
+    const onlineStatus = await checkOnlineStatusAndUpdateHeartbeat(); // Await the result
+    if (onlineStatus) {
+      if (!onlineCheckInterval) {
+        targetCarNumber = await readTargetCarNumber();
+        onlineCheckInterval = setInterval(periodicUpdateTelemetrySheet, 250); // Update sheet every 250ms if online
       }
-    }
-    else{
-       if (onlineCheckInterval) {
-          clearInterval(onlineCheckInterval);
-          onlineCheckInterval = null;
-        }
+    } else {
+      //clear interval
+      if(onlineCheckInterval){
+        clearInterval(onlineCheckInterval);
+        onlineCheckInterval = null;
+        latestTelemetryData = {};
+      }
+      console.log('Offline: Stopping data updates.');
     }
   }, 5000); // Check every 5 seconds
 }
@@ -582,4 +581,3 @@ main().catch(error => {
   console.error('Application failed to start:', error);
   //  Handle the error appropriately (e.g., exit, try to reconnect, send an alert).
 });
-
