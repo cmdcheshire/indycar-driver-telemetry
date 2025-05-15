@@ -25,7 +25,7 @@ let referenceData = {}; // Store reference data from the sheet
 const MAX_RPM = 12000;
 const MAX_THROTTLE = 100;
 const MAX_BRAKE = 100;
-let onlineCheckInterval; // To store the interval ID
+let onlineCheckInterval; // To store the interval ID - Declare it only once!
 let isOnline = false;
 
 /**
@@ -471,13 +471,14 @@ async function checkOnlineStatusAndUpdateHeartbeat() {
   }
 }
 
+let onlineCheckInterval;
 /**
  * Function to periodically update the Google Sheet with telemetry data.
  */
 async function periodicUpdateTelemetrySheet() {
   if (isOnline && Object.keys(latestTelemetryData).length > 0) {
     try{
-        console.log("periodicUpdateTelemetrySheet called")
+        console.log("periodicUpdateTelemetrySheet called");
         await updateTelemetrySheet(latestTelemetryData); //send the  data.
      }
      catch(e){
@@ -485,7 +486,7 @@ async function periodicUpdateTelemetrySheet() {
      }
   }
   else{
-    console.log("Not updating sheet. isOnline: ", isOnline, " data available: ", Object.keys(latestTelemetryData).length > 0 )
+    console.log("Not updating sheet. isOnline: ", isOnline, " data available: ", Object.keys(latestTelemetryData).length > 0 );
   }
 }
 
@@ -494,103 +495,99 @@ async function periodicUpdateTelemetrySheet() {
  * Main function to connect to the TCP socket, receive data, and process it.
  */
 async function main() {
-  await authenticate(); // Authenticate with Google Sheets API
-  await readReferenceData(); //read reference data
-  targetCarNumber = await readTargetCarNumber();
-  const onlineStatus = await checkOnlineStatusAndUpdateHeartbeat();
-
-  if (onlineStatus) {
-    onlineCheckInterval = setInterval(periodicUpdateTelemetrySheet, 250);
-  }
+  try {
+    await authenticate(); // Authenticate with Google Sheets API
+    await readReferenceData(); //read reference data
+    targetCarNumber = await readTargetCarNumber();
 
 
-  client = net.connect({ host: TCP_HOST, port: TCP_PORT }, () => {
-    console.log(`Connected to ${TCP_HOST}:${TCP_PORT}`); // Log connection
-  });
+    client = net.connect({ host: TCP_HOST, port: TCP_PORT }, () => {
+      console.log(`Connected to ${TCP_HOST}:${TCP_PORT}`); // Log connection
+    });
 
-  client.on('connect', () => {
-    console.log(`Successfully connected to TCP server at ${TCP_HOST}:${TCP_PORT}`);
-  });
+    client.on('connect', () => {
+      console.log(`Successfully connected to TCP server at ${TCP_HOST}:${TCP_PORT}`);
+    });
 
-  let buffer = ''; // Buffer to accumulate data
+    let buffer = ''; // Buffer to accumulate data
 
-  client.on('data', async (data) => { // Make the callback async to use await
-    buffer += data.toString(); // Append data to the buffer
+    client.on('data', async (data) => { // Make the callback async to use await
+      buffer += data.toString(); // Append data to the buffer
 
-    // Process the buffer for complete XML messages
-    let messageEndIndex;
-    while ((messageEndIndex = buffer.indexOf('</')) >= 0) {
-      const message = buffer.substring(0, messageEndIndex + 3);
-      buffer = buffer.substring(messageEndIndex + 3);
+      // Process the buffer for complete XML messages
+      let messageEndIndex;
+      while ((messageEndIndex = buffer.indexOf('</')) >= 0) {
+        const message = buffer.substring(0, messageEndIndex + 3);
+        buffer = buffer.substring(messageEndIndex + 3);
 
-      // Parse the XML message
-      xmlParser.parseString(message, async (err, result) => { // Make this callback async
-        if (err) {
-          console.error('Error parsing XML:', err, 'Message:', message);
-          return; // Skip this message and continue
-        }
-        if (!result) {
-          console.error('Error: result is null', 'Message:', message);
-          return;
-        }
-
-        // Process the message based on its type.
-        try {
-          if (result.Telemetry_Leaderboard) {
-            processTelemetryMessage(result.Telemetry_Leaderboard);
-          } else if (result.Pit_Summary) {
-            processPitSummaryMessage(result.Pit_Summary);
+        // Parse the XML message
+        xmlParser.parseString(message, async (err, result) => { // Make this callback async
+          if (err) {
+            console.error('Error parsing XML:', err, 'Message:', message);
+            return; // Skip this message and continue
           }
-          // Ignore other message types
-        } catch (error) {
-          console.error('Error processing XML message:', error, 'Message:', message);
-        }
-      });
-    }
-  });
+          if (!result) {
+            console.error('Error: result is null', 'Message:', message);
+            return;
+          }
 
-  server.on('end', () => {
-    console.log('Disconnected from server');
-  });
-
-  server.on('error', (err) => {
-    console.error('Socket error:', err);
-    // Consider implementing a reconnection strategy here (e.g., with a delay).
-    server.destroy();
-    setTimeout(main, 5000); // Reconnect after 5 seconds
-  });
-
-  server.on('close', () => {
-    console.log('Socket closed');
-  });
-
-  // Check online status, read target car, and process data
-  setInterval(async () => { // Changed to an arrow function
-    try {
-      const onlineStatus = await checkOnlineStatusAndUpdateHeartbeat(); // Await the result
-      if (onlineStatus) {
-        targetCarNumber = await readTargetCarNumber(); // Read target car number
-        if (!onlineCheckInterval) {
-          onlineCheckInterval = setInterval(periodicUpdateTelemetrySheet, 250); // Update sheet every 250ms if online
-        }
-      } else {
-        // Clear the interval if offline
-        if (onlineCheckInterval) {
-          clearInterval(onlineCheckInterval);
-          onlineCheckInterval = null;
-          latestTelemetryData = {};
-        }
-        console.log('Offline: Stopping data updates.');
+          // Process the message based on its type.
+          try {
+            if (result.Telemetry_Leaderboard) {
+              processTelemetryMessage(result.Telemetry_Leaderboard);
+            } else if (result.Pit_Summary) {
+              processPitSummaryMessage(result.Pit_Summary);
+            }
+            // Ignore other message types
+          } catch (error) {
+            console.error('Error processing XML message:', error, 'Message:', message);
+          }
+        });
       }
-    } catch (error) {
-      console.error("Error in main interval:", error);
-    }
-  }, 5000); // Check every 5 seconds
+    });
+
+    server.on('end', () => {
+      console.log('Disconnected from server');
+    });
+
+    server.on('error', (err) => {
+      console.error('Socket error:', err);
+      // Consider implementing a reconnection strategy here (e.g., with a delay).
+      server.destroy();
+      setTimeout(main, 5000); // Reconnect after 5 seconds
+    });
+
+    server.on('close', () => {
+      console.log('Socket closed');
+    });
+
+    // Main loop: Check online status, read target car, and process data
+    onlineCheckInterval = setInterval(async () => { // Changed to an arrow function and assigned to the global variable
+      try {
+        const onlineStatus = await checkOnlineStatusAndUpdateHeartbeat(); // Await the result
+        if (onlineStatus) {
+          targetCarNumber = await readTargetCarNumber(); // Read target car number
+          if (!onlineCheckInterval) {
+            onlineCheckInterval = setInterval(periodicUpdateTelemetrySheet, 250); // Update sheet every 250ms if online
+          }
+        } else {
+          // Clear the interval if offline
+          if (onlineCheckInterval) {
+            clearInterval(onlineCheckInterval);
+            onlineCheckInterval = null;
+            latestTelemetryData = {};
+          }
+          console.log('Offline: Stopping data updates.');
+        }
+      } catch (error) {
+        console.error("Error in main interval:", error);
+      }
+    }, 5000); // Check every 5 seconds
+  } catch (error) {
+    console.error('Application failed to start:', error);
+    //  Handle the error appropriately (e.g., exit, try to reconnect, send an alert).
+  }
 }
 
 // Start the application.
-main().catch(error => {
-  console.error('Application failed to start:', error);
-  //  Handle the error appropriately (e.g., exit, try to reconnect, send an alert).
-});
-
+main();
