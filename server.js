@@ -1,7 +1,7 @@
 const net = require('net');
 const xml2js = require('xml2js');
 const { google } = require('googleapis');
-const { JWT } = require('google-auth-library');
+const { JWT } from 'google-auth-library');
 
 // Constants - REPLACE THESE WITH YOUR ACTUAL VALUES
 const TCP_HOST = '18.236.162.180';
@@ -489,7 +489,7 @@ async function main() {
 
   let buffer = ''; // Buffer to accumulate data
 
-  server.on('data', async (data) => { // Make the callback async to use await
+  client.on('data', async (data) => { // Make the callback async to use await
     buffer += data.toString(); // Append data to the buffer
 
     // Process the buffer for complete XML messages
@@ -543,18 +543,18 @@ async function main() {
     }
   });
 
-  server.on('end', () => {
+  client.on('end', () => {
     console.log('Disconnected from server');
   });
 
-  server.on('error', (err) => {
+  client.on('error', (err) => {
     console.error('Socket error:', err);
     // Consider implementing a reconnection strategy here (e.g., with a delay).
-    server.destroy();
+    client.destroy();
     setTimeout(main, 5000); // Reconnect after 5 seconds
   });
 
-  server.on('close', () => {
+  client.on('close', () => {
     console.log('Socket closed');
   });
 
@@ -582,3 +582,4 @@ main().catch(error => {
   console.error('Application failed to start:', error);
   //  Handle the error appropriately (e.g., exit, try to reconnect, send an alert).
 });
+
