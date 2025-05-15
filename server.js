@@ -470,8 +470,6 @@ async function checkOnlineStatusAndUpdateHeartbeat() {
     return false; // Assume offline in case of error to prevent further processing
   }
 }
-
-let onlineCheckInterval;
 /**
  * Function to periodically update the Google Sheet with telemetry data.
  */
