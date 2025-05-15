@@ -497,12 +497,12 @@ async function periodicUpdateTelemetrySheet() {
  */
 async function main() {
   try {
-    /*
+    
     await authenticate(); // Authenticate with Google Sheets API
     await readReferenceData(); //read reference data
     targetCarNumber = await readTargetCarNumber();
     console.log(`Target car number: ${targetCarNumber}`); // Log the target car number
-    */
+    
     client = net.connect({ host: TCP_HOST, port: TCP_PORT }, () => {
       console.log(`Connected to ${TCP_HOST}:${TCP_PORT}`); // Log connection
     });
@@ -512,7 +512,7 @@ async function main() {
     });
     
     console.log(client);
-    /*
+    
     let buffer = ''; // Buffer to accumulate data
 
     client.on('data', async (data) => { // Make the callback async to use await
