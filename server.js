@@ -550,7 +550,7 @@ async function main() {
         });
       }
     });
-    */
+    
     client.on('end', () => {
       console.log('Disconnected from server');
     });
