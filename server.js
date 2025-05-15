@@ -36,7 +36,7 @@ async function authenticate() {
       scopes: ['https://www.googleapis.com/auth/spreadsheets'],
     });
     await googleAuthClient.authorize();
-    sheets = google.sheets({ version: 'v4', auth: googleAuthClient: });
+    sheets = google.sheets({ version: 'v4', auth: googleAuthClient });
     console.log('Successfully authenticated with Google Sheets API.');
   } catch (error) {
     console.error('Error authenticating with Google Sheets API:', error);
