@@ -5,7 +5,7 @@ const { JWT } = require('google-auth-library');
 
 // Constants - REPLACE THESE WITH YOUR ACTUAL VALUES
 const TCP_HOST = '52.38.150.236';
-const TCP_PORT = '5000';
+const TCP_PORT = 5000;
 const SPREADSHEET_ID = '1UIpgq72cvEUT-qvEB4gmwDjvFU4CDIXf2rllNseYEUM';
 const GOOGLE_SERVICE_ACCOUNT_KEY_PATH = 'indycar-live-data-8bbb32c95e6b.json';
 const TARGET_CAR_SHEET_NAME = 'Live Data Controller'; // Sheet containing the target car number and online checkbox
@@ -497,28 +497,22 @@ async function periodicUpdateTelemetrySheet() {
  */
 async function main() {
   try {
+    /*
     await authenticate(); // Authenticate with Google Sheets API
     await readReferenceData(); //read reference data
     targetCarNumber = await readTargetCarNumber();
     console.log(`Target car number: ${targetCarNumber}`); // Log the target car number
 
     client = net.connect({ host: TCP_HOST, port: TCP_PORT }, () => {
-        console.log(`Connected to ${TCP_HOST}:${TCP_PORT}`);
-      })
-      .on('error', (err) => {
-        console.error('Error connecting to TCP server:', err);
-        // Handle the error appropriately:
-        // 1.  Retry the connection (with a delay).
-        // 2.  Terminate the application.
-        // 3.  Notify the user.
+      console.log(`Connected to ${TCP_HOST}:${TCP_PORT}`); // Log connection
     });
-
+    */
     client.on('connect', () => {
       console.log(`Successfully connected to TCP server at ${TCP_HOST}:${TCP_PORT}`);
     });
     
     console.log(client);
-    
+    /*
     let buffer = ''; // Buffer to accumulate data
 
     client.on('data', async (data) => { // Make the callback async to use await
@@ -556,7 +550,7 @@ async function main() {
         });
       }
     });
-
+    */
     client.on('end', () => {
       console.log('Disconnected from server');
     });
