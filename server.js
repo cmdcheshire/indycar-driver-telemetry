@@ -506,7 +506,7 @@ async function main() {
 
     client = client.connect({ host: TCP_HOST, port: TCP_PORT }, () => {
       console.log(`Connected to ${TCP_HOST}:${TCP_PORT}`); // Log connection
-    }
+    });
 
     client.on('connect', () => {
       console.log(`Successfully connected to TCP server at ${TCP_HOST}:${TCP_PORT}`);
