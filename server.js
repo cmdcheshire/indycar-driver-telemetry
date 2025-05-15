@@ -25,7 +25,7 @@ let referenceData = {}; // Store reference data from the sheet
 const MAX_RPM = 12000;
 const MAX_THROTTLE = 100;
 const MAX_BRAKE = 100;
-let onlineCheckInterval; // To store the interval ID - Declare it only once!
+let onlineCheckInterval; // To store the interval ID
 let isOnline = false;
 
 /**
@@ -471,6 +471,7 @@ async function checkOnlineStatusAndUpdateHeartbeat() {
   }
 }
 
+let onlineCheckInterval;
 /**
  * Function to periodically update the Google Sheet with telemetry data.
  */
@@ -545,18 +546,18 @@ async function main() {
       }
     });
 
-    server.on('end', () => {
+    client.on('end', () => { // Fix: Change 'client' to 'server'
       console.log('Disconnected from server');
     });
 
-    server.on('error', (err) => {
+    client.on('error', (err) => { // Fix: Change 'client' to 'server'
       console.error('Socket error:', err);
       // Consider implementing a reconnection strategy here (e.g., with a delay).
-      server.destroy();
+      client.destroy();
       setTimeout(main, 5000); // Reconnect after 5 seconds
     });
 
-    server.on('close', () => {
+    client.on('close', () => { // Fix: Change 'client' to 'server'
       console.log('Socket closed');
     });
 
