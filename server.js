@@ -1,7 +1,7 @@
 const net = require('net');
 const xml2js = require('xml2js');
 const { google } = require('googleapis');
-const { JWT } from 'google-auth-library');
+const { JWT } = require('google-auth-library');
 
 // Constants - REPLACE THESE WITH YOUR ACTUAL VALUES
 const TCP_HOST = '18.236.162.180';
