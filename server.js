@@ -25,6 +25,7 @@ let referenceData = {}; // Store reference data from the sheet
 const MAX_RPM = 12000;
 const MAX_THROTTLE = 100;
 const MAX_BRAKE = 100;
+let onlineCheckInterval; // To store the interval ID
 
 /**
  * Function to authenticate with the Google Sheets API using a service account.
@@ -72,7 +73,7 @@ async function readTargetCarNumber() {
 /**
  * Function to read reference data (headshot URLs, pct images) from the Google Sheet.
  */
- async function readReferenceData() {
+async function readReferenceData() {
   try {
     referenceData = {
       drivers: {},
@@ -328,7 +329,10 @@ function processTelemetryMessage(xml) {
         headshot,
         pitStop
       };
-      updateTelemetrySheet(telemetryData);
+      //updateTelemetrySheet(telemetryData); // REMOVE THIS LINE
+      // Instead of calling updateTelemetrySheet here, we store the latest data.
+      latestTelemetryData[carNumber] = telemetryData;
+
     }
     else {
       console.log(`Target car number ${targetCarNumber} not found in Telemetry_Leaderboard`);
@@ -457,6 +461,16 @@ async function checkOnlineStatusAndUpdateHeartbeat() {
   }
 }
 
+let latestTelemetryData = {};
+/**
+ * Function to periodically update the Google Sheet with telemetry data.
+ */
+async function periodicUpdateTelemetrySheet() {
+  if (Object.keys(latestTelemetryData).length > 0) {
+        await updateTelemetrySheet(Object.values(latestTelemetryData)[0]); //send the first car.
+  }
+}
+
 
 /**
  * Main function to connect to the TCP socket, receive data, and process it.
@@ -465,13 +479,17 @@ async function main() {
   await authenticate(); // Authenticate with Google Sheets API
   await readReferenceData(); //read reference data
 
-  const server = net.connect({ host: TCP_HOST, port: TCP_PORT }, () => {
-    console.log(`Connected to ${TCP_HOST}:${TCP_PORT}`);
+  client = net.connect({ host: TCP_HOST, port: TCP_PORT }, () => {
+    console.log(`Connected to ${TCP_HOST}:${TCP_PORT}`); // Log connection
+  });
+
+  client.on('connect', () => {
+    console.log(`Successfully connected to TCP server at ${TCP_HOST}:${TCP_PORT}`);
   });
 
   let buffer = ''; // Buffer to accumulate data
 
-  server.on('data', (data) => {
+  server.on('data', async (data) => { // Make the callback async to use await
     buffer += data.toString(); // Append data to the buffer
 
     // Process the buffer for complete XML messages
@@ -481,7 +499,7 @@ async function main() {
       buffer = buffer.substring(messageEndIndex + 3);
 
       // Parse the XML message
-      xmlParser.parseString(message, (err, result) => {
+      xmlParser.parseString(message, async (err, result) => { // Make this callback async
         if (err) {
           console.error('Error parsing XML:', err, 'Message:', message);
           return; // Skip this message and continue
@@ -497,6 +515,25 @@ async function main() {
             processTelemetryMessage(result.Telemetry_Leaderboard);
           } else if (result.Pit_Summary) {
             processPitSummaryMessage(result.Pit_Summary);
+          }
+          //  Add this block to update the target car and online status
+          else if (result.Controller) {
+            const isOnline = await checkOnlineStatusAndUpdateHeartbeat();
+            targetCarNumber = await readTargetCarNumber(); //read target car number
+            if (isOnline) {
+              console.log(`Controller message: Online status: ${isOnline}, Target Car: ${targetCarNumber}`);
+              // Start the interval if online
+              if (!onlineCheckInterval) {
+                onlineCheckInterval = setInterval(periodicUpdateTelemetrySheet, 250); // Update sheet every 250ms
+              }
+            } else {
+              // Clear the interval if offline
+              if (onlineCheckInterval) {
+                clearInterval(onlineCheckInterval);
+                onlineCheckInterval = null;
+              }
+            }
+
           }
           // Ignore other message types
         } catch (error) {
@@ -525,11 +562,17 @@ async function main() {
   setInterval(async () => {
     const isOnline = await checkOnlineStatusAndUpdateHeartbeat();
     if (isOnline) {
-      targetCarNumber = await readTargetCarNumber(); // Read target car number
-      if (targetCarNumber) {
-        // Only process if we have a target car number
-        //  No need to read reference data every time, read it once at start.
+      targetCarNumber = await readTargetCarNumber(); // Read target car number.
+      if (!onlineCheckInterval)
+      {
+         onlineCheckInterval = setInterval(periodicUpdateTelemetrySheet, 250);
       }
+    }
+    else{
+       if (onlineCheckInterval) {
+          clearInterval(onlineCheckInterval);
+          onlineCheckInterval = null;
+        }
     }
   }, 5000); // Check every 5 seconds
 }
@@ -539,4 +582,3 @@ main().catch(error => {
   console.error('Application failed to start:', error);
   //  Handle the error appropriately (e.g., exit, try to reconnect, send an alert).
 });
-
