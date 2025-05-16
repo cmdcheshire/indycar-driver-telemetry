@@ -536,9 +536,11 @@ async function main() {
         if ((startIndex = buffer.indexOf(telemetryStart)) === 0 && (endIndex = buffer.indexOf(telemetryEnd)) > 0) {
           message = buffer.substring(startIndex, endIndex + telemetryEnd.length);
           buffer = buffer.substring(endIndex + telemetryEnd.length);
+          console.log(message);
         } else if ((startIndex = buffer.indexOf(pitStart)) === 0 && (endIndex = buffer.indexOf(pitEnd)) > 0) {
           message = buffer.substring(startIndex, endIndex + pitEnd.length);
           buffer = buffer.substring(endIndex + pitEnd.length);
+          console.log(message);
         } else {
           // If a start tag is found but no corresponding end tag at the beginning,
           // or if no start tag is found at the beginning, break the loop to avoid infinite loops.
