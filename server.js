@@ -520,89 +520,87 @@ async function main() {
     let buffer = ''; // Buffer to accumulate data
 
     client.on('data', async (data) => { // Make the callback async to use await
-        console.log('Data received from TCP server.');
-        buffer += data.toString(); // Append data to the buffer
-        console.log(`Received data: ${data.toString().substring(0, 50)}... (Buffer length: ${buffer.length})`);
+      console.log('Data received from TCP server.');
+      buffer += data.toString(); // Append data to the buffer
+      console.log(`Received data: ${data.toString().substring(0, 50)}... (Buffer length: ${buffer.length})`);
 
-        const telemetryStart = '<Telemetry_Leaderboard';
-        const telemetryEnd = '</Telemetry_Leaderboard>';
-        const pitStart = '<Pit_Summary';
-        const pitEnd = '</Pit_Summary>';
+      const telemetryStart = '<Telemetry_Leaderboard';
+      const telemetryEnd = '</Telemetry_Leaderboard>';
+      const pitStart = '<Pit_Summary';
+      const pitEnd = '</Pit_Summary>';
 
-        let message = null;
+      let message = null;
 
-        while (buffer.length > 0) {
-          let telemetryStartIndex = buffer.indexOf(telemetryStart);
-          let pitStartIndex = buffer.indexOf(pitStart);
+      while (buffer.length > 0) {
+        let telemetryStartIndex = buffer.indexOf(telemetryStart);
+        let pitStartIndex = buffer.indexOf(pitStart);
 
-          if (telemetryStartIndex !== -1) {
-            let telemetryEndIndex = buffer.indexOf(telemetryEnd, telemetryStartIndex);
-            if (telemetryEndIndex !== -1) {
-              message = buffer.substring(telemetryStartIndex, telemetryEndIndex + telemetryEnd.length);
-              buffer = buffer.substring(telemetryEndIndex + telemetryEnd.length);
-            } else {
-              break; // Incomplete telemetry message, wait for more data
-            }
-          } else if (pitStartIndex !== -1) {
-            let pitEndIndex = buffer.indexOf(pitEnd, pitStartIndex);
-            if (pitEndIndex !== -1) {
-              message = buffer.substring(pitStartIndex, pitEndIndex + pitEnd.length);
-              buffer = buffer.substring(pitEndIndex + pitEnd.length);
-            } else {
-              break; // Incomplete pit summary message, wait for more data
-            }
+        if (telemetryStartIndex !== -1) {
+          let telemetryEndIndex = buffer.indexOf(telemetryEnd, telemetryStartIndex);
+          if (telemetryEndIndex !== -1) {
+            message = buffer.substring(telemetryStartIndex, telemetryEndIndex + telemetryEnd.length);
+            buffer = buffer.substring(telemetryEndIndex + telemetryEnd.length);
           } else {
-            break; // No recognizable start tag found, exit loop
+            break; // Incomplete telemetry message, wait for more data
           }
-
-          if (message) {
-            console.log(`Found and attempting to parse message: ${message.substring(0, 50)}... (Length: ${message.length})`);
-            xmlParser.parseString(message, async (err, result) => {
-              if (err) {
-                console.error('Error parsing XML. Skipping message:', err, 'Message:', message);
-                return;
-              }
-              if (!result) {
-                console.error('Error: result is null', 'Message:', message);
-                return;
-              }
-
-              try {
-                if (result.Telemetry_Leaderboard && result.Telemetry_Leaderboard.Position) {
-                  const targetCarData = Array.isArray(result.Telemetry_Leaderboard.Position)
-                    ? result.Telemetry_Leaderboard.Position.find(pos => pos.$ && pos.$.Car === targetCarNumber)
-                    : (result.Telemetry_Leaderboard.Position.$ && result.Telemetry_Leaderboard.Position.$.Car === targetCarNumber ? result.Telemetry_Leaderboard.Position : null);
-
-                  if (targetCarData) {
-                    const telemetryForUpdate = {
-                      carNumber: targetCarData.$.Car,
-                      rank: parseInt(targetCarData.$.Rank, 10),
-                      speed: parseFloat(targetCarData.$.speed),
-                      rpm: parseInt(targetCarData.$.rpm, 10),
-                      throttle: parseInt(targetCarData.$.throttle, 10),
-                      brake: parseInt(targetCarData.$.brake, 10),
-                      battery: parseInt(targetCarData.$.Battery_Pct_Remaining, 10),
-                      pitStop: 0, // Placeholder - you might need to get this from Pit_Summary
-                    };
-
-                    // Temporarily log the data before updating the sheet for verification
-                    console.log('Telemetry data for target car found:', telemetryForUpdate);
-                    latestTelemetryData = telemetryForUpdate; // Update the global variable
-                    // The periodicUpdateTelemetrySheet function will now handle updating the sheet
-                  } else {
-                    console.log(`Telemetry data not found for target car number: ${targetCarNumber}`);
-                  }
-                } else if (result.Pit_Summary) {
-                  processPitSummaryMessage(result.Pit_Summary);
-                }
-              } catch (error) {
-                console.error('Error processing XML message:', error, 'Message:', message);
-              }
-            });
-            message = null; // Reset message
+        } else if (pitStartIndex !== -1) {
+          let pitEndIndex = buffer.indexOf(pitEnd, pitStartIndex);
+          if (pitEndIndex !== -1) {
+            message = buffer.substring(pitStartIndex, pitEndIndex + pitEnd.length);
+            buffer = buffer.substring(pitEndIndex + pitEnd.length);
+          } else {
+            break; // Incomplete pit summary message, wait for more data
           }
+        } else {
+          break; // No recognizable start tag found, exit loop
         }
-      });
+
+        if (message) {
+          console.log(`Found and attempting to parse message: ${message.substring(0, 50)}... (Length: ${message.length})`);
+          xmlParser.parseString(message, async (err, result) => {
+            if (err) {
+              console.error('Error parsing XML. Skipping message:', err, 'Message:', message);
+              return;
+            }
+            if (!result) {
+              console.error('Error: result is null', 'Message:', message);
+              return;
+            }
+
+            try {
+              if (result.Position) {
+                const targetCarData = Array.isArray(result.Position)
+                  ? result.Position.find(pos => pos.$ && pos.$.Car === targetCarNumber)
+                  : (result.Position.$ && result.Position.$.Car === targetCarNumber ? result.Position : null);
+
+                if (targetCarData) {
+                  const telemetryForUpdate = {
+                    carNumber: targetCarData.$.Car,
+                    rank: parseInt(targetCarData.$.Rank, 10),
+                    speed: parseFloat(targetCarData.$.speed),
+                    rpm: parseInt(targetCarData.$.rpm, 10),
+                    throttle: parseInt(targetCarData.$.throttle, 10),
+                    brake: parseInt(targetCarData.$.brake, 10),
+                    battery: parseInt(targetCarData.$.Battery_Pct_Remaining, 10),
+                    pitStop: 0, // Placeholder
+                  };
+
+                  console.log('Telemetry data for target car found:', telemetryForUpdate);
+                  latestTelemetryData = telemetryForUpdate;
+                } else {
+                  console.log(`Telemetry data not found for target car number: ${targetCarNumber}`);
+                }
+              } else if (result.Pit_Summary) {
+                processPitSummaryMessage(result.Pit_Summary);
+              }
+            } catch (error) {
+              console.error('Error processing XML message:', error, 'Message:', message);
+            }
+          });
+          message = null; // Reset message
+        }
+      }
+    });
 
     
     client.on('end', () => {
