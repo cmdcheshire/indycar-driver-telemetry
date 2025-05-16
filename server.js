@@ -568,7 +568,7 @@ async function main() {
               }
 
               console.log("result is... ");
-              console.logJ(SON.stringify(result, null, 4));
+              console.log(JSON.stringify(result, null, 4));
       
               try {
                 if (result.Telemetry_Leaderboard) {
