@@ -567,7 +567,8 @@ async function main() {
                 return;
               }
 
-              console.log("result is... " + result);
+              console.log("result is... ");
+              console.log(result);
       
               try {
                 if (result.Telemetry_Leaderboard) {
