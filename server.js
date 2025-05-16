@@ -520,44 +520,57 @@ async function main() {
     let buffer = ''; // Buffer to accumulate data
 
     client.on('data', async (data) => { // Make the callback async to use await
-  buffer += data.toString(); // Append data to the buffer
-  console.log(`Received data from TCP server: ${data.toString().substring(0, 50)}... (Buffer length: ${buffer.length})`); // Log received data and buffer length
-
-  let messageEndIndex;
-  while (
-    (messageEndIndex = buffer.indexOf('</Telemetry_Leaderboard>')) >= 0 ||
-    (messageEndIndex = buffer.indexOf('</Pit_Summary>')) >= 0
-  ) {
-    const message = buffer.substring(0, messageEndIndex + (message.includes('Telemetry_Leaderboard') ? 21 : 12)); // Extract the complete message
-    buffer = buffer.substring(messageEndIndex + (message.includes('Telemetry_Leaderboard') ? 21 : 12)); // Remove the processed message from the buffer
-
-    console.log(`Attempting to parse message: ${message.substring(0, 50)}... (Length: ${message.length})`);
-
-    // Parse the XML message
-    xmlParser.parseString(message, async (err, result) => { // Make this callback async
-      if (err) {
-        console.error('Error parsing XML. Skipping message:', err, 'Message:', message);
-        return; // Skip this message and continue
-      }
-      if (!result) {
-        console.error('Error: result is null', 'Message:', message);
-        return;
-      }
-
-      // Process the message based on its type.
-      try {
-        if (result.Telemetry_Leaderboard) {
-          processTelemetryMessage(result.Telemetry_Leaderboard);
-        } else if (result.Pit_Summary) {
-          processPitSummaryMessage(result.Pit_Summary);
+      buffer += data.toString(); // Append data to the buffer
+      console.log(`Received data from TCP server: ${data.toString().substring(0, 50)}... (Buffer length: ${buffer.length})`); // Log received data and buffer length
+    
+      let messageEndIndex;
+      let message = null; // Initialize message to null
+    
+      while (
+        (messageEndIndex = buffer.indexOf('</Telemetry_Leaderboard>')) >= 0 ||
+        (messageEndIndex = buffer.indexOf('</Pit_Summary>')) >= 0
+      ) {
+        if (buffer.includes('</Telemetry_Leaderboard>') && (buffer.indexOf('</Telemetry_Leaderboard>') <= messageEndIndex || !buffer.includes('</Pit_Summary>'))) {
+          message = buffer.substring(0, buffer.indexOf('</Telemetry_Leaderboard>') + 21);
+          buffer = buffer.substring(buffer.indexOf('</Telemetry_Leaderboard>') + 21);
+        } else if (buffer.includes('</Pit_Summary>')) {
+          message = buffer.substring(0, buffer.indexOf('</Pit_Summary>') + 12);
+          buffer = buffer.substring(buffer.indexOf('</Pit_Summary>') + 12);
+        } else {
+          // This should ideally not happen if the while condition is met, but as a safeguard:
+          break;
         }
-        // Ignore other message types
-      } catch (error) {
-        console.error('Error processing XML message:', error, 'Message:', message);
+    
+        if (message) {
+          console.log(`Attempting to parse message: ${message.substring(0, 50)}... (Length: ${message.length})`);
+    
+          // Parse the XML message
+          xmlParser.parseString(message, async (err, result) => { // Make this callback async
+            if (err) {
+              console.error('Error parsing XML. Skipping message:', err, 'Message:', message);
+              return; // Skip this message and continue
+            }
+            if (!result) {
+              console.error('Error: result is null', 'Message:', message);
+              return;
+            }
+    
+            // Process the message based on its type.
+            try {
+              if (result.Telemetry_Leaderboard) {
+                processTelemetryMessage(result.Telemetry_Leaderboard);
+              } else if (result.Pit_Summary) {
+                processPitSummaryMessage(result.Pit_Summary);
+              }
+              // Ignore other message types
+            } catch (error) {
+              console.error('Error processing XML message:', error, 'Message:', message);
+            }
+          });
+          message = null; // Reset message for the next iteration
+        }
       }
     });
-  }
-});
     
     client.on('end', () => {
       console.log('Disconnected from server');
