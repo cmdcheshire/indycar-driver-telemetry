@@ -567,6 +567,8 @@ async function main() {
               return;
             }
 
+            console.log(JSON.stringify(result));
+
             try {
               if (result.Position) {
                 const targetCarData = Array.isArray(result.Position)
