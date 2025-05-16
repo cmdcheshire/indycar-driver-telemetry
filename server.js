@@ -566,6 +566,8 @@ async function main() {
                 console.error('Error: result is null', 'Message:', message);
                 return;
               }
+
+              console.log("result is... " + result);
       
               try {
                 if (result.Telemetry_Leaderboard) {
