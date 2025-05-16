@@ -593,7 +593,7 @@ async function main() {
                   console.log(`Telemetry data not found for target car number: ${targetCarNumber}`);
                 }
               } else if (result.Pit_Summary) {
-                processPitSummaryMessage(result.Pit_Summary);
+                //processPitSummaryMessage(result.Pit_Summary);
               }
             } catch (error) {
               console.error('Error processing XML message:', error, 'Message:', message);
@@ -620,24 +620,28 @@ async function main() {
       console.log('Socket closed');
     });
 
+    let telemetryUpdateInterval; // Separate variable for the telemetry update interval
+
     // Main loop: Check online status, read target car, and process data
-    onlineCheckInterval = setInterval(async () => { // Changed to an arrow function and assigned to the global variable
+    setInterval(async () => { // Changed to setInterval without assigning to onlineCheckInterval
       try {
         const onlineStatus = await checkOnlineStatusAndUpdateHeartbeat(); // Await the result
         if (onlineStatus) {
           targetCarNumber = await readTargetCarNumber(); // Read target car number
           console.log(`Target car number: ${targetCarNumber}`);
-          if (!onlineCheckInterval) {
-            onlineCheckInterval = setInterval(periodicUpdateTelemetrySheet, 250); // Update sheet every 250ms if online
+          if (!telemetryUpdateInterval) { // Check the telemetry update interval variable
+            telemetryUpdateInterval = setInterval(periodicUpdateTelemetrySheet, 250); // Update sheet every 250ms if online
+            console.log('Telemetry update interval started.');
           }
         } else {
           // Clear the interval if offline
-          if (onlineCheckInterval) {
-            clearInterval(onlineCheckInterval);
-            onlineCheckInterval = null;
+          if (telemetryUpdateInterval) {
+            clearInterval(telemetryUpdateInterval);
+            telemetryUpdateInterval = null;
             latestTelemetryData = {};
+            console.log('Telemetry update interval stopped.');
           }
-          console.log('Offline: Stopping data updates.');
+          console.log('Offline: Not updating sheet.');
         }
       } catch (error) {
         console.error("Error in main interval:", error);
