@@ -520,8 +520,9 @@ async function main() {
     let buffer = ''; // Buffer to accumulate data
 
     client.on('data', async (data) => { // Make the callback async to use await
+      console.log('Data received from TCP server.'); // Check if this handler is being called
       buffer += data.toString(); // Append data to the buffer
-      console.log(`Received data from TCP server: ${data.toString().substring(0, 50)}... (Buffer length: ${buffer.length})`); // Log received data and buffer length
+      console.log(`Received data: ${data.toString().substring(0, 50)}... (Buffer length: ${buffer.length})`); // Log received data and buffer length
     
       const telemetryStart = '<Telemetry_Leaderboard';
       const telemetryEnd = '</Telemetry_Leaderboard>';
@@ -532,24 +533,30 @@ async function main() {
       let endIndex = -1;
       let message = null;
     
+      console.log(`Before while loop - Buffer length: ${buffer.length}`); // Log buffer length before the loop
+    
       while (buffer.length > 0) {
+        console.log(`Inside while loop - Buffer length: ${buffer.length}`); // Log buffer length inside the loop
         if ((startIndex = buffer.indexOf(telemetryStart)) === 0 && (endIndex = buffer.indexOf(telemetryEnd)) > 0) {
           message = buffer.substring(startIndex, endIndex + telemetryEnd.length);
           buffer = buffer.substring(endIndex + telemetryEnd.length);
-          console.log(message);
+          console.log('Telemetry message found and extracted:', message.substring(0, 50) + `... (Length: ${message.length})`);
         } else if ((startIndex = buffer.indexOf(pitStart)) === 0 && (endIndex = buffer.indexOf(pitEnd)) > 0) {
           message = buffer.substring(startIndex, endIndex + pitEnd.length);
           buffer = buffer.substring(endIndex + pitEnd.length);
-          console.log(message);
+          console.log('Pit Summary message found and extracted:', message.substring(0, 50) + `... (Length: ${message.length})`);
         } else {
           // If a start tag is found but no corresponding end tag at the beginning,
           // or if no start tag is found at the beginning, break the loop to avoid infinite loops.
           if (startIndex === 0) {
+            console.log('Start tag found at beginning, but no end tag yet. Breaking loop.');
             break; // Wait for more data to complete the message
           } else if (startIndex > 0) {
+            console.log(`Start tag found at index ${startIndex}. Removing leading data: ${buffer.substring(0, startIndex)}`);
             // Remove any leading incomplete data before the next potential start tag
             buffer = buffer.substring(startIndex);
           } else {
+            console.log('No recognizable start tag at the beginning. Breaking loop.');
             break; // No recognizable start tag at the beginning
           }
         }
@@ -568,8 +575,6 @@ async function main() {
             }
     
             try {
-              console.log("result is...");
-              console.log(result);
               if (result.Telemetry_Leaderboard) {
                 processTelemetryMessage(result.Telemetry_Leaderboard);
               } else if (result.Pit_Summary) {
@@ -583,6 +588,7 @@ async function main() {
         }
       }
     });
+
     
     client.on('end', () => {
       console.log('Disconnected from server');
