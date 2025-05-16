@@ -520,74 +520,67 @@ async function main() {
     let buffer = ''; // Buffer to accumulate data
 
     client.on('data', async (data) => { // Make the callback async to use await
-      console.log('Data received from TCP server.'); // Check if this handler is being called
-      buffer += data.toString(); // Append data to the buffer
-      console.log(`Received data: ${data.toString().substring(0, 50)}... (Buffer length: ${buffer.length})`); // Log received data and buffer length
-    
-      const telemetryStart = '<Telemetry_Leaderboard';
-      const telemetryEnd = '</Telemetry_Leaderboard>';
-      const pitStart = '<Pit_Summary';
-      const pitEnd = '</Pit_Summary>';
-    
-      let startIndex = -1;
-      let endIndex = -1;
-      let message = null;
-    
-      console.log(`Before while loop - Buffer length: ${buffer.length}`); // Log buffer length before the loop
-    
-      while (buffer.length > 0) {
-        console.log(`Inside while loop - Buffer length: ${buffer.length}`); // Log buffer length inside the loop
-        if ((startIndex = buffer.indexOf(telemetryStart)) === 0 && (endIndex = buffer.indexOf(telemetryEnd)) > 0) {
-          message = buffer.substring(startIndex, endIndex + telemetryEnd.length);
-          buffer = buffer.substring(endIndex + telemetryEnd.length);
-          console.log('Telemetry message found and extracted:', message.substring(0, 50) + `... (Length: ${message.length})`);
-        } else if ((startIndex = buffer.indexOf(pitStart)) === 0 && (endIndex = buffer.indexOf(pitEnd)) > 0) {
-          message = buffer.substring(startIndex, endIndex + pitEnd.length);
-          buffer = buffer.substring(endIndex + pitEnd.length);
-          console.log('Pit Summary message found and extracted:', message.substring(0, 50) + `... (Length: ${message.length})`);
-        } else {
-          // If a start tag is found but no corresponding end tag at the beginning,
-          // or if no start tag is found at the beginning, break the loop to avoid infinite loops.
-          if (startIndex === 0) {
-            console.log('Start tag found at beginning, but no end tag yet. Breaking loop.');
-            break; // Wait for more data to complete the message
-          } else if (startIndex > 0) {
-            console.log(`Start tag found at index ${startIndex}. Removing leading data: ${buffer.substring(0, startIndex)}`);
-            // Remove any leading incomplete data before the next potential start tag
-            buffer = buffer.substring(startIndex);
+        console.log('Data received from TCP server.');
+        buffer += data.toString(); // Append data to the buffer
+        console.log(`Received data: ${data.toString().substring(0, 50)}... (Buffer length: ${buffer.length})`);
+      
+        const telemetryStart = '<Telemetry_Leaderboard';
+        const telemetryEnd = '</Telemetry_Leaderboard>';
+        const pitStart = '<Pit_Summary';
+        const pitEnd = '</Pit_Summary>';
+      
+        let message = null;
+      
+        while (buffer.length > 0) {
+          let telemetryStartIndex = buffer.indexOf(telemetryStart);
+          let pitStartIndex = buffer.indexOf(pitStart);
+      
+          if (telemetryStartIndex !== -1) {
+            let telemetryEndIndex = buffer.indexOf(telemetryEnd, telemetryStartIndex);
+            if (telemetryEndIndex !== -1) {
+              message = buffer.substring(telemetryStartIndex, telemetryEndIndex + telemetryEnd.length);
+              buffer = buffer.substring(telemetryEndIndex + telemetryEnd.length);
+            } else {
+              break; // Incomplete telemetry message, wait for more data
+            }
+          } else if (pitStartIndex !== -1) {
+            let pitEndIndex = buffer.indexOf(pitEnd, pitStartIndex);
+            if (pitEndIndex !== -1) {
+              message = buffer.substring(pitStartIndex, pitEndIndex + pitEnd.length);
+              buffer = buffer.substring(pitEndIndex + pitEnd.length);
+            } else {
+              break; // Incomplete pit summary message, wait for more data
+            }
           } else {
-            console.log('No recognizable start tag at the beginning. Breaking loop.');
-            break; // No recognizable start tag at the beginning
+            break; // No recognizable start tag found, exit loop
+          }
+      
+          if (message) {
+            console.log(`Found and attempting to parse message: ${message.substring(0, 50)}... (Length: ${message.length})`);
+            xmlParser.parseString(message, async (err, result) => {
+              if (err) {
+                console.error('Error parsing XML. Skipping message:', err, 'Message:', message);
+                return;
+              }
+              if (!result) {
+                console.error('Error: result is null', 'Message:', message);
+                return;
+              }
+      
+              try {
+                if (result.Telemetry_Leaderboard) {
+                  processTelemetryMessage(result.Telemetry_Leaderboard);
+                } else if (result.Pit_Summary) {
+                  processPitSummaryMessage(result.Pit_Summary);
+                }
+              } catch (error) {
+                console.error('Error processing XML message:', error, 'Message:', message);
+              }
+            });
+            message = null; // Reset message
           }
         }
-    
-        if (message) {
-          console.log(`Attempting to parse message: ${message.substring(0, 50)}... (Length: ${message.length})`);
-    
-          xmlParser.parseString(message, async (err, result) => {
-            if (err) {
-              console.error('Error parsing XML. Skipping message:', err, 'Message:', message);
-              return;
-            }
-            if (!result) {
-              console.error('Error: result is null', 'Message:', message);
-              return;
-            }
-    
-            try {
-              if (result.Telemetry_Leaderboard) {
-                processTelemetryMessage(result.Telemetry_Leaderboard);
-              } else if (result.Pit_Summary) {
-                processPitSummaryMessage(result.Pit_Summary);
-              }
-            } catch (error) {
-              console.error('Error processing XML message:', error, 'Message:', message);
-            }
-          });
-          message = null; // Reset message
-        }
-      }
-    });
+      });
 
     
     client.on('end', () => {
