@@ -566,6 +566,8 @@ async function main() {
             }
     
             try {
+              console.log("result is...");
+              console.log(result);
               if (result.Telemetry_Leaderboard) {
                 processTelemetryMessage(result.Telemetry_Leaderboard);
               } else if (result.Pit_Summary) {
