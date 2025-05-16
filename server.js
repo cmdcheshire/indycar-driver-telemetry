@@ -523,51 +523,59 @@ async function main() {
       buffer += data.toString(); // Append data to the buffer
       console.log(`Received data from TCP server: ${data.toString().substring(0, 50)}... (Buffer length: ${buffer.length})`); // Log received data and buffer length
     
-      let messageEndIndex;
-      let message = null; // Initialize message to null
+      const telemetryStart = '<Telemetry_Leaderboard';
+      const telemetryEnd = '</Telemetry_Leaderboard>';
+      const pitStart = '<Pit_Summary';
+      const pitEnd = '</Pit_Summary>';
     
-      while (
-        (messageEndIndex = buffer.indexOf('</Telemetry_Leaderboard>')) >= 0 ||
-        (messageEndIndex = buffer.indexOf('</Pit_Summary>')) >= 0
-      ) {
-        if (buffer.includes('</Telemetry_Leaderboard>') && (buffer.indexOf('</Telemetry_Leaderboard>') <= messageEndIndex || !buffer.includes('</Pit_Summary>'))) {
-          message = buffer.substring(0, buffer.indexOf('</Telemetry_Leaderboard>') + 21);
-          buffer = buffer.substring(buffer.indexOf('</Telemetry_Leaderboard>') + 21);
-        } else if (buffer.includes('</Pit_Summary>')) {
-          message = buffer.substring(0, buffer.indexOf('</Pit_Summary>') + 12);
-          buffer = buffer.substring(buffer.indexOf('</Pit_Summary>') + 12);
+      let startIndex = -1;
+      let endIndex = -1;
+      let message = null;
+    
+      while (buffer.length > 0) {
+        if ((startIndex = buffer.indexOf(telemetryStart)) === 0 && (endIndex = buffer.indexOf(telemetryEnd)) > 0) {
+          message = buffer.substring(startIndex, endIndex + telemetryEnd.length);
+          buffer = buffer.substring(endIndex + telemetryEnd.length);
+        } else if ((startIndex = buffer.indexOf(pitStart)) === 0 && (endIndex = buffer.indexOf(pitEnd)) > 0) {
+          message = buffer.substring(startIndex, endIndex + pitEnd.length);
+          buffer = buffer.substring(endIndex + pitEnd.length);
         } else {
-          // This should ideally not happen if the while condition is met, but as a safeguard:
-          break;
+          // If a start tag is found but no corresponding end tag at the beginning,
+          // or if no start tag is found at the beginning, break the loop to avoid infinite loops.
+          if (startIndex === 0) {
+            break; // Wait for more data to complete the message
+          } else if (startIndex > 0) {
+            // Remove any leading incomplete data before the next potential start tag
+            buffer = buffer.substring(startIndex);
+          } else {
+            break; // No recognizable start tag at the beginning
+          }
         }
     
         if (message) {
           console.log(`Attempting to parse message: ${message.substring(0, 50)}... (Length: ${message.length})`);
     
-          // Parse the XML message
-          xmlParser.parseString(message, async (err, result) => { // Make this callback async
+          xmlParser.parseString(message, async (err, result) => {
             if (err) {
               console.error('Error parsing XML. Skipping message:', err, 'Message:', message);
-              return; // Skip this message and continue
+              return;
             }
             if (!result) {
               console.error('Error: result is null', 'Message:', message);
               return;
             }
     
-            // Process the message based on its type.
             try {
               if (result.Telemetry_Leaderboard) {
                 processTelemetryMessage(result.Telemetry_Leaderboard);
               } else if (result.Pit_Summary) {
                 processPitSummaryMessage(result.Pit_Summary);
               }
-              // Ignore other message types
             } catch (error) {
               console.error('Error processing XML message:', error, 'Message:', message);
             }
           });
-          message = null; // Reset message for the next iteration
+          message = null; // Reset message
         }
       }
     });
