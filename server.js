@@ -163,21 +163,34 @@ function getOrdinal(n) {
 async function updateTelemetrySheet(telemetryData) {
   try {
     console.log('Updating telemetry data in Google Sheet...');
-    const sheet = await sheets.spreadsheets.getSheetByName(TELEMETRY_SHEET_NAME);
-    if (!sheet) {
-      const ss = await sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID });
-      const newSheet = await sheets.spreadsheets.batchUpdate({
+
+    // Check if the sheet exists (optional, but good for avoiding errors if the name is wrong)
+    let spreadsheetInfo;
+    try {
+      spreadsheetInfo = await sheets.spreadsheets.get({
         spreadsheetId: SPREADSHEET_ID,
-        resource: {
-          requests: [{
-            addSheet: {
-              properties: {
-                title: TELEMETRY_SHEET_NAME,
-              },
-            },
-          }, ],
-        },
       });
+      const sheetExists = spreadsheetInfo.data.sheets.some(sheet => sheet.properties.title === TELEMETRY_SHEET_NAME);
+
+      if (!sheetExists) {
+        console.log(`Sheet "${TELEMETRY_SHEET_NAME}" does not exist. Creating it...`);
+        await sheets.spreadsheets.batchUpdate({
+          spreadsheetId: SPREADSHEET_ID,
+          resource: {
+            requests: [{
+              addSheet: {
+                properties: {
+                  title: TELEMETRY_SHEET_NAME,
+                },
+              },
+            }],
+          },
+        });
+        console.log(`Sheet "${TELEMETRY_SHEET_NAME}" created.`);
+      }
+    } catch (error) {
+      console.error('Error checking or creating sheet:', error);
+      return; // Stop if there's an error checking/creating the sheet
     }
 
     const rankDisplay = getOrdinal(telemetryData.rank);
