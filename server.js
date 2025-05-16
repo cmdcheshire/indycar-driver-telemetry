@@ -523,18 +523,18 @@ async function main() {
         console.log('Data received from TCP server.');
         buffer += data.toString(); // Append data to the buffer
         console.log(`Received data: ${data.toString().substring(0, 50)}... (Buffer length: ${buffer.length})`);
-      
+
         const telemetryStart = '<Telemetry_Leaderboard';
         const telemetryEnd = '</Telemetry_Leaderboard>';
         const pitStart = '<Pit_Summary';
         const pitEnd = '</Pit_Summary>';
-      
+
         let message = null;
-      
+
         while (buffer.length > 0) {
           let telemetryStartIndex = buffer.indexOf(telemetryStart);
           let pitStartIndex = buffer.indexOf(pitStart);
-      
+
           if (telemetryStartIndex !== -1) {
             let telemetryEndIndex = buffer.indexOf(telemetryEnd, telemetryStartIndex);
             if (telemetryEndIndex !== -1) {
@@ -554,7 +554,7 @@ async function main() {
           } else {
             break; // No recognizable start tag found, exit loop
           }
-      
+
           if (message) {
             console.log(`Found and attempting to parse message: ${message.substring(0, 50)}... (Length: ${message.length})`);
             xmlParser.parseString(message, async (err, result) => {
@@ -567,12 +567,31 @@ async function main() {
                 return;
               }
 
-              console.log("result is... ");
-              console.log(JSON.stringify(result, null, 4));
-      
               try {
-                if (result.Telemetry_Leaderboard) {
-                  processTelemetryMessage(result.Telemetry_Leaderboard);
+                if (result.Telemetry_Leaderboard && result.Telemetry_Leaderboard.Position) {
+                  const targetCarData = Array.isArray(result.Telemetry_Leaderboard.Position)
+                    ? result.Telemetry_Leaderboard.Position.find(pos => pos.$ && pos.$.Car === targetCarNumber)
+                    : (result.Telemetry_Leaderboard.Position.$ && result.Telemetry_Leaderboard.Position.$.Car === targetCarNumber ? result.Telemetry_Leaderboard.Position : null);
+
+                  if (targetCarData) {
+                    const telemetryForUpdate = {
+                      carNumber: targetCarData.$.Car,
+                      rank: parseInt(targetCarData.$.Rank, 10),
+                      speed: parseFloat(targetCarData.$.speed),
+                      rpm: parseInt(targetCarData.$.rpm, 10),
+                      throttle: parseInt(targetCarData.$.throttle, 10),
+                      brake: parseInt(targetCarData.$.brake, 10),
+                      battery: parseInt(targetCarData.$.Battery_Pct_Remaining, 10),
+                      pitStop: 0, // Placeholder - you might need to get this from Pit_Summary
+                    };
+
+                    // Temporarily log the data before updating the sheet for verification
+                    console.log('Telemetry data for target car found:', telemetryForUpdate);
+                    latestTelemetryData = telemetryForUpdate; // Update the global variable
+                    // The periodicUpdateTelemetrySheet function will now handle updating the sheet
+                  } else {
+                    console.log(`Telemetry data not found for target car number: ${targetCarNumber}`);
+                  }
                 } else if (result.Pit_Summary) {
                   processPitSummaryMessage(result.Pit_Summary);
                 }
