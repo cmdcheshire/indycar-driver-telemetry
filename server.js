@@ -567,7 +567,7 @@ async function main() {
               return;
             }
 
-            console.log(JSON.stringify(result, null, 4));
+            //console.log(JSON.stringify(result, null, 4));
 
             try {
               if (result.Position) {
