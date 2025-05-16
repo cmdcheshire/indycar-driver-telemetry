@@ -295,12 +295,15 @@ async function updateTelemetrySheet(telemetryData) {
 function processTelemetryMessage(xml) {
   try {
     const positions = xml.Position;
+    console.log(positions);
     if (!Array.isArray(positions)) {
       console.error("Positions is not an array", positions);
       return;
     }
     // Find the position for the target car.
     const targetCarPosition = positions.find(pos => pos.Car === targetCarNumber);
+    console.log("targetCarPosition is...");
+    console.log(targetCarPosition);
 
     if (targetCarPosition) {
       const carNumber = targetCarPosition.Car;
@@ -473,13 +476,15 @@ async function checkOnlineStatusAndUpdateHeartbeat() {
   }
 }
 
+let onlineCheckInterval;
 /**
  * Function to periodically update the Google Sheet with telemetry data.
  */
 async function periodicUpdateTelemetrySheet() {
+  console.log("periodicUpdateTelemetrySheet called"); //add
   if (isOnline && Object.keys(latestTelemetryData).length > 0) {
     try {
-      console.log("periodicUpdateTelemetrySheet called");
+      console.log("periodicUpdateTelemetrySheet - Updating sheet"); //add
       await updateTelemetrySheet(latestTelemetryData); //send the  data.
     }
     catch (e) {
@@ -501,7 +506,7 @@ async function main() {
     await authenticate(); // Authenticate with Google Sheets API
     await readReferenceData(); //read reference data
     targetCarNumber = await readTargetCarNumber();
-    console.log(`Target car number: ${targetCarNumber}`); // Log the target car number
+    //console.log(`Target car number: ${targetCarNumber}`); // Log the target car number
     
     client = net.connect({ host: TCP_HOST, port: TCP_PORT }, () => {
       console.log(`Connected to ${TCP_HOST}:${TCP_PORT}`); // Log connection
@@ -511,13 +516,13 @@ async function main() {
       console.log(`Successfully connected to TCP server at ${TCP_HOST}:${TCP_PORT}`);
     });
     
-    console.log(client);
+    //console.log(client);
     
     let buffer = ''; // Buffer to accumulate data
 
     client.on('data', async (data) => { // Make the callback async to use await
       buffer += data.toString(); // Append data to the buffer
-      console.log(`Received data from TCP server: ${data.toString().substring(0, 50)}...`); // Log received data
+      console.log(`Received data from TCP server: ${data.toString().substring(0, 20)}...`); // Log received data
 
       // Process the buffer for complete XML messages
       let messageEndIndex;
@@ -528,7 +533,7 @@ async function main() {
         // Parse the XML message
         xmlParser.parseString(message, async (err, result) => { // Make this callback async
           if (err) {
-            console.error('Error parsing XML. Skipping message:', err, 'Message:', message);
+            console.error('Error parsing XML. Skipping message:', err, /*'Message:', message*/);
             return; // Skip this message and continue
           }
           if (!result) {
@@ -545,7 +550,7 @@ async function main() {
             }
             // Ignore other message types
           } catch (error) {
-            console.error('Error processing XML message:', error, 'Message:', message);
+            console.error('Error processing XML message:', error, /*'Message:', message*/);
           }
         });
       }
