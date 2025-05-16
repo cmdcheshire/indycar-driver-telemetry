@@ -520,40 +520,44 @@ async function main() {
     let buffer = ''; // Buffer to accumulate data
 
     client.on('data', async (data) => { // Make the callback async to use await
-      buffer += data.toString(); // Append data to the buffer
-      console.log(`Received data from TCP server: ${data.toString().substring(0, 20)}...`); // Log received data
+  buffer += data.toString(); // Append data to the buffer
+  console.log(`Received data from TCP server: ${data.toString().substring(0, 50)}... (Buffer length: ${buffer.length})`); // Log received data and buffer length
 
-      // Process the buffer for complete XML messages
-      let messageEndIndex;
-      while ((messageEndIndex = buffer.indexOf('</')) >= 0) {
-        const message = buffer.substring(0, messageEndIndex + 3);
-        buffer = buffer.substring(messageEndIndex + 3);
+  let messageEndIndex;
+  while (
+    (messageEndIndex = buffer.indexOf('</Telemetry_Leaderboard>')) >= 0 ||
+    (messageEndIndex = buffer.indexOf('</Pit_Summary>')) >= 0
+  ) {
+    const message = buffer.substring(0, messageEndIndex + (message.includes('Telemetry_Leaderboard') ? 21 : 12)); // Extract the complete message
+    buffer = buffer.substring(messageEndIndex + (message.includes('Telemetry_Leaderboard') ? 21 : 12)); // Remove the processed message from the buffer
 
-        // Parse the XML message
-        xmlParser.parseString(message, async (err, result) => { // Make this callback async
-          if (err) {
-            console.error('Error parsing XML. Skipping message:', err, /*'Message:', message*/);
-            return; // Skip this message and continue
-          }
-          if (!result) {
-            console.error('Error: result is null', 'Message:', message);
-            return;
-          }
+    console.log(`Attempting to parse message: ${message.substring(0, 50)}... (Length: ${message.length})`);
 
-          // Process the message based on its type.
-          try {
-            if (result.Telemetry_Leaderboard) {
-              processTelemetryMessage(result.Telemetry_Leaderboard);
-            } else if (result.Pit_Summary) {
-              processPitSummaryMessage(result.Pit_Summary);
-            }
-            // Ignore other message types
-          } catch (error) {
-            console.error('Error processing XML message:', error, /*'Message:', message*/);
-          }
-        });
+    // Parse the XML message
+    xmlParser.parseString(message, async (err, result) => { // Make this callback async
+      if (err) {
+        console.error('Error parsing XML. Skipping message:', err, 'Message:', message);
+        return; // Skip this message and continue
+      }
+      if (!result) {
+        console.error('Error: result is null', 'Message:', message);
+        return;
+      }
+
+      // Process the message based on its type.
+      try {
+        if (result.Telemetry_Leaderboard) {
+          processTelemetryMessage(result.Telemetry_Leaderboard);
+        } else if (result.Pit_Summary) {
+          processPitSummaryMessage(result.Pit_Summary);
+        }
+        // Ignore other message types
+      } catch (error) {
+        console.error('Error processing XML message:', error, 'Message:', message);
       }
     });
+  }
+});
     
     client.on('end', () => {
       console.log('Disconnected from server');
