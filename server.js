@@ -585,6 +585,10 @@ async function main() {
         if (message) {
           console.log(`Found and attempting to parse message: ${message.substring(0, 50)}... (Length: ${message.length})`);
           xmlParser.parseString(message, async (err, result) => {
+            console.log(JSON.stringify(result, null, 2));
+            if (result) {
+              console.log("XML parsed successfully.")
+            }
             if (err) {
               console.error('Error parsing XML. Skipping message:', err, 'Message:', message);
               return;
@@ -625,8 +629,8 @@ async function main() {
                 //process Unofficial Leaderboard message
                 const allCarData = Array.isArray(result.Position);
                 console.log("allCarData found.. printing processed array.")
-                for (let i = 1; i <= allCarData.length; i++) { 
-                  console.log(allCarData);
+                for (let i = 0; i < allCarData.length; i++) { // Start at 0, use < instead of <=
+                  console.log("All Car data is allCarData);
                   //console.log("Car:" + allCarData[i].$.Car + " Time Behind: " + allCarData[i].Time_Behind );
                 };
               };
@@ -665,7 +669,7 @@ async function main() {
           targetCarNumber = await readTargetCarNumber(); // Read target car number
           console.log(`Target car number: ${targetCarNumber}`);
           if (!telemetryUpdateInterval) { // Check the telemetry update interval variable
-            telemetryUpdateInterval = setInterval(periodicUpdateTelemetrySheet, 250); // Update sheet every 250ms if online
+            telemetryUpdateInterval = setInterval(periodicUpdateTelemetrySheet, 2000); // Update sheet every 250ms if online
             console.log('Telemetry update interval started.');
           }
         } else {
