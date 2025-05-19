@@ -356,9 +356,12 @@ async function updateTelemetrySheet(telemetryData) {
       console.log("This car reference data: " + thisDriverReferenceData)
       // Handler for lapped car data
       let thisCarTimeBehind;
+      console.log("This car laps behind " leaderboardData[i].Laps_Behind)
       if (leaderboardData[i].Laps_Behind !== 0) {
+        console.log("This car is lapped, changing time behind to laps.")
         thisCarTimeBehind = leaderboardData[i].Time_Behind + leaderboardData[i].Laps_Behind + " laps";
       } else {
+        console.log("This car is not lapped.")
         thisCarTimeBehind = leaderboardData[i].Time_Behind;
       };
       if (i !== 0) {
@@ -669,11 +672,11 @@ async function main() {
 
       while (buffer.length > 0) {
         let telemetryStartIndex = buffer.indexOf(telemetryStart);
-        console.log("telemetry data start index... " + telemetryStartIndex);
+        //console.log("telemetry data start index... " + telemetryStartIndex);
         let pitStartIndex = buffer.indexOf(pitStart);
-        console.log("pit data start index... " + pitStartIndex);
+        //console.log("pit data start index... " + pitStartIndex);
         let unofficialLeaderboardStartIndex = buffer.indexOf(unofficialLeaderboardStart);
-        console.log("leaderboard data start index... " + unofficialLeaderboardStartIndex);
+        //console.log("leaderboard data start index... " + unofficialLeaderboardStartIndex);
 
         if (telemetryStartIndex !== -1) {
           let telemetryEndIndex = buffer.indexOf(telemetryEnd, telemetryStartIndex);
@@ -693,7 +696,7 @@ async function main() {
           }
         } else if (unofficialLeaderboardStartIndex !== -1) {
           let unofficialLeaderboardEndIndex = buffer.indexOf(unofficialLeaderboardEnd, unofficialLeaderboardStartIndex);
-          console.log("unofficial leaderboard end index... " + unofficialLeaderboardEndIndex);
+          //console.log("unofficial leaderboard end index... " + unofficialLeaderboardEndIndex);
           if (unofficialLeaderboardEndIndex !== -1) {
             message = buffer.substring(unofficialLeaderboardStartIndex, unofficialLeaderboardEndIndex + unofficialLeaderboardEnd.length);
             buffer = buffer.substring(unofficialLeaderboardEndIndex + unofficialLeaderboardEnd.length);
@@ -707,7 +710,7 @@ async function main() {
         if (message) {
           console.log(`Found and attempting to parse message: ${message.substring(0, 50)}... (Length: ${message.length})`);
           xmlParser.parseString(message, async (err, result) => {
-            console.log(JSON.stringify(result, null, 2));
+            //console.log(JSON.stringify(result, null, 2));
             if (result) {
               console.log("XML parsed successfully.")
             }
@@ -740,10 +743,10 @@ async function main() {
                     pitStop: 0, // Placeholder
                   };
 
-                  console.log('Telemetry data for target car found:', telemetryForUpdate);
+                  //console.log('Telemetry data for target car found:', telemetryForUpdate);
                   latestTelemetryData = telemetryForUpdate;
                 } else {
-                  console.log(`Telemetry data not found for target car number: ${targetCarNumber}`);
+                  //console.log(`Telemetry data not found for target car number: ${targetCarNumber}`);
                 }
               } else if (pitStartIndex !== -1) {
                 //processPitSummaryMessage(result.Pit_Summary);
@@ -766,8 +769,8 @@ async function main() {
                   //console.log("Car: " + result.Position[i].$.Car);
                   //console.log("Time Behind: " + result.Position[i].$.Time_Behind);
                 }
-                console.log("updated unofficial leaderboard found.. printing processed array.")
-                console.log(updatedUnofficialLeaderboardData);
+                //console.log("updated unofficial leaderboard found.. printing processed array.")
+                //console.log(updatedUnofficialLeaderboardData);
                 latestLeaderboardData = updatedUnofficialLeaderboardData;
                 console.log("latest leaderboard data updated locally.")
               };
