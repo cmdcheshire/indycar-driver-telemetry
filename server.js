@@ -364,7 +364,7 @@ async function updateTelemetrySheet(telemetryData) {
       let thisLineObject = {
         range: LEADERBOARD_SHEET_NAME + '!A' + (i+2) + ':' + 'M' + (i+2),
         majorDimension: 'ROWS',
-        values: [
+        values: [[
           leaderboardData[i].Rank, // Column 1 is Rank
           thisCarNumber, // Column 2 is Car Number
           thisDriverReferenceData.carLogo, // Column 3 is Car Number
@@ -377,7 +377,7 @@ async function updateTelemetrySheet(telemetryData) {
           thisCarTimeBehind, // Column 10 is Leader Split
           '=TEXT(K' + (i + 2) + ', "[s].000")&" "', // Column 10 is to truncate interval display using google sheets **** update to do this in JS
           'tire compound' // Column 11 is tire compound, not built yet
-        ]
+        ]]
       }
       gsheetLeaderboardUpdateData.push(thisLineObject);
     };
