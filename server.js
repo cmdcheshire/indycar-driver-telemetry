@@ -789,6 +789,7 @@ async function main() {
     });
 
     let telemetryUpdateInterval; // Separate variable for the telemetry update interval
+    let leaderboardUpdateInterval;
 
     // Main loop: Check online status, read target car, and process data
     setInterval(async () => { // Changed to setInterval without assigning to onlineCheckInterval
