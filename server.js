@@ -567,7 +567,7 @@ async function main() {
           } else {
             break; // Incomplete pit summary message, wait for more data
           }
-        } else if (unofficialLeaderbooardStartIndex !== -1) {
+        } else if (unofficialLeaderboardStartIndex !== -1) {
           let unofficialLeaderboardEndIndex = buffer.indexOf(unofficialLeaderboardEnd, unofficialLeaderboardStartIndex);
           if (unofficialLeaderboardEndIndex !== -1) {
             message = buffer.substring(unofficialLeaderboardStartIndex, unofficialLeaderboardEndIndex);
