@@ -631,7 +631,7 @@ async function main() {
                 const allCarData = Array.isArray(result.Position)
                 console.log("unofficial leaderboard is array?... " + allCarData);
                 for (i = 0; i < result.length; i++) {
-                  console.log(result[i]);
+                  console.log(i);
                   console.log("Car: " + result[i].Position.$.Car);
                   console.log("Time Behind: " + result[i].$.Time_Behind);
                 }
