@@ -389,7 +389,9 @@ async function updateTelemetrySheet(telemetryData) {
     const response = await sheets.spreadsheets.values.batchUpdate({
       spreadsheetId: SPREADSHEET_ID,
       valueInputOption: 'RAW',
-      data: gsheetLeaderboardUpdateData,
+      resource: {
+        data: gsheetLeaderboardUpdateData,
+      }
     });
 
   } catch (error) {
