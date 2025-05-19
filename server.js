@@ -383,7 +383,7 @@ async function updateTelemetrySheet(telemetryData) {
           range: `${LEADERBOARD_SHEET_NAME}!A2:M2`,
           majorDimension: 'ROWS',
           values: gsheetLeaderboardUpdateData
-        }
+        },
         valueInputOption: 'RAW',
       });
 
