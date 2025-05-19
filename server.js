@@ -347,7 +347,7 @@ async function updateTelemetrySheet(telemetryData) {
       let gsheetLeaderboardUpdateData = [];
       for (i = 0; i < leaderboardData.length; i++) { // Loop through latest leaderboard and use reference data to find driver info
         let thisCarNumber = leaderboardData[i].Car;
-        let thisDriverReferenceData = referenceData.drivers.[thisCarNumber];
+        let thisDriverReferenceData = referenceData.drivers[thisCarNumber];
         console.log("This car reference data: " + thisDriverReferenceData)
         // Handler for lapped car data
         let thisCarTimeBehind;
