@@ -628,7 +628,8 @@ async function main() {
                 //processPitSummaryMessage(result.Pit_Summary);
               } else if (unofficialLeaderboardStartIndex !== -1) {
                 //process Unofficial Leaderboard message
-                console.log("unofficial leaderboard is array?... " + allCarData);
+                const allCarDataIsArray = Array.isArray(result.Position)
+                console.log("unofficial leaderboard is array?... " + allCarDataIsArray);
                 console.log("Structure of result:", JSON.stringify(result, null, 2));
                 let updatedUnofficialLeaderboardData = [];
                 for (i = 0; i < result.Position.length; i++) {
