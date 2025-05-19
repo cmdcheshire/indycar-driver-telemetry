@@ -572,8 +572,9 @@ async function main() {
           }
         } else if (unofficialLeaderboardStartIndex !== -1) {
           let unofficialLeaderboardEndIndex = buffer.indexOf(unofficialLeaderboardEnd, unofficialLeaderboardStartIndex);
+          console.log("unofficial leaderboard end index... " + unofficialLeaderboardEndIndex);
           if (unofficialLeaderboardEndIndex !== -1) {
-            message = buffer.substring(unofficialLeaderboardStartIndex, unofficialLeaderboardEndIndex);
+            message = buffer.substring(unofficialLeaderboardStartIndex, unofficialLeaderboardEndIndex + unofficialLeaderboardEnd.length);
             buffer = buffer.substring(unofficialLeaderboardEndIndex + unofficialLeaderboardEnd.length);
           } else {
             break; // Incomplete leaderboard message, wait for more data
