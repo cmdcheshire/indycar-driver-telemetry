@@ -9,6 +9,7 @@ const TCP_PORT = 5000;
 const SPREADSHEET_ID = '1UIpgq72cvEUT-qvEB4gmwDjvFU4CDIXf2rllNseYEUM';
 const GOOGLE_SERVICE_ACCOUNT_KEY_PATH = 'indycar-live-data-8bbb32c95e6b.json';
 const TARGET_CAR_SHEET_NAME = 'Live Data Controller'; // Sheet containing the target car number and online checkbox
+const LEADERBOARD_SHEET_NAME = 'Live Pillar Test'
 const TELEMETRY_SHEET_NAME = 'Telemetry Test'; // Sheet to write telemetry data
 const DATABASE_SHEET_NAME = 'Database'; // Sheet containing driver and reference data
 const CONTROLLER_SHEET_NAME = 'Live Data Controller'; // Sheet for the controller tab
@@ -28,6 +29,7 @@ const MAX_BRAKE = 100;
 let onlineCheckInterval; // To store the interval ID
 let isOnline = false;
 let latestTelemetryData = {};
+let latestLeaderboardData = [];
 let carData = {};
 
 /**
@@ -301,6 +303,50 @@ async function updateTelemetrySheet(telemetryData) {
     console.error('Error updating Google Sheet with telemetry data:', error);
   }
 }
+
+/**
+ * Function to update leaderboard data.
+ * 
+ */
+ async function updateLeaderboardSheet(leaderboardData) {
+  try {
+    console.log('Updating leaderboard data in Google Sheet...');
+
+    // Check if the sheet exists (optional, but good for avoiding errors if the name is wrong)
+    let spreadsheetInfo;
+    try {
+      spreadsheetInfo = await sheets.spreadsheets.get({
+        spreadsheetId: SPREADSHEET_ID,
+      });
+      const sheetExists = spreadsheetInfo.data.sheets.some(sheet => sheet.properties.title === LEADERBOARD_SHEET_NAME);
+
+      if (sheetExists) {
+        console.log('Leaderboard sheet '+ LEADERBOARD_SHEET_NAME + ' exists. Using...');
+      }
+
+      if (!sheetExists) {
+        console.log(`Sheet "${LEADERBOARD_SHEET_NAME}" does not exist. Creating it...`);
+        await sheets.spreadsheets.batchUpdate({
+          spreadsheetId: SPREADSHEET_ID,
+          resource: {
+            requests: [{
+              addSheet: {
+                properties: {
+                  title: LEADERBOARD_SHEET_NAME,
+                },
+              },
+            }],
+          },
+        });
+        console.log(`Sheet "${LEADERBOARD_SHEET_NAME}" created.`);
+      }
+    } catch (error) {
+      console.error('Error checking or creating sheet:', error);
+      return; // Stop if there's an error checking/creating the sheet
+    }
+
+  }
+};
 
 /**
  * Function to process a Telemetry XML message.
