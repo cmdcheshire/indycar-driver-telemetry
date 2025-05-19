@@ -387,12 +387,10 @@ async function updateTelemetrySheet(telemetryData) {
         valueInputOption: 'RAW',
       });
 
-    } catch (error) {
-      console.error('Error checking or creating sheet:', error);
-      return; // Stop if there's an error checking/creating the sheet
-    }
-
-  }
+  } catch (error) {
+    console.error('Error checking or creating sheet:', error);
+    return; // Stop if there's an error checking/creating the sheet
+  };
 };
 
 /**
