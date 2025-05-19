@@ -162,6 +162,22 @@ function getOrdinal(n) {
 }
 
 /**
+ * Converts a string to a number, rounds it to 3 decimal places, and returns the result as a string.
+ *
+ */
+ function stringToRoundedDecimalString(inputString) {
+  const number = parseFloat(inputString); // Convert the string to a floating-point number
+
+  if (isNaN(number)) {
+    return inputString; // Return the original string if it's not a valid number
+  }
+
+  const roundedNumber = number.toFixed(3); // Round to 3 decimal places and convert to string
+
+  return roundedNumber;
+}
+
+/**
  * Function to update the Google Sheet with the telemetry data for the target car.
  */
 async function updateTelemetrySheet(telemetryData) {
@@ -367,7 +383,7 @@ async function updateTelemetrySheet(telemetryData) {
       if (i !== 0) {
         thisCarIntervalSplit = leaderboardData[i].Time_Behind - leaderboardData[i-1].Time_Behind;
       } else {
-        thisCarIntervalSplit = leaderboardData[i].Time_Behind;
+        thisCarIntervalSplit = stringToRoundedDecimalString(leaderboardData[i].Time_Behind);
       }
       let thisLineObject = {
         range: LEADERBOARD_SHEET_NAME + '!A' + (i+2) + ':' + 'M' + (i+2),
@@ -409,150 +425,6 @@ async function updateTelemetrySheet(telemetryData) {
   };
 
 };
-
-/**
- * Function to process a Telemetry XML message.
- */
-function processTelemetryMessage(xml) {
-  try {
-    const positions = xml.Position;
-    console.log(positions);
-    if (!Array.isArray(positions)) {
-      console.error("Positions is not an array", positions);
-      return;
-    }
-    // Find the position for the target car.
-    const targetCarPosition = positions.find(pos => pos.Car === targetCarNumber);
-    console.log("targetCarPosition is...");
-    console.log(targetCarPosition);
-
-    if (targetCarPosition) {
-      const carNumber = targetCarPosition.Car;
-      const rank = parseInt(targetCarPosition.Rank, 10);
-      const speed = parseFloat(targetCarPosition.speed);
-      const rpm = parseInt(xml.rpm, 10);
-      const throttle = parseInt(xml.throttle, 10);
-      const brake = parseInt(xml.brake, 10);
-      const battery = parseInt(xml.Battery_Pct_Remaining, 10);
-      const firstName = carData[carNumber]?.firstName || "Unknown";
-      const lastName = carData[carNumber]?.lastName || "Driver";
-      const displayName = carData[carNumber]?.displayName || "Unknown Driver";
-      const carLogo = carData[carNumber]?.carLogo || '';
-      const team = carData[carNumber]?.team || '';
-      const teamLogo = carData[carNumber]?.teamLogo || '';
-      const headshot = carData[carNumber]?.headshot || '';
-      const pitStop = 0; // Placeholder.  You'll need to get this from another message, likely from Pit_Summary
-
-      const telemetryData = {
-        carNumber,
-        rank,
-        speed,
-        rpm,
-        throttle,
-        brake,
-        battery,
-        firstName,
-        lastName,
-        displayName,
-        carLogo,
-        team,
-        teamLogo,
-        headshot,
-        pitStop
-      };
-      latestTelemetryData = telemetryData;
-      //console.log("Telemetry data for target car:", telemetryData); // Log the data being processed
-    }
-    else {
-      console.log(`Target car number ${targetCarNumber} not found in Telemetry_Leaderboard`);
-    }
-
-  } catch (error) {
-    console.error('Error processing Telemetry message:', error);
-  }
-}
-
-/**
- * Function to process a Pit Summary XML message.
- */
-function processPitSummaryMessage(xml) {
-  try {
-    const carNumber = xml.Car;
-    const lapNumber = xml.Lap_Number;
-    const pitNumber = xml.Pit_Number;
-
-    console.log(`Pit Summary: Car ${carNumber} pitted on lap ${lapNumber}, Pit Number: ${pitNumber}`);
-
-    //  You would update the Google Sheet here with the pit stop information.
-    //  For example, you might have a "Pit Stops" sheet where you record this data.
-    //  You'll need to determine how you want to structure that data in your sheet.
-
-  } catch (error) {
-    console.error('Error processing Pit Summary message:', error);
-  }
-}
-
-/**
- * Function to process a Cars XML message.
- */
-function processCarsMessage(xml) {
-  try {
-    const cars = xml.Car;
-    if (!Array.isArray(cars)) {
-      console.error("Cars is not an array", cars);
-      return;
-    }
-
-
-    // Clear the car data cache
-    carData = {};
-
-
-    cars.forEach(car => {
-      const carNumber = car.Number;
-      const driverId = car.Driver_ID;
-      const carLogo = 'https://via.placeholder.com/50'; // Placeholder
-      const team = 'Unknown Team'; // Placeholder
-      const teamLogo = 'https://via.placeholder.com/50'; // Placeholder
-      const firstName = 'Unknown';
-      const lastName = 'Driver';
-      const displayName = 'Unknown Driver';
-
-      carData[carNumber] = { carLogo, team, teamLogo, firstName, lastName, displayName }; // Store car data by car number for quick lookup
-    });
-
-
-    console.log('Cars Message Processed');
-  } catch (error) {
-    console.error('Error processing Cars message:', error);
-  }
-}
-
-/**
- * Function to process a Driver XML message.
- */
-function processDriverMessage(xml) {
-  try {
-    const drivers = xml.Driver;
-    if (!Array.isArray(drivers)) {
-      console.error("Drivers is not an array", drivers);
-      return;
-    }
-
-    drivers.forEach(driver => {
-      const firstName = driver.First_Name;
-      const lastName = driver.Last_Name;
-      const displayName = `${firstName} ${lastName}`;
-
-      carData[driver.ID] = { firstName, lastName, displayName };
-    })
-
-
-    console.log('Driver Message Processed');
-  } catch (error) {
-    console.error('Error processing Driver message:', error);
-  }
-}
 
 
 /**
