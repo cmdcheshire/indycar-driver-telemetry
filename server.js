@@ -630,6 +630,7 @@ async function main() {
                 //process Unofficial Leaderboard message
                 const allCarData = Array.isArray(result.Position)
                 console.log("unofficial leaderboard is array?... " + allCarData);
+                console.log("Structure of result:", JSON.stringify(result, null, 2));
                 for (i = 0; i < result.length; i++) {
                   console.log(i);
                   console.log("Car: " + result[i].Position.$.Car);
