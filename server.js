@@ -621,8 +621,10 @@ async function main() {
               } else if (unofficialLeaderboardStartIndex !== -1) {
                 //process Unofficial Leaderboard message
                 const allCarData = Array.isArray(result.Position);
+                console.log("allCarData found.. printing processed array.")
                 for (let i = 1; i <= allCarData.length; i++) { 
-                  console.log("Car:" + allCarData[i].$.Car + " Time Behind: " + allCarData[i].Time_Behind );
+                  console.log(allCarData);
+                  //console.log("Car:" + allCarData[i].$.Car + " Time Behind: " + allCarData[i].Time_Behind );
                 };
               };
             } catch (error) {
