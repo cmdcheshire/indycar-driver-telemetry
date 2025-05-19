@@ -383,13 +383,13 @@ async function updateTelemetrySheet(telemetryData) {
 
     // Send the data to the correct cells in the google sheet.
     const response = await sheets.spreadsheets.values.batchUpdate({
-      spreadsheetId: SPREADSHEET_ID,
-      data: {
-        range: `${LEADERBOARD_SHEET_NAME}!A2:M2`,
-        majorDimension: 'ROWS',
-        values: gsheetLeaderboardUpdateData
-      },
-      valueInputOption: 'RAW',
+      'spreadsheetId': SPREADSHEET_ID,
+      'valueInputOption': 'RAW',
+      'data': [{
+        'range': `${LEADERBOARD_SHEET_NAME}!A2:M28`,
+        'majorDimension': 'ROWS',
+        'values': gsheetLeaderboardUpdateData
+      }]
     });
 
   } catch (error) {
