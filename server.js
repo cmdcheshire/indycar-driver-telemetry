@@ -629,16 +629,13 @@ async function main() {
               } else if (unofficialLeaderboardStartIndex !== -1) {
                 //process Unofficial Leaderboard message
                 const allCarData = Array.isArray(result.Position)
+                console.log("unofficial leaderboard is array?... " + allCarData);
                 for (i = 0; i < result.length; i++) {
+                  console.log(result[i]);
                   console.log("Car: " + result[i].Position.$.Car);
                   console.log("Time Behind: " + result[i].$.Time_Behind);
                 }
                 console.log("allCarData found.. printing processed array.")
-                console.log(allCarData);
-                for (let i = 0; i < allCarData.length; i++) { // Start at 0, use < instead of <=
-                  console.log("All Car data is allCarData");
-                  console.log("Car:" + allCarData[i].$.Car + " Time Behind: " + allCarData[i].Time_Behind );
-                };
               };
             } catch (error) {
               console.error('Error processing XML message:', error, 'Message:', message);
