@@ -541,12 +541,15 @@ async function main() {
       const telemetryEnd = '</Telemetry_Leaderboard>';
       const pitStart = '<Pit_Summary';
       const pitEnd = '</Pit_Summary>';
+      const unofficialLeaderboardStart = '<Unofficial_Leaderboard';
+      const unofficialLeaderboardEnd = '</Unofficial_Leaderboard>';
 
       let message = null;
 
       while (buffer.length > 0) {
         let telemetryStartIndex = buffer.indexOf(telemetryStart);
         let pitStartIndex = buffer.indexOf(pitStart);
+        let unofficialLeaderboardStartIndex = buffer.indexOf(unofficialLeaderboardStart);
 
         if (telemetryStartIndex !== -1) {
           let telemetryEndIndex = buffer.indexOf(telemetryEnd, telemetryStartIndex);
@@ -563,6 +566,14 @@ async function main() {
             buffer = buffer.substring(pitEndIndex + pitEnd.length);
           } else {
             break; // Incomplete pit summary message, wait for more data
+          }
+        } else if (unofficialLeaderbooardStartIndex !== -1) {
+          let unofficialLeaderboardEndIndex = buffer.indexOf(unofficialLeaderboardEnd, unofficialLeaderboardStartIndex);
+          if (unofficialLeaderboardEndIndex !== -1) {
+            message = buffer.substring(unofficialLeaderboardStartIndex, unofficialLeaderboardEndIndex);
+            buffer = buffer.substring(unofficialLeaderboardEndIndex + unofficialLeaderboardEnd.length);
+          } else {
+            break; // Incomplete leaderboard message, wait for more data
           }
         } else {
           break; // No recognizable start tag found, exit loop
@@ -583,7 +594,7 @@ async function main() {
             //console.log(JSON.stringify(result, null, 4));
 
             try {
-              if (result.Position) {
+              if (telemetryStartIndex !== -1) {
                 const targetCarData = Array.isArray(result.Position)
                   ? result.Position.find(pos => pos.$ && pos.$.Car === targetCarNumber)
                   : (result.Position.$ && result.Position.$.Car === targetCarNumber ? result.Position : null);
@@ -605,9 +616,15 @@ async function main() {
                 } else {
                   console.log(`Telemetry data not found for target car number: ${targetCarNumber}`);
                 }
-              } else if (result.Pit_Summary) {
+              } else if (pitStartIndex !== -1) {
                 //processPitSummaryMessage(result.Pit_Summary);
-              }
+              } else if (unofficialLeaderboardStartIndex !== -1) {
+                //process Unofficial Leaderboard message
+                const allCarData = Array.isArray(result.Position);
+                for (let i = 1; i <= allCarData.length; i++) { 
+                  console.log("Car:" + allCarData[i].$.Car + " Time Behind: " + allCarData[i].Time_Behind );
+                };
+              };
             } catch (error) {
               console.error('Error processing XML message:', error, 'Message:', message);
             }
