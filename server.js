@@ -359,8 +359,13 @@ async function updateTelemetrySheet(telemetryData) {
       if (leaderboardData[i].Laps_Behind !== 0) {
         thisCarTimeBehind = leaderboardData[i].Time_Behind + leaderboardData[i].Laps_Behind + " laps";
       } else {
-        thisCarTimeBehind = "-" + leaderboardData[i].Time_Behind;
+        thisCarTimeBehind = leaderboardData[i].Time_Behind;
       };
+      if (i !== 0) {
+        thisCarIntervalSplit = leaderboardData[i].Time_Behind - leaderboardData[i-1].Time_Behind;
+      } else {
+        thisCarIntervalSplit = leaderboardData[i].Time_Behind;
+      }
       let thisLineObject = {
         range: LEADERBOARD_SHEET_NAME + '!A' + (i+2) + ':' + 'M' + (i+2),
         majorDimension: 'ROWS',
@@ -375,8 +380,9 @@ async function updateTelemetrySheet(telemetryData) {
           thisDriverReferenceData.displayName, // Column 8 is Car Number
           'total time', // Column 9 is Total Time, not built yet
           thisCarTimeBehind, // Column 10 is Leader Split
-          '=TEXT(K' + (i + 2) + ', "[s].000")&" "', // Column 10 is to truncate interval display using google sheets **** update to do this in JS
-          'tire compound' // Column 11 is tire compound, not built yet
+          thisCarIntervalSplit,
+          '=TEXT(K' + (i + 2) + ', "[s].000")&" "', // Column 12 is to truncate interval display using google sheets **** update to do this in JS
+          'tire compound' // Column 13 is tire compound, not built yet
         ]]
       }
       gsheetLeaderboardUpdateData.push(thisLineObject);
