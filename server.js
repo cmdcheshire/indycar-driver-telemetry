@@ -361,21 +361,25 @@ async function updateTelemetrySheet(telemetryData) {
       } else {
         thisCarTimeBehind = "-" + leaderboardData[i].Time_Behind;
       };
-      let thisLineArray = [
-        leaderboardData[i].Rank, // Column 1 is Rank
-        thisCarNumber, // Column 2 is Car Number
-        thisDriverReferenceData.carLogo, // Column 3 is Car Number
-        thisDriverReferenceData.team, // Column 4 is Car Number
-        thisDriverReferenceData.teamLogo, // Column 5 is Car Number
-        thisDriverReferenceData.firstName, // Column 6 is Car Number
-        thisDriverReferenceData.lastName, // Column 7 is Car Number
-        thisDriverReferenceData.displayName, // Column 8 is Car Number
-        'total time', // Column 9 is Total Time, not built yet
-        thisCarTimeBehind, // Column 10 is Leader Split
-        '=TEXT(K' + (i + 2) + ', "[s].000")&" "', // Column 10 is to truncate interval display using google sheets **** update to do this in JS
-        'tire compound' // Column 11 is tire compound, not built yet
-      ];
-      gsheetLeaderboardUpdateData.push(thisLineArray);
+      let thisLineObject = {
+        range: LEADERBOARD_SHEET_NAME + '!A' + (i+2) + ':' + 'M' + (i+2),
+        majorDimension: 'ROWS',
+        values: [
+          leaderboardData[i].Rank, // Column 1 is Rank
+          thisCarNumber, // Column 2 is Car Number
+          thisDriverReferenceData.carLogo, // Column 3 is Car Number
+          thisDriverReferenceData.team, // Column 4 is Car Number
+          thisDriverReferenceData.teamLogo, // Column 5 is Car Number
+          thisDriverReferenceData.firstName, // Column 6 is Car Number
+          thisDriverReferenceData.lastName, // Column 7 is Car Number
+          thisDriverReferenceData.displayName, // Column 8 is Car Number
+          'total time', // Column 9 is Total Time, not built yet
+          thisCarTimeBehind, // Column 10 is Leader Split
+          '=TEXT(K' + (i + 2) + ', "[s].000")&" "', // Column 10 is to truncate interval display using google sheets **** update to do this in JS
+          'tire compound' // Column 11 is tire compound, not built yet
+        ]
+      }
+      gsheetLeaderboardUpdateData.push(thisLineObject);
     };
 
     console.log("Google sheet update data is...");
@@ -383,13 +387,9 @@ async function updateTelemetrySheet(telemetryData) {
 
     // Send the data to the correct cells in the google sheet.
     const response = await sheets.spreadsheets.values.batchUpdate({
-      'spreadsheetId': SPREADSHEET_ID,
-      'valueInputOption': 'RAW',
-      'data': [{
-        'range': `${LEADERBOARD_SHEET_NAME}!A2:M28`,
-        'majorDimension': 'ROWS',
-        'values': gsheetLeaderboardUpdateData
-      }]
+      spreadsheetId: SPREADSHEET_ID,
+      valueInputOption: 'RAW',
+      data: gsheetLeaderboardUpdateData,
     });
 
   } catch (error) {
