@@ -357,7 +357,7 @@ async function updateTelemetrySheet(telemetryData) {
       // Handler for lapped car data
       let thisCarTimeBehind;
       console.log("This car laps behind " + leaderboardData[i].Laps_Behind);
-      if (leaderboardData[i].Laps_Behind !== 0) {
+      if (leaderboardData[i].Laps_Behind !== "0") {
         console.log("This car is lapped, changing time behind to laps.")
         thisCarTimeBehind = leaderboardData[i].Time_Behind + leaderboardData[i].Laps_Behind + " laps";
       } else {
