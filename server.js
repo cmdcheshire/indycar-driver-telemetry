@@ -705,7 +705,7 @@ async function main() {
         if (message) {
           console.log(`Found and attempting to parse message: ${message.substring(0, 50)}... (Length: ${message.length})`);
           xmlParser.parseString(message, async (err, result) => {
-            //console.log(JSON.stringify(result, null, 2));
+            console.log(JSON.stringify(result, null, 2));
             if (result) {
               console.log("XML parsed successfully.")
             }
@@ -738,7 +738,7 @@ async function main() {
                     pitStop: 0, // Placeholder
                   };
 
-                  //console.log('Telemetry data for target car found:', telemetryForUpdate);
+                  console.log('Telemetry data for target car found:', telemetryForUpdate);
                   latestTelemetryData = telemetryForUpdate;
                 } else {
                   console.log(`Telemetry data not found for target car number: ${targetCarNumber}`);
