@@ -548,8 +548,11 @@ async function main() {
 
       while (buffer.length > 0) {
         let telemetryStartIndex = buffer.indexOf(telemetryStart);
+        console.log("telemetry data start index... " + telemetryStartIndex);
         let pitStartIndex = buffer.indexOf(pitStart);
+        console.log("pit data start index... " + pitStartIndex);
         let unofficialLeaderboardStartIndex = buffer.indexOf(unofficialLeaderboardStart);
+        console.log("leaderboard data start index... " + unofficialLeaderboardStartIndex);
 
         if (telemetryStartIndex !== -1) {
           let telemetryEndIndex = buffer.indexOf(telemetryEnd, telemetryStartIndex);
