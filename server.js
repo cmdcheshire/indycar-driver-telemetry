@@ -630,7 +630,7 @@ async function main() {
                 const allCarData = Array.isArray(result.Position);
                 console.log("allCarData found.. printing processed array.")
                 for (let i = 0; i < allCarData.length; i++) { // Start at 0, use < instead of <=
-                  console.log("All Car data is allCarData);
+                  console.log("All Car data is allCarData");
                   //console.log("Car:" + allCarData[i].$.Car + " Time Behind: " + allCarData[i].Time_Behind );
                 };
               };
