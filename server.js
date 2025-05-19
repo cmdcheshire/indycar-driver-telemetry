@@ -353,10 +353,10 @@ async function updateTelemetrySheet(telemetryData) {
     for (i = 0; i < leaderboardData.length; i++) { // Loop through latest leaderboard and use reference data to find driver info
       let thisCarNumber = leaderboardData[i].Car;
       let thisDriverReferenceData = referenceData.drivers[thisCarNumber];
-      console.log("This car reference data: " + thisDriverReferenceData)
+      console.log("This car reference data: " + thisDriverReferenceData);
       // Handler for lapped car data
       let thisCarTimeBehind;
-      console.log("This car laps behind " leaderboardData[i].Laps_Behind)
+      console.log("This car laps behind " + leaderboardData[i].Laps_Behind);
       if (leaderboardData[i].Laps_Behind !== 0) {
         console.log("This car is lapped, changing time behind to laps.")
         thisCarTimeBehind = leaderboardData[i].Time_Behind + leaderboardData[i].Laps_Behind + " laps";
