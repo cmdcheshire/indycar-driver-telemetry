@@ -390,11 +390,7 @@ async function updateTelemetrySheet(telemetryData) {
       spreadsheetId: SPREADSHEET_ID,
       valueInputOption: 'RAW',
       resource: { // The 'resource' object is necessary for batchUpdate
-        data: gsheetLeaderboardUpdateData.map((row, index) => ({ // Map over your data to create the correct structure
-          range: `${LEADERBOARD_SHEET_NAME}!A${index + 2}:M${index + 2}`, // Define the range for each row
-          majorDimension: 'ROWS',
-          values: [row], // Each inner array is a row
-        }))
+        data: gsheetLeaderboardUpdateData,
       }
     });
 
