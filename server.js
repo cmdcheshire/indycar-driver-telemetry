@@ -628,15 +628,24 @@ async function main() {
                 //processPitSummaryMessage(result.Pit_Summary);
               } else if (unofficialLeaderboardStartIndex !== -1) {
                 //process Unofficial Leaderboard message
-                const allCarData = Array.isArray(result.Position)
                 console.log("unofficial leaderboard is array?... " + allCarData);
                 console.log("Structure of result:", JSON.stringify(result, null, 2));
+                let updatedUnofficialLeaderboardData = [];
                 for (i = 0; i < result.Position.length; i++) {
-                  console.log(i);
-                  console.log("Car: " + result.Position[i].$.Car);
-                  console.log("Time Behind: " + result.Position[i].$.Time_Behind);
+                  updatedUnofficialLeaderboardData.push(
+                    {
+                      "Car":result.Position[i].$.Car,
+                      "Rank":result.Position[i].$.Rank,
+                      "Laps_Behind":result.Position[i].$.Laps_Behind,
+                      "Time_Behind":result.Position[i].$.Time_Behind,
+                    }
+                  );
+                  //console.log(i);
+                  //console.log("Car: " + result.Position[i].$.Car);
+                  //console.log("Time Behind: " + result.Position[i].$.Time_Behind);
                 }
-                console.log("allCarData found.. printing processed array.")
+                console.log("updated unofficial leaderboard found.. printing processed array.")
+                console.log(updatedUnofficialLeaderboardData);
               };
             } catch (error) {
               console.error('Error processing XML message:', error, 'Message:', message);
