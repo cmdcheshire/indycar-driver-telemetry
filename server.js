@@ -343,54 +343,54 @@ async function updateTelemetrySheet(telemetryData) {
         console.log(`Sheet "${LEADERBOARD_SHEET_NAME}" created.`);
       }
 
-      // Build array to update google sheet
-      let gsheetLeaderboardUpdateData = [];
-      for (i = 0; i < leaderboardData.length; i++) { // Loop through latest leaderboard and use reference data to find driver info
-        let thisCarNumber = leaderboardData[i].Car;
-        let thisDriverReferenceData = referenceData.drivers[thisCarNumber];
-        console.log("This car reference data: " + thisDriverReferenceData)
-        // Handler for lapped car data
-        let thisCarTimeBehind;
-        if (leaderboardData[i].Laps_Behind !== 0) {
-          thisCarTimeBehind = leaderboardData[i].Time_Behind + leaderboardData[i].Laps_Behind + " laps";
-        } else {
-          thisCarTimeBehind = "-" + leaderboardData[i].Time_Behind;
-        };
-        let thisLineArray = [
-          leaderboardData[i].Rank, // Column 1 is Rank
-          thisCarNumber, // Column 2 is Car Number
-          thisDriverReferenceData.carLogo, // Column 3 is Car Number
-          thisDriverReferenceData.team, // Column 4 is Car Number
-          thisDriverReferenceData.teamLogo, // Column 5 is Car Number
-          thisDriverReferenceData.firstName, // Column 6 is Car Number
-          thisDriverReferenceData.lastName, // Column 7 is Car Number
-          thisDriverReferenceData.displayName, // Column 8 is Car Number
-          'total time', // Column 9 is Total Time, not built yet
-          thisCarTimeBehind, // Column 10 is Leader Split
-          '=TEXT(K' + (i + 2) + ', "[s].000")&" "', // Column 10 is to truncate interval display using google sheets **** update to do this in JS
-          'tire compound' // Column 11 is tire compound, not built yet
-        ];
-        gsheetLeaderboardUpdateData.push(thisLineArray);
-      };
-
-      console.log("Google sheet update data is...");
-      console.log(gsheetLeaderboardUpdateData);
-
-      // Send the data to the correct cells in the google sheet.
-      const response = await sheets.spreadsheets.values.batchUpdate({
-        spreadsheetId: SPREADSHEET_ID,
-        data: {
-          range: `${LEADERBOARD_SHEET_NAME}!A2:M2`,
-          majorDimension: 'ROWS',
-          values: gsheetLeaderboardUpdateData
-        },
-        valueInputOption: 'RAW',
-      });
-
     } catch (error) {
       console.error('Error checking or creating sheet:', error);
       return; // Stop if there's an error checking/creating the sheet
     }
+
+    // Build array to update google sheet
+    let gsheetLeaderboardUpdateData = [];
+    for (i = 0; i < leaderboardData.length; i++) { // Loop through latest leaderboard and use reference data to find driver info
+      let thisCarNumber = leaderboardData[i].Car;
+      let thisDriverReferenceData = referenceData.drivers[thisCarNumber];
+      console.log("This car reference data: " + thisDriverReferenceData)
+      // Handler for lapped car data
+      let thisCarTimeBehind;
+      if (leaderboardData[i].Laps_Behind !== 0) {
+        thisCarTimeBehind = leaderboardData[i].Time_Behind + leaderboardData[i].Laps_Behind + " laps";
+      } else {
+        thisCarTimeBehind = "-" + leaderboardData[i].Time_Behind;
+      };
+      let thisLineArray = [
+        leaderboardData[i].Rank, // Column 1 is Rank
+        thisCarNumber, // Column 2 is Car Number
+        thisDriverReferenceData.carLogo, // Column 3 is Car Number
+        thisDriverReferenceData.team, // Column 4 is Car Number
+        thisDriverReferenceData.teamLogo, // Column 5 is Car Number
+        thisDriverReferenceData.firstName, // Column 6 is Car Number
+        thisDriverReferenceData.lastName, // Column 7 is Car Number
+        thisDriverReferenceData.displayName, // Column 8 is Car Number
+        'total time', // Column 9 is Total Time, not built yet
+        thisCarTimeBehind, // Column 10 is Leader Split
+        '=TEXT(K' + (i + 2) + ', "[s].000")&" "', // Column 10 is to truncate interval display using google sheets **** update to do this in JS
+        'tire compound' // Column 11 is tire compound, not built yet
+      ];
+      gsheetLeaderboardUpdateData.push(thisLineArray);
+    };
+
+    console.log("Google sheet update data is...");
+    console.log(gsheetLeaderboardUpdateData);
+
+    // Send the data to the correct cells in the google sheet.
+    const response = await sheets.spreadsheets.values.batchUpdate({
+      spreadsheetId: SPREADSHEET_ID,
+      data: {
+        range: `${LEADERBOARD_SHEET_NAME}!A2:M2`,
+        majorDimension: 'ROWS',
+        values: gsheetLeaderboardUpdateData
+      },
+      valueInputOption: 'RAW',
+    });
 
   } catch (error) {
     console.error('Error: ', error);
@@ -450,7 +450,7 @@ function processTelemetryMessage(xml) {
         pitStop
       };
       latestTelemetryData = telemetryData;
-      console.log("Telemetry data for target car:", telemetryData); // Log the data being processed
+      //console.log("Telemetry data for target car:", telemetryData); // Log the data being processed
     }
     else {
       console.log(`Target car number ${targetCarNumber} not found in Telemetry_Leaderboard`);
@@ -732,7 +732,7 @@ async function main() {
                     pitStop: 0, // Placeholder
                   };
 
-                  console.log('Telemetry data for target car found:', telemetryForUpdate);
+                  //console.log('Telemetry data for target car found:', telemetryForUpdate);
                   latestTelemetryData = telemetryForUpdate;
                 } else {
                   console.log(`Telemetry data not found for target car number: ${targetCarNumber}`);
@@ -743,7 +743,7 @@ async function main() {
                 //process Unofficial Leaderboard message
                 const allCarDataIsArray = Array.isArray(result.Position)
                 console.log("unofficial leaderboard is array?... " + allCarDataIsArray);
-                console.log("Structure of result:", JSON.stringify(result, null, 2));
+                //console.log("Structure of result:", JSON.stringify(result, null, 2));
                 let updatedUnofficialLeaderboardData = [];
                 for (i = 0; i < result.Position.length; i++) {
                   updatedUnofficialLeaderboardData.push(
