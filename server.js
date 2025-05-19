@@ -29,7 +29,9 @@ const MAX_BRAKE = 100;
 let onlineCheckInterval; // To store the interval ID
 let isOnline = false;
 let latestTelemetryData = {};
+let telemetryUpdateTime = 2000; // Set time in ms for interval to update telemetry sheet
 let latestLeaderboardData = [];
+let leaderboardUpdateTime = 2000; // Set time in ms for interval to update leaderboard sheet
 let carData = {};
 
 /**
@@ -340,6 +342,51 @@ async function updateTelemetrySheet(telemetryData) {
         });
         console.log(`Sheet "${LEADERBOARD_SHEET_NAME}" created.`);
       }
+
+      // Build array to update google sheet
+      let gsheetLeaderboardUpdateData = [];
+      for (i = 0; i < leaderboardData.length; i++) { // Loop through latest leaderboard and use reference data to find driver info
+        let thisCarNumber = leaderboardData[i].Car;
+        let thisDriverReferenceData = referenceData.drivers.[thisCarNumber];
+        console.log("This car reference data: " + thisDriverReferenceData)
+        // Handler for lapped car data
+        let thisCarTimeBehind;
+        if (leaderboardData[i].Laps_Behind !== 0) {
+          thisCarTimeBehind = leaderboardData[i].Time_Behind + leaderboardData[i].Laps_Behind + " laps";
+        } else {
+          thisCarTimeBehind = "-" + leaderboardData[i].Time_Behind;
+        };
+        let thisLineArray = [
+          leaderboardData[i].Rank, // Column 1 is Rank
+          thisCarNumber, // Column 2 is Car Number
+          thisDriverReferenceData.carLogo, // Column 3 is Car Number
+          thisDriverReferenceData.team, // Column 4 is Car Number
+          thisDriverReferenceData.teamLogo, // Column 5 is Car Number
+          thisDriverReferenceData.firstName, // Column 6 is Car Number
+          thisDriverReferenceData.lastName, // Column 7 is Car Number
+          thisDriverReferenceData.displayName, // Column 8 is Car Number
+          'total time', // Column 9 is Total Time, not built yet
+          thisCarTimeBehind, // Column 10 is Leader Split
+          '=TEXT(K' + (i + 2) + ', "[s].000")&" "', // Column 10 is to truncate interval display using google sheets **** update to do this in JS
+          'tire compound' // Column 11 is tire compound, not built yet
+        ];
+        gsheetLeaderboardUpdateData.push(thisLineArray);
+      };
+
+      console.log("Google sheet update data is...");
+      console.log(gsheetLeaderboardUpdateData);
+
+      // Send the data to the correct cells in the google sheet.
+      const response = await sheets.spreadsheets.values.batchUpdate({
+        spreadsheetId: SPREADSHEET_ID,
+        data: {
+          range: `${LEADERBOARD_SHEET_NAME}!A2:M2`,
+          majorDimension: 'ROWS',
+          values: gsheetLeaderboardUpdateData
+        }
+        valueInputOption: 'RAW',
+      });
+
     } catch (error) {
       console.error('Error checking or creating sheet:', error);
       return; // Stop if there's an error checking/creating the sheet
@@ -536,7 +583,7 @@ async function checkOnlineStatusAndUpdateHeartbeat() {
 }
 
 /**
- * Function to periodically update the Google Sheet with telemetry data.
+ * Function to periodically update the Google Sheet with data.
  */
 async function periodicUpdateTelemetrySheet() {
   console.log("periodicUpdateTelemetrySheet called"); //add
@@ -544,6 +591,22 @@ async function periodicUpdateTelemetrySheet() {
     try {
       console.log("periodicUpdateTelemetrySheet - Updating sheet"); //add
       await updateTelemetrySheet(latestTelemetryData); //send the  data.
+    }
+    catch (e) {
+      console.error("Error in sending data to sheet", e);
+    }
+  }
+  else {
+    console.log("Not updating sheet. isOnline: ", isOnline, " data available: ", Object.keys(latestTelemetryData).length > 0);
+  }
+}
+
+async function periodicUpdateLeaderboardSheet() {
+  console.log("periodicUpdateLeaderboardSheet called"); //add
+  if (isOnline && Object.keys(latestLeaderboardData).length > 0) {
+    try {
+      console.log("periodicUpdateTelemetrySheet - Updating sheet"); //add
+      await updateLeaderboardSheet(latestLeaderboardData); //send the  data.
     }
     catch (e) {
       console.error("Error in sending data to sheet", e);
@@ -693,6 +756,8 @@ async function main() {
                 }
                 console.log("updated unofficial leaderboard found.. printing processed array.")
                 console.log(updatedUnofficialLeaderboardData);
+                latestLeaderboardData = updatedUnofficialLeaderboardData;
+                console.log("latest leaderboard data updated locally.")
               };
             } catch (error) {
               console.error('Error processing XML message:', error, 'Message:', message);
@@ -729,8 +794,12 @@ async function main() {
           targetCarNumber = await readTargetCarNumber(); // Read target car number
           console.log(`Target car number: ${targetCarNumber}`);
           if (!telemetryUpdateInterval) { // Check the telemetry update interval variable
-            telemetryUpdateInterval = setInterval(periodicUpdateTelemetrySheet, 2000); // Update sheet every 250ms if online
-            console.log('Telemetry update interval started.');
+            telemetryUpdateInterval = setInterval(periodicUpdateTelemetrySheet, telemetryUpdateTime); // Update Telemetry sheet
+            console.log('Telemetry update interval started at ' + telemetryUpdateTime + 'ms');
+          }
+          if (!leaderboardUpdateInterval) {
+            leaderboardUpdateInterval = setInterval(periodicUpdateLeaderboardSheet, leaderboardUpdateTime) // Update Leaderboard sheet
+            console.log('Leaderboard update interval started at ' + leaderboardUpdateTime + 'ms');
           }
         } else {
           // Clear the interval if offline
