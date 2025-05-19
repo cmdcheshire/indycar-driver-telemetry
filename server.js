@@ -628,7 +628,11 @@ async function main() {
                 //processPitSummaryMessage(result.Pit_Summary);
               } else if (unofficialLeaderboardStartIndex !== -1) {
                 //process Unofficial Leaderboard message
-                const allCarData = Array.isArray(result.Position);
+                const allCarData = Array.isArray(result.Position)
+                for (i = 0; i < result.length; i++) {
+                  console.log("Car: " + result[i].Position.$.Car);
+                  console.log("Time Behind: " + result[i].$.Time_Behind);
+                }
                 console.log("allCarData found.. printing processed array.")
                 console.log(allCarData);
                 for (let i = 0; i < allCarData.length; i++) { // Start at 0, use < instead of <=
