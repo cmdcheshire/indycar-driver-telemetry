@@ -613,7 +613,7 @@ async function periodicUpdateTelemetrySheet() {
 
 async function periodicUpdateLeaderboardSheet() {
   console.log("periodicUpdateLeaderboardSheet called"); //add
-  if (isOnline && Object.keys(latestLeaderboardData).length > 0) {
+  if (isOnline && latestLeaderboardData.length > 0) {
     try {
       console.log("periodicUpdateTelemetrySheet - Updating sheet"); //add
       await updateLeaderboardSheet(latestLeaderboardData); //send the  data.
@@ -623,7 +623,7 @@ async function periodicUpdateLeaderboardSheet() {
     }
   }
   else {
-    console.log("Not updating sheet. isOnline: ", isOnline, " data available: ", Object.keys(latestTelemetryData).length > 0);
+    console.log("Not updating sheet. isOnline: ", isOnline, " data available: ", latestLeaderboardData.length > 0);
   }
 }
 
