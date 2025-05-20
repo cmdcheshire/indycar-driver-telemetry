@@ -706,7 +706,7 @@ async function main() {
                       speed: parseFloat(result.Position[i].speed),
                       rpm: parseInt(result.Position[i].rpm, 10),
                       throttle: parseInt(result.Position[i].throttle, 10),
-                      brake: parseInt(result.Position[i].brake 10),
+                      brake: parseInt(result.Position[i].brake, 10),
                       battery: parseInt(result.Position[i].Battery_Pct_Remaining, 10),
                       pitStop: 0, // Placeholder
                     }
