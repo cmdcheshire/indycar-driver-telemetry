@@ -258,7 +258,39 @@ async function updateTelemetrySheet(telemetryData) {
       ]]
     };
 
-    gsheetTelemetryUpdateData.push(singleDataPoints);
+    gsheetTelemetryUpdateData.push(singleDataPoints); // adds single data points to the data object
+
+    let rpmBooleans = [];
+    let rpmImgBooleans = [];
+    if (Number(telemetryData.rpm) >= 2000) { rpmBooleans[0] = true; rpmImgBooleans[0] = referenceData.indicatorImages.RPM } else { rpmBooleans [0] = false; rpmImgBooleans[0] = referenceData.indicatorImages.Off };
+    if (Number(telemetryData.rpm) >= 4000) { rpmBooleans[1] = true; rpmImgBooleans[1] = referenceData.indicatorImages.RPM } else { rpmBooleans [1] = false; rpmImgBooleans[1] = referenceData.indicatorImages.Off };
+    if (Number(telemetryData.rpm) >= 6000) { rpmBooleans[2] = true; rpmImgBooleans[2] = referenceData.indicatorImages.RPM } else { rpmBooleans [2] = false; rpmImgBooleans[2] = referenceData.indicatorImages.Off };
+    if (Number(telemetryData.rpm) >= 8000) { rpmBooleans[3] = true; rpmImgBooleans[3] = referenceData.indicatorImages.RPM } else { rpmBooleans [3] = false; rpmImgBooleans[3] = referenceData.indicatorImages.Off };
+    if (Number(telemetryData.rpm) >= 10000) { rpmBooleans[4] = true; rpmImgBooleans[4] = referenceData.indicatorImages.RPM } else { rpmBooleans [4] = false; rpmImgBooleans[4] = referenceData.indicatorImages.Off };
+    if (Number(telemetryData.rpm) >= 11000) { rpmBooleans[5] = true; rpmImgBooleans[5] = referenceData.indicatorImages.RPM } else { rpmBooleans [5] = false; rpmImgBooleans[5] = referenceData.indicatorImages.Off };
+
+    let rpmColumns = {
+      range: TELEMETRY_SHEET_NAME + '!N2:O7',
+      majorDimension: 'COLUMNS',
+      values: [
+        [
+          rpmBooleans[0],
+          rpmBooleans[1],
+          rpmBooleans[2],
+          rpmBooleans[3],
+          rpmBooleans[4],
+          rpmBooleans[5],
+        ],
+        [
+          rpmImgBooleans[0],
+          rpmImgBooleans[1],
+          rpmImgBooleans[2],
+          rpmImgBooleans[3],
+          rpmImgBooleans[4],
+          rpmImgBooleans[5],
+        ]
+      ]
+    }
 
     /*
     const rankDisplay = getOrdinal(telemetryData.rank);
