@@ -693,21 +693,20 @@ async function main() {
                   //console.log(`Telemetry data not found for target car number: ${targetCarNumber}`);
                 }
 
-                console.log(result.Position) // Checking structure of result to store telemetry data
-                /*
+                //console.log(result.Position) // Checking structure of result to store telemetry data
+                
                 //Store all telemetry data to update leaderboard with speed, etc
                 latestFullTelemetryData = []; // Clears last full telemetry data array
-                Object.keys(result.Position).forEach(key => {
-                  
+                for (i = 0; i < result.Position.length; i++) { 
                   let thisCarTelemetryData = {
-                    key.Car : {
-                      carNumber: key.Car,
-                      rank: parseInt(key.Rank, 10),
-                      speed: parseFloat(key.speed),
-                      rpm: parseInt(key.rpm, 10),
-                      throttle: parseInt(key.throttle, 10),
-                      brake: parseInt(key.brake 10),
-                      battery: parseInt(key.Battery_Pct_Remaining, 10),
+                    result.Position[i].Car : {
+                      carNumber: result.Position[i].Car,
+                      rank: parseInt(result.Position[i].Rank, 10),
+                      speed: parseFloat(result.Position[i].speed),
+                      rpm: parseInt(result.Position[i].rpm, 10),
+                      throttle: parseInt(result.Position[i].throttle, 10),
+                      brake: parseInt(result.Position[i].brake 10),
+                      battery: parseInt(result.Position[i].Battery_Pct_Remaining, 10),
                       pitStop: 0, // Placeholder
                     }
                   };
@@ -715,7 +714,7 @@ async function main() {
                 };
 
                 console.log("Latest full telemetry data...");
-                console.log(latestFullTelemetryData); */
+                console.log(latestFullTelemetryData); 
 
               } else if (pitStartIndex !== -1) {
                 //processPitSummaryMessage(result.Pit_Summary);
