@@ -370,21 +370,26 @@ async function updateTelemetrySheet(telemetryData) {
       let thisCarNumber = leaderboardData[i].Car;
       let thisDriverReferenceData = referenceData.drivers[thisCarNumber];
       console.log("This car reference data: " + thisDriverReferenceData);
+
       // Handler for lapped car data
       let thisCarTimeBehind;
+      let thisCarIntervalSplit;
       console.log("This car laps behind " + leaderboardData[i].Laps_Behind);
       if (leaderboardData[i].Laps_Behind !== "0") {
         console.log("This car is lapped, changing time behind to laps.")
         thisCarTimeBehind = leaderboardData[i].Time_Behind + leaderboardData[i].Laps_Behind + " laps";
+        thisCarIntervalSplit = thisCarTimeBehind;
       } else {
         console.log("This car is not lapped.")
         thisCarTimeBehind = leaderboardData[i].Time_Behind;
       };
-      if (i !== 0) {
+
+      if (i !== 0 && thisCarIntervalSplit === undefined) {
         thisCarIntervalSplit = leaderboardData[i].Time_Behind - leaderboardData[i-1].Time_Behind;
-      } else {
+      } else if (thisCarIntervalSplit === undefined) {
         thisCarIntervalSplit = stringToRoundedDecimalString(leaderboardData[i].Time_Behind);
       }
+
       let thisLineObject = {
         range: LEADERBOARD_SHEET_NAME + '!A' + (i+2) + ':' + 'M' + (i+2),
         majorDimension: 'ROWS',
