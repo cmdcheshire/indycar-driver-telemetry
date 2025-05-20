@@ -454,6 +454,9 @@ async function updateTelemetrySheet(telemetryData) {
         thisCarIntervalSplit = stringToRoundedDecimalString(leaderboardData[i].Time_Behind);
       }
 
+      // Find index of telemetry data for this car
+      let thisCarTelemetryData = telemetryData[telemetryData.findIndex(item => item.carNumber === thisCarNumber)];
+
       let thisLineObject = {
         range: LEADERBOARD_SHEET_NAME + '!A' + (i+2) + ':' + 'M' + (i+2),
         majorDimension: 'ROWS',
@@ -469,7 +472,7 @@ async function updateTelemetrySheet(telemetryData) {
           'total time', // Column 9 is Total Time, not built yet
           thisCarTimeBehind, // Column 10 is Leader Split
           thisCarIntervalSplit,
-          '=TEXT(K' + (i + 2) + ', "[s].000")&" "', // Column 12 is last known speed
+          thisCarTelemetryData.speed, // Column 12 is last known speed
           'tire compound' // Column 13 is tire compound, not built yet
         ]]
       }
@@ -698,24 +701,21 @@ async function main() {
                 //Store all telemetry data to update leaderboard with speed, etc
                 latestFullTelemetryData = []; // Clears last full telemetry data array
                 for (i = 0; i < result.Position.length; i++) { 
-                  let thisCarNumber = result.Position[i].$.Car;
                   let thisCarTelemetryData = {
-                    [thisCarNumber]: {
-                      carNumber: result.Position[i].$.Car,
-                      rank: parseInt(result.Position[i].$.Rank, 10),
-                      speed: parseFloat(result.Position[i].$.speed),
-                      rpm: parseInt(result.Position[i].$.rpm, 10),
-                      throttle: parseInt(result.Position[i].$.throttle, 10),
-                      brake: parseInt(result.Position[i].$.brake, 10),
-                      battery: parseInt(result.Position[i].$.Battery_Pct_Remaining, 10),
-                      pitStop: 0, // Placeholder
-                    }
+                    carNumber: result.Position[i].$.Car,
+                    rank: parseInt(result.Position[i].$.Rank, 10),
+                    speed: parseFloat(result.Position[i].$.speed),
+                    rpm: parseInt(result.Position[i].$.rpm, 10),
+                    throttle: parseInt(result.Position[i].$.throttle, 10),
+                    brake: parseInt(result.Position[i].$.brake, 10),
+                    battery: parseInt(result.Position[i].$.Battery_Pct_Remaining, 10),
+                    pitStop: 0, // Placeholder
                   };
                   latestFullTelemetryData.push(thisCarTelemetryData);
                 };
 
-                console.log("Latest full telemetry data...");
-                console.log(latestFullTelemetryData); 
+                //console.log("Latest full telemetry data...");
+                //console.log(latestFullTelemetryData); 
 
               } else if (pitStartIndex !== -1) {
                 //processPitSummaryMessage(result.Pit_Summary);
