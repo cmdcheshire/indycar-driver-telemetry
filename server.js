@@ -310,101 +310,67 @@ async function updateTelemetrySheet(telemetryData) {
 
     gsheetTelemetryUpdateData.push(rpmColumns);
 
-    /*
-    const rankDisplay = getOrdinal(telemetryData.rank);
-    const rpmPctBools = [];
-    for (let i = 1; i <= 6; i++) {
-      rpmPctBools.push(telemetryData.rpm > (MAX_RPM * i / 10));
+    let throttleBooleans = [];
+    let throttleImgBooleans = [];
+    if (Number(telemetryData.throttle) >= 20) { throttleBooleans[0] = true; throttleImgBooleans[0] = referenceData.indicatorImages.Throttle } else { throttleBooleans [0] = false; throttleImgBooleans[0] = referenceData.indicatorImages.Off };
+    if (Number(telemetryData.throttle) >= 40) { throttleBooleans[1] = true; throttleImgBooleans[1] = referenceData.indicatorImages.Throttle } else { throttleBooleans [1] = false; throttleImgBooleans[1] = referenceData.indicatorImages.Off };
+    if (Number(telemetryData.throttle) >= 60) { throttleBooleans[2] = true; throttleImgBooleans[2] = referenceData.indicatorImages.Throttle } else { throttleBooleans [2] = false; throttleImgBooleans[2] = referenceData.indicatorImages.Off };
+    if (Number(telemetryData.throttle) >= 80) { throttleBooleans[3] = true; throttleImgBooleans[3] = referenceData.indicatorImages.Throttle } else { throttleBooleans [3] = false; throttleImgBooleans[3] = referenceData.indicatorImages.Off };
+    if (Number(telemetryData.throttle) >= 95) { throttleBooleans[4] = true; throttleImgBooleans[4] = referenceData.indicatorImages.Throttle } else { throttleBooleans [4] = false; throttleImgBooleans[4] = referenceData.indicatorImages.Off };
+    
+    let throttleColumns = {
+      range: TELEMETRY_SHEET_NAME + '!P2:Q6',
+      majorDimension: 'COLUMNS',
+      values: [
+        [
+          throttleBooleans[0],
+          throttleBooleans[1],
+          throttleBooleans[2],
+          throttleBooleans[3],
+          throttleBooleans[4],
+        ],
+        [
+          throttleImgBooleans[0],
+          throttleImgBooleans[1],
+          throttleImgBooleans[2],
+          throttleImgBooleans[3],
+          throttleImgBooleans[4],
+        ]
+      ]
     }
-    const throttlePctBools = [];
-    for (let i = 1; i <= 5; i++) {
-      throttlePctBools.push(telemetryData.throttle > (MAX_THROTTLE * i / 10));
+
+    gsheetTelemetryUpdateData.push(throttleColumns);
+
+    let brakeBooleans = [];
+    let brakeImgBooleans = [];
+    if (Number(telemetryData.brake) >= 20) { brakeBooleans[0] = true; brakeImgBooleans[0] = referenceData.indicatorImages.Brake } else { brakeBooleans [0] = false; brakeImgBooleans[0] = referenceData.indicatorImages.Off };
+    if (Number(telemetryData.brake) >= 40) { brakeBooleans[1] = true; brakeImgBooleans[1] = referenceData.indicatorImages.Brake } else { brakeBooleans [1] = false; brakeImgBooleans[1] = referenceData.indicatorImages.Off };
+    if (Number(telemetryData.brake) >= 60) { brakeBooleans[2] = true; brakeImgBooleans[2] = referenceData.indicatorImages.Brake } else { brakeBooleans [2] = false; brakeImgBooleans[2] = referenceData.indicatorImages.Off };
+    if (Number(telemetryData.brake) >= 80) { brakeBooleans[3] = true; brakeImgBooleans[3] = referenceData.indicatorImages.Brake } else { brakeBooleans [3] = false; brakeImgBooleans[3] = referenceData.indicatorImages.Off };
+    if (Number(telemetryData.brake) >= 95) { brakeBooleans[4] = true; brakeImgBooleans[4] = referenceData.indicatorImages.Brake } else { brakeBooleans [4] = false; brakeImgBooleans[4] = referenceData.indicatorImages.Off };
+    
+    let brakeColumns = {
+      range: TELEMETRY_SHEET_NAME + '!R2:S6',
+      majorDimension: 'COLUMNS',
+      values: [
+        [
+          brakeBooleans[0],
+          brakeBooleans[1],
+          brakeBooleans[2],
+          brakeBooleans[3],
+          brakeBooleans[4],
+        ],
+        [
+          brakeImgBooleans[0],
+          brakeImgBooleans[1],
+          brakeImgBooleans[2],
+          brakeImgBooleans[3],
+          brakeImgBooleans[4],
+        ]
+      ]
     }
-    const brakePctBools = [];
-    for (let i = 1; i <= 5; i++) {
-      brakePctBools.push(telemetryData.brake > (MAX_BRAKE * i / 10));
-    }
-    const headshotUrl = referenceData.drivers[telemetryData.carNumber]?.headshot || '';
-    const rpmImgUrls = [
-      rpmPctBools[0] ? referenceData.indicatorImages['RPM 10%'] || '' : referenceData.indicatorImages['RPM 0%'] || '', // K2
-      rpmPctBools[1] ? referenceData.indicatorImages['RPM 20%'] || '' : referenceData.indicatorImages['RPM 0%'] || '', // K3
-      rpmPctBools[2] ? referenceData.indicatorImages['RPM 30%'] || '' : referenceData.indicatorImages['RPM 0%'] || '', // K4
-      rpmPctBools[3] ? referenceData.indicatorImages['RPM 40%'] || '' : referenceData.indicatorImages['RPM 0%'] || '', // K5
-      rpmPctBools[4] ? referenceData.indicatorImages['RPM 50%'] || '' : referenceData.indicatorImages['RPM 0%'] || '', // K6
-      rpmPctBools[5] ? referenceData.indicatorImages['RPM 60%'] || '' : referenceData.indicatorImages['RPM 0%'] || '', // K7
-    ];
-    const throttleImgUrls = [
-      throttlePctBools[0] ? referenceData.indicatorImages['Throttle 20%'] || '' : referenceData.indicatorImages['Throttle 0%'] || '', // R2
-      throttlePctBools[1] ? referenceData.indicatorImages['Throttle 40%'] || '' : referenceData.indicatorImages['Throttle 0%'] || '', // S2
-      throttlePctBools[2] ? referenceData.indicatorImages['Throttle 60%'] || '' : referenceData.indicatorImages['Throttle 0%'] || '', // T2
-      throttlePctBools[3] ? referenceData.indicatorImages['Throttle 80%'] || '' : referenceData.indicatorImages['Throttle 0%'] || '', // U2
-      throttlePctBools[4] ? referenceData.indicatorImages['Throttle 100%'] || '' : referenceData.indicatorImages['Throttle 0%'] || '', // V2
-    ];
-    const brakeImgUrls = [
-      brakePctBools[0] ? referenceData.indicatorImages['Brake 20%'] || '' : referenceData.indicatorImages['Brake 0%'] || '', // W2
-      brakePctBools[1] ? referenceData.indicatorImages['Brake 40%'] || '' : referenceData.indicatorImages['Brake 0%'] || '', // X2
-      brakePctBools[2] ? referenceData.indicatorImages['Brake 60%'] || '' : referenceData.indicatorImages['Brake 0%'] || '', // Y2
-      brakePctBools[3] ? referenceData.indicatorImages['Brake 80%'] || '' : referenceData.indicatorImages['Brake 0%'] || '', // Z2
-      brakePctBools[4] ? referenceData.indicatorImages['Brake 100%'] || '' : referenceData.indicatorImages['Brake 0%'] || '', // AA2
-    ];
-    const values = [
-      ['Car Number', 'Rank', 'Rank End', 'First Name', 'Last Name', 'Display Name', 'Headshot', 'Speed', 'RPM',
-        'RPM > 10%', 'RPM > 20%', 'RPM > 30%', 'RPM > 40%', 'RPM > 50%', 'RPM > 60%',
-        'RPM 10% Img', 'RPM 20% Img', 'RPM 30% Img', 'RPM 40% Img', 'RPM 50% Img', 'RPM 60% Img',
-        'Throttle', 'Throttle > 20%', 'Throttle > 40%', 'Throttle > 60%', 'Throttle > 80%', 'Throttle > 100%',
-        'Throttle 20% Img', 'Throttle 40% Img', 'Throttle 60% Img', 'Throttle 80% Img', 'Throttle 100% Img',
-        'Brake', 'Brake > 20%', 'Brake > 40%', 'Brake > 60%', 'Brake > 80%', 'Brake > 100%',
-        'Brake 20% Img', 'Brake 40% Img', 'Brake 60% Img', 'Brake 80% Img', 'Brake 100% Img',
-        'Battery', 'Pit Stop'],
-      [
-        telemetryData.carNumber, // Car Number in A2
-        telemetryData.rank,  // Rank number in B2
-        rankDisplay, // Rank ordinal in C2
-        telemetryData.firstName, // First Name in D2
-        telemetryData.lastName,  // Last Name in E2
-        telemetryData.displayName, // Display Name in F2
-        headshotUrl,  // Headshot URL in G2
-        telemetryData.speed,  // Speed in H2
-        telemetryData.rpm,  // RPM in I2
-        rpmPctBools[0], // RPM > 10% in J2
-        rpmPctBools[1], // RPM > 20% in J3
-        rpmPctBools[2], // RPM > 30% in J4
-        rpmPctBools[3], // RPM > 40% in J5
-        rpmPctBools[4], // RPM > 50% in J6
-        rpmPctBools[5], // RPM > 60% in J7
-        rpmImgUrls[0], // RPM 10% Img Url in K2
-        rpmImgUrls[1], // RPM 20% Img Url in K3
-        rpmImgUrls[2], // RPM 30% Img Url in K4
-        rpmImgUrls[3], // RPM 40% Img Url in K5
-        rpmImgUrls[4], // RPM 50% Img Url in K6
-        rpmImgUrls[5], // RPM 60% Img Url in K7
-        telemetryData.throttle, // Throttle in L2
-        throttlePctBools[0], // Throttle > 20% in M2
-        throttlePctBools[1], // Throttle > 40% in N2
-        throttlePctBools[2], // Throttle > 60% in O2
-        throttlePctBools[3], // Throttle > 80% in P2
-        throttlePctBools[4], // Throttle > 100% in Q2
-        throttleImgUrls[0], // Throttle 20% Img Url in R2
-        throttleImgUrls[1], // Throttle 40% Img Url in S2
-        throttleImgUrls[2], // Throttle 60% Img Url in T2
-        throttleImgUrls[3], // Throttle 80% Img Url in U2
-        throttleImgUrls[4], // Throttle 100% Img Url in V2
-        telemetryData.brake,
-        brakePctBools[0], // Brake > 20% in W2
-        brakePctBools[1], // Brake > 40% in X2
-        brakePctBools[2], // Brake > 60% in Y2
-        brakePctBools[3], // Brake > 80% in Z2
-        brakePctBools[4], // Brake > 100% in AA2
-        brakeImgUrls[0], // Brake 20% Img Url in Q2
-        brakeImgUrls[1], // Brake 40% Img Url in X2
-        brakeImgUrls[2], // Brake 60% Img Url in Y2
-        brakeImgUrls[3], // Brake 80% Img Url in Z2
-        brakeImgUrls[4], // Brake 100% Img Url in AA2
-        telemetryData.battery,
-        telemetryData.pitStop,
-      ],
-    ];
-    */ // Dumbass AI code that doesnt work
+
+    gsheetTelemetryUpdateData.push(brakeColumns);
 
     const response = await sheets_TelemetryAccount.spreadsheets.values.batchUpdate({
       spreadsheetId: SPREADSHEET_ID,
