@@ -423,6 +423,7 @@ async function updateTelemetrySheet(telemetryData) {
         data: gsheetLeaderboardUpdateData,
       }
     });
+    console.log('Leaderboard data updated in Google Sheet:', response.data);
 
   } catch (error) {
     console.error('Error: ', error);
