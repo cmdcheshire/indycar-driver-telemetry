@@ -693,6 +693,8 @@ async function main() {
                   //console.log(`Telemetry data not found for target car number: ${targetCarNumber}`);
                 }
 
+                console.log(result.Position) // Checking structure of result to store telemetry data
+                /*
                 //Store all telemetry data to update leaderboard with speed, etc
                 latestFullTelemetryData = []; // Clears last full telemetry data array
                 Object.keys(result.Position).forEach(key => {
@@ -713,7 +715,7 @@ async function main() {
                 };
 
                 console.log("Latest full telemetry data...");
-                console.log(latestFullTelemetryData);
+                console.log(latestFullTelemetryData); */
 
               } else if (pitStartIndex !== -1) {
                 //processPitSummaryMessage(result.Pit_Summary);
