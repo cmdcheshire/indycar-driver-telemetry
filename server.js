@@ -194,7 +194,7 @@ function getOrdinal(n) {
     return inputString; // Return the original string if it's not a valid number
   }
 
-  const roundedNumber = number.toFixed(2); // Round to 3 decimal places and convert to string
+  const roundedNumber = number.toFixed(3); // Round to 3 decimal places and convert to string
 
   return roundedNumber;
 }
