@@ -30,7 +30,8 @@ const MAX_THROTTLE = 100;
 const MAX_BRAKE = 100;
 let onlineCheckInterval; // To store the interval ID
 let isOnline = false;
-let latestTelemetryData = {};
+let latestTargetTelemetryData = {}; // Telemetry data for car selected in google sheet
+let latestFullTelemetryData = []; // Telemetry data for all cars
 let telemetryUpdateTime = 1500; // Set time in ms for interval to update telemetry sheet
 let latestLeaderboardData = [];
 let leaderboardUpdateTime = 2000; // Set time in ms for interval to update leaderboard sheet
@@ -389,7 +390,7 @@ async function updateTelemetrySheet(telemetryData) {
  * Function to update leaderboard data.
  * 
  */
- async function updateLeaderboardSheet(leaderboardData) {
+ async function updateLeaderboardSheet(leaderboardData, telemetryData) {
   try {
     console.log('Updating leaderboard data in Google Sheet...');
 
@@ -468,7 +469,7 @@ async function updateTelemetrySheet(telemetryData) {
           'total time', // Column 9 is Total Time, not built yet
           thisCarTimeBehind, // Column 10 is Leader Split
           thisCarIntervalSplit,
-          '=TEXT(K' + (i + 2) + ', "[s].000")&" "', // Column 12 is to truncate interval display using google sheets **** update to do this in JS
+          '=TEXT(K' + (i + 2) + ', "[s].000")&" "', // Column 12 is last known speed
           'tire compound' // Column 13 is tire compound, not built yet
         ]]
       }
@@ -544,17 +545,17 @@ async function checkOnlineStatusAndUpdateHeartbeat() {
  */
 async function periodicUpdateTelemetrySheet() {
   console.log("periodicUpdateTelemetrySheet called"); //add
-  if (isOnline && Object.keys(latestTelemetryData).length > 0) {
+  if (isOnline && Object.keys(latestTargetTelemetryData).length > 0) {
     try {
       console.log("periodicUpdateTelemetrySheet - Updating sheet"); //add
-      await updateTelemetrySheet(latestTelemetryData); //send the  data.
+      await updateTelemetrySheet(latestTargetTelemetryData); //send the  data.
     }
     catch (e) {
       console.error("Error in sending data to sheet", e);
     }
   }
   else {
-    console.log("Not updating sheet. isOnline: ", isOnline, " data available: ", Object.keys(latestTelemetryData).length > 0);
+    console.log("Not updating sheet. isOnline: ", isOnline, " data available: ", Object.keys(latestTargetTelemetryData).length > 0);
   }
 }
 
@@ -563,7 +564,7 @@ async function periodicUpdateLeaderboardSheet() {
   if (isOnline && latestLeaderboardData.length > 0) {
     try {
       console.log("periodicUpdateTelemetrySheet - Updating sheet"); //add
-      await updateLeaderboardSheet(latestLeaderboardData); //send the  data.
+      await updateLeaderboardSheet(latestLeaderboardData, latestFullTelemetryData); //send the data.
     }
     catch (e) {
       console.error("Error in sending data to sheet", e);
@@ -687,10 +688,33 @@ async function main() {
                   };
 
                   //console.log('Telemetry data for target car found:', telemetryForUpdate);
-                  latestTelemetryData = telemetryForUpdate;
+                  latestTargetTelemetryData = telemetryForUpdate;
                 } else {
                   //console.log(`Telemetry data not found for target car number: ${targetCarNumber}`);
                 }
+
+                //Store all telemetry data to update leaderboard with speed, etc
+                latestFullTelemetryData = []; // Clears last full telemetry data array
+                Object.keys(result.Position).forEach(key => {
+                  
+                  let thisCarTelemetryData = {
+                    key.Car : {
+                      carNumber: key.Car,
+                      rank: parseInt(key.Rank, 10),
+                      speed: parseFloat(key.speed),
+                      rpm: parseInt(key.rpm, 10),
+                      throttle: parseInt(key.throttle, 10),
+                      brake: parseInt(key.brake 10),
+                      battery: parseInt(key.Battery_Pct_Remaining, 10),
+                      pitStop: 0, // Placeholder
+                    }
+                  };
+                  latestFullTelemetryData.push(thisCarTelemetryData);
+                };
+
+                console.log("Latest full telemetry data...");
+                console.log(latestFullTelemetryData);
+
               } else if (pitStartIndex !== -1) {
                 //processPitSummaryMessage(result.Pit_Summary);
               } else if (unofficialLeaderboardStartIndex !== -1) {
@@ -765,7 +789,8 @@ async function main() {
           if (telemetryUpdateInterval) {
             clearInterval(telemetryUpdateInterval);
             telemetryUpdateInterval = null;
-            latestTelemetryData = {};
+            latestTargetTelemetryData = {};
+            latestFullTelemetryData = {};
             console.log('Telemetry update interval stopped.');
           }
           console.log('Offline: Not updating sheet.');
