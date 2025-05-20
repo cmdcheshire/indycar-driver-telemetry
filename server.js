@@ -14,7 +14,7 @@ const LEADERBOARD_SHEET_NAME = 'Live Pillar Test'
 const TELEMETRY_SHEET_NAME = 'Telemetry Test'; // Sheet to write telemetry data
 const DATABASE_SHEET_NAME = 'Database'; // Sheet containing driver and reference data
 const CONTROLLER_SHEET_NAME = 'Live Data Controller'; // Sheet for the controller tab
-const ONLINE_CHECKBOX_CELL = 'B4'; // Cell containing the online checkbox
+const TELEMETRY_ONLINE_CHECKBOX_CELL = 'B4'; // Cell containing the online checkbox
 const TARGET_CAR_CELL = 'B5';    // Cell containing the target car
 
 // Global Variables
@@ -235,6 +235,10 @@ async function updateTelemetrySheet(telemetryData) {
       return; // Stop if there's an error checking/creating the sheet
     }
 
+    // Build telemetry data object to batch update google sheet
+    let gsheetTelemetryUpdateData = [];
+
+
     const rankDisplay = getOrdinal(telemetryData.rank);
     const rpmPctBools = [];
     for (let i = 1; i <= 6; i++) {
@@ -391,18 +395,18 @@ async function updateTelemetrySheet(telemetryData) {
     for (i = 0; i < leaderboardData.length; i++) { // Loop through latest leaderboard and use reference data to find driver info
       let thisCarNumber = leaderboardData[i].Car;
       let thisDriverReferenceData = referenceData.drivers[thisCarNumber];
-      console.log("This car reference data: " + thisDriverReferenceData);
+      //console.log("This car reference data: " + thisDriverReferenceData);
 
       // Handler for lapped car data
       let thisCarTimeBehind;
       let thisCarIntervalSplit;
-      console.log("This car laps behind " + leaderboardData[i].Laps_Behind);
+      //console.log("This car laps behind " + leaderboardData[i].Laps_Behind);
       if (leaderboardData[i].Laps_Behind !== "0") {
-        console.log("This car is lapped, changing time behind to laps.")
+        //console.log("This car is lapped, changing time behind to laps.")
         thisCarTimeBehind = leaderboardData[i].Time_Behind + leaderboardData[i].Laps_Behind + " laps";
         thisCarIntervalSplit = thisCarTimeBehind;
       } else {
-        console.log("This car is not lapped.")
+        //console.log("This car is not lapped.")
         thisCarTimeBehind = leaderboardData[i].Time_Behind;
       };
 
@@ -463,7 +467,7 @@ async function checkOnlineStatusAndUpdateHeartbeat() {
     console.log('Checking online status and updating heartbeat...');
     const response = await sheets_LeaderboardAccount.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${CONTROLLER_SHEET_NAME}!${ONLINE_CHECKBOX_CELL}`,
+      range: `${CONTROLLER_SHEET_NAME}!${TELEMETRY_ONLINE_CHECKBOX_CELL}`,
     });
 
     const values = response.data.values;
@@ -495,6 +499,7 @@ async function checkOnlineStatusAndUpdateHeartbeat() {
     console.error('Error checking online status:', error);
     return false; // Assume offline in case of error to prevent further processing
   }
+  
 }
 
 /**
@@ -613,7 +618,7 @@ async function main() {
           xmlParser.parseString(message, async (err, result) => {
             //console.log(JSON.stringify(result, null, 2));
             if (result) {
-              console.log("XML parsed successfully.")
+              //console.log("XML parsed successfully.")
             }
             if (err) {
               console.error('Error parsing XML. Skipping message:', err, 'Message:', message);
