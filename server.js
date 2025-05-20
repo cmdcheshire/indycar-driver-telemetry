@@ -449,7 +449,7 @@ async function updateTelemetrySheet(telemetryData) {
         data: gsheetLeaderboardUpdateData,
       }
     });
-    console.log('Leaderboard data updated in Google Sheet:', response);
+    console.log('Leaderboard data updated in Google Sheet: ', response.data.totalUpdatedRows + ' rows');
 
   } catch (error) {
     console.error('Error: ', error);
