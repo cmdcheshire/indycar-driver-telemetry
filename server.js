@@ -200,6 +200,22 @@ function getOrdinal(n) {
 }
 
 /**
+ * Converts a string to a number, rounds it to 0 decimal places, and returns the result as a string.
+ *
+ */
+ function stringToRoundedWholeString(inputString) {
+  const number = parseFloat(inputString); // Convert the string to a floating-point number
+
+  if (isNaN(number)) {
+    return inputString; // Return the original string if it's not a valid number
+  }
+
+  const roundedNumber = number.toFixed(0); // Round to 3 decimal places and convert to string
+
+  return roundedNumber;
+}
+
+/**
  * Function to update the Google Sheet with the telemetry data for the target car.
  */
 async function updateTelemetrySheet(telemetryData) {
@@ -249,7 +265,7 @@ async function updateTelemetrySheet(telemetryData) {
         referenceData.drivers[telemetryData.carNumber].lastName, // Column E is last name
         referenceData.drivers[telemetryData.carNumber].firstName + ' ' + referenceData.drivers[telemetryData.carNumber].lastName, // Column F is display name (in this case full name)
         referenceData.drivers[telemetryData.carNumber].headshot, // Column G is headshot URL (find in the tagboard graphic library and update in the google sheet 'Database')
-        telemetryData.speed, // Column H is speed
+        stringToRoundedWholeString(telemetryData.speed), // Column H is speed
         telemetryData.rpm, // Column I is rpm number
         telemetryData.throttle, // Column J is throttle number
         telemetryData.brake, // Column K is brake percentage
@@ -291,7 +307,7 @@ async function updateTelemetrySheet(telemetryData) {
         ]
       ]
     }
-    
+
     gsheetTelemetryUpdateData.push(rpmColumns);
 
     /*
