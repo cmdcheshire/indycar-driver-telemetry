@@ -31,7 +31,7 @@ const MAX_BRAKE = 100;
 let onlineCheckInterval; // To store the interval ID
 let isOnline = false;
 let latestTelemetryData = {};
-let telemetryUpdateTime = 2000; // Set time in ms for interval to update telemetry sheet
+let telemetryUpdateTime = 250; // Set time in ms for interval to update telemetry sheet
 let latestLeaderboardData = [];
 let leaderboardUpdateTime = 2000; // Set time in ms for interval to update leaderboard sheet
 let carData = {};
