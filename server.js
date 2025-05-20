@@ -238,7 +238,24 @@ async function updateTelemetrySheet(telemetryData) {
     // Build telemetry data object to batch update google sheet
     let gsheetTelemetryUpdateData = [];
 
+    let singleDataPoints = {
+      range: TELEMETRY_SHEET_NAME + + '!A' + (i+2) + ':' + 'M' + (i+2),
+      majorDimension: 'COLUMNS',
+      values: [[
+        telemetryData.carNumber,
+        telemetryData.rank,
+        telemetryData.speed,
+        telemetryData.rpm,
+        telemetryData.throttle,
+        telemetryData.brake,
+        telemetryData.battery,
+        telemetryData.pitStop,
+      ]]
+    };
 
+    gsheetTelemetryUpdateData.push(singleDataPoints);
+
+    /*
     const rankDisplay = getOrdinal(telemetryData.rank);
     const rpmPctBools = [];
     for (let i = 1; i <= 6; i++) {
@@ -332,15 +349,14 @@ async function updateTelemetrySheet(telemetryData) {
         telemetryData.pitStop,
       ],
     ];
+    */ // Dumbass AI code that doesnt work
 
-
-    const response = await sheets_TelemetryAccount.spreadsheets.values.update({
+    const response = await sheets_TelemetryAccount.spreadsheets.values.batchUpdate({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${TELEMETRY_SHEET_NAME}!A1`, // Start at A1
       valueInputOption: 'RAW',
-      resource: {
-        values: values,
-      },
+      resource: { // The 'resource' object is necessary for batchUpdate
+        data: gsheetTelemetryUpdateData,
+      }
     });
     console.log('Telemetry data updated in Google Sheet:', response.data);
   } catch (error) {
