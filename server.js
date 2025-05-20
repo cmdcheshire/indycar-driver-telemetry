@@ -240,7 +240,7 @@ async function updateTelemetrySheet(telemetryData) {
 
     let singleDataPoints = {
       range: TELEMETRY_SHEET_NAME + '!A2:M2',
-      majorDimension: 'COLUMNS',
+      majorDimension: 'ROWS',
       values: [[
         telemetryData.carNumber,
         telemetryData.rank,
