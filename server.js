@@ -698,8 +698,9 @@ async function main() {
                 //Store all telemetry data to update leaderboard with speed, etc
                 latestFullTelemetryData = []; // Clears last full telemetry data array
                 for (i = 0; i < result.Position.length; i++) { 
+                  let thisCarNumber = result.Position[i].Car;
                   let thisCarTelemetryData = {
-                    result.Position[i].Car : {
+                    thisCarNumber: {
                       carNumber: result.Position[i].Car,
                       rank: parseInt(result.Position[i].Rank, 10),
                       speed: parseFloat(result.Position[i].speed),
