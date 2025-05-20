@@ -438,8 +438,8 @@ async function updateTelemetrySheet(telemetryData) {
       gsheetLeaderboardUpdateData.push(thisLineObject);
     };
 
-    console.log("Google sheet update data is...");
-    console.log(gsheetLeaderboardUpdateData);
+    //console.log("Google sheet update data is...");
+    //console.log(gsheetLeaderboardUpdateData);
 
     // Send the data to the correct cells in the google sheet.
     const response = await sheets_LeaderboardAccount.spreadsheets.values.batchUpdate({
@@ -449,7 +449,7 @@ async function updateTelemetrySheet(telemetryData) {
         data: gsheetLeaderboardUpdateData,
       }
     });
-    console.log('Leaderboard data updated in Google Sheet:', response.data);
+    console.log('Leaderboard data updated in Google Sheet:', response);
 
   } catch (error) {
     console.error('Error: ', error);
