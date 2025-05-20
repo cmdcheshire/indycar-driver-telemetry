@@ -461,7 +461,7 @@ async function updateTelemetrySheet(telemetryData) {
 async function checkOnlineStatusAndUpdateHeartbeat() {
   try {
     console.log('Checking online status and updating heartbeat...');
-    const response = await _LeaderboardAccount.spreadsheets.values.get({
+    const response = await sheets_LeaderboardAccount.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
       range: `${CONTROLLER_SHEET_NAME}!${ONLINE_CHECKBOX_CELL}`,
     });
