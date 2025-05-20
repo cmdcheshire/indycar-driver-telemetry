@@ -265,8 +265,8 @@ async function updateTelemetrySheet(telemetryData) {
         referenceData.drivers[telemetryData.carNumber].lastName, // Column E is last name
         referenceData.drivers[telemetryData.carNumber].firstName + ' ' + referenceData.drivers[telemetryData.carNumber].lastName, // Column F is display name (in this case full name)
         referenceData.drivers[telemetryData.carNumber].headshot, // Column G is headshot URL (find in the tagboard graphic library and update in the google sheet 'Database')
-        stringToRoundedWholeString(telemetryData.speed), // Column H is speed
-        telemetryData.rpm, // Column I is rpm number
+        stringToRoundedWholeString(telemetryData.speed) + ' ', // Column H is speed, space added because text box cutting off right side
+        telemetryData.rpm + ' ', // Column I is rpm number, space added because text box cutting off right side
         telemetryData.throttle, // Column J is throttle number
         telemetryData.brake, // Column K is brake percentage
         telemetryData.battery, // Column L is battery percentage
