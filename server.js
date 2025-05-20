@@ -7,7 +7,8 @@ const { JWT } = require('google-auth-library');
 const TCP_HOST = 'localhost';
 const TCP_PORT = 5000;
 const SPREADSHEET_ID = '1UIpgq72cvEUT-qvEB4gmwDjvFU4CDIXf2rllNseYEUM';
-const GOOGLE_SERVICE_ACCOUNT_KEY_PATH = 'indycar-live-data-8bbb32c95e6b.json';
+const GOOGLE_TELEMETRY_SERVICE_ACCOUNT_KEY_PATH = 'indycar-live-data-telemetry-account.json';
+const GOOGLE_LEADERBOARD_SERVICE_ACCOUNT_KEY_PATH = 'indycar-live-data-leaderboard-account.json';
 const TARGET_CAR_SHEET_NAME = 'Live Data Controller'; // Sheet containing the target car number and online checkbox
 const LEADERBOARD_SHEET_NAME = 'Live Pillar Test'
 const TELEMETRY_SHEET_NAME = 'Telemetry Test'; // Sheet to write telemetry data
@@ -20,7 +21,8 @@ const TARGET_CAR_CELL = 'B5';    // Cell containing the target car
 let client;
 let xmlParser = new xml2js.Parser({ explicitRoot: false, ignoreAttributes: false, trim: true });
 let googleAuthClient;
-let sheets;  // Store the sheets object
+let sheets_TelemetryAccount;  // Store the telemetry update sheets object
+let sheets_LeaderboardAccount; // Store the leaderboard update sheets object
 let targetCarNumber;
 let referenceData = {}; // Store reference data from the sheet
 const MAX_RPM = 12000;
@@ -35,18 +37,38 @@ let leaderboardUpdateTime = 2000; // Set time in ms for interval to update leade
 let carData = {};
 
 /**
- * Function to authenticate with the Google Sheets API using a service account.
+ * Function to authenticate with the Google Sheets API using a service account for Telemetry update service account.
+ * THIS IS USING TWO DIFFERENT SERVICE ACCOUNTS BECAUSE THE SHEETS API IS RATE LIMITED TO 60 CALLS PER LIMIT (PER ACCOUNT)
  */
-async function authenticate() {
+async function authenticateTelemetryAccount() {
   try {
-    console.log('Authenticating with Google Sheets API...');
+    console.log('Authenticating Telemetry update account with Google Sheets API...');
     googleAuthClient = new JWT({
-      keyFile: GOOGLE_SERVICE_ACCOUNT_KEY_PATH,
+      keyFile: GOOGLE_TELEMETRY_SERVICE_ACCOUNT_KEY_PATH,
       scopes: ['https://www.googleapis.com/auth/spreadsheets'],
     });
     await googleAuthClient.authorize();
-    sheets = google.sheets({ version: 'v4', auth: googleAuthClient }); // Store the sheets object here!!!
-    console.log('Successfully authenticated with Google Sheets API.');
+    sheets_TelemetryAccount = google.sheets({ version: 'v4', auth: googleAuthClient }); // Store the sheets object here!!!
+    console.log('Successfully authenticated Telemetry update account with Google Sheets API.');
+  } catch (error) {
+    console.error('Error authenticating with Google Sheets API:', error);
+    throw error; // Terminate the application if authentication fails
+  }
+}
+
+/**
+ * Function to authenticate with the Google Sheets API using a service account for Leaderboard update service account.
+ */
+ async function authenticateLeaderboardAccount() {
+  try {
+    console.log('Authenticating Leaderboard update account with Google Sheets API...');
+    googleAuthClient = new JWT({
+      keyFile: GOOGLE_LEADERBOARD_SERVICE_ACCOUNT_KEY_PATH,
+      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    });
+    await googleAuthClient.authorize();
+    sheets_LeaderboardAccount = google.sheets({ version: 'v4', auth: googleAuthClient }); // Store the sheets object here!!!
+    console.log('Successfully authenticated Leaderboard update account with Google Sheets API.');
   } catch (error) {
     console.error('Error authenticating with Google Sheets API:', error);
     throw error; // Terminate the application if authentication fails
@@ -59,7 +81,7 @@ async function authenticate() {
 async function readTargetCarNumber() {
   try {
     console.log('Reading target car number from Google Sheet...');
-    const response = await sheets.spreadsheets.values.get({ // Use the 'sheets' object
+    const response = await sheets_LeaderboardAccount.spreadsheets.values.get({ // Use the 'sheets' object
       spreadsheetId: SPREADSHEET_ID,
       range: `${TARGET_CAR_SHEET_NAME}!${TARGET_CAR_CELL}`,
     });
@@ -100,7 +122,7 @@ async function readReferenceData() {
 
     // Loop through the ranges and fetch the data for each
     for (const range of ranges) {
-      const response = await sheets.spreadsheets.values.get({
+      const response = await sheets_LeaderboardAccount.spreadsheets.values.get({
         spreadsheetId: SPREADSHEET_ID,
         range: range, // Use singular 'range' here
       });
@@ -172,7 +194,7 @@ function getOrdinal(n) {
     return inputString; // Return the original string if it's not a valid number
   }
 
-  const roundedNumber = number.toFixed(3); // Round to 3 decimal places and convert to string
+  const roundedNumber = number.toFixed(2); // Round to 3 decimal places and convert to string
 
   return roundedNumber;
 }
@@ -187,14 +209,14 @@ async function updateTelemetrySheet(telemetryData) {
     // Check if the sheet exists (optional, but good for avoiding errors if the name is wrong)
     let spreadsheetInfo;
     try {
-      spreadsheetInfo = await sheets.spreadsheets.get({
+      spreadsheetInfo = await sheets_TelemetryAccount.spreadsheets.get({
         spreadsheetId: SPREADSHEET_ID,
       });
       const sheetExists = spreadsheetInfo.data.sheets.some(sheet => sheet.properties.title === TELEMETRY_SHEET_NAME);
 
       if (!sheetExists) {
         console.log(`Sheet "${TELEMETRY_SHEET_NAME}" does not exist. Creating it...`);
-        await sheets.spreadsheets.batchUpdate({
+        await _TelemetryAccount.spreadsheets.batchUpdate({
           spreadsheetId: SPREADSHEET_ID,
           resource: {
             requests: [{
@@ -308,7 +330,7 @@ async function updateTelemetrySheet(telemetryData) {
     ];
 
 
-    const response = await sheets.spreadsheets.values.update({
+    const response = await sheets_TelemetryAccount.spreadsheets.values.update({
       spreadsheetId: SPREADSHEET_ID,
       range: `${TELEMETRY_SHEET_NAME}!A1`, // Start at A1
       valueInputOption: 'RAW',
@@ -333,7 +355,7 @@ async function updateTelemetrySheet(telemetryData) {
     // Check if the sheet exists (optional, but good for avoiding errors if the name is wrong)
     let spreadsheetInfo;
     try {
-      spreadsheetInfo = await sheets.spreadsheets.get({
+      spreadsheetInfo = await sheets_LeaderboardAccount.spreadsheets.get({
         spreadsheetId: SPREADSHEET_ID,
       });
       const sheetExists = spreadsheetInfo.data.sheets.some(sheet => sheet.properties.title === LEADERBOARD_SHEET_NAME);
@@ -344,7 +366,7 @@ async function updateTelemetrySheet(telemetryData) {
 
       if (!sheetExists) {
         console.log(`Sheet "${LEADERBOARD_SHEET_NAME}" does not exist. Creating it...`);
-        await sheets.spreadsheets.batchUpdate({
+        await sheets_LeaderboardAccount.spreadsheets.batchUpdate({
           spreadsheetId: SPREADSHEET_ID,
           resource: {
             requests: [{
@@ -416,7 +438,7 @@ async function updateTelemetrySheet(telemetryData) {
     console.log(gsheetLeaderboardUpdateData);
 
     // Send the data to the correct cells in the google sheet.
-    const response = await sheets.spreadsheets.values.batchUpdate({
+    const response = await sheets_LeaderboardAccount.spreadsheets.values.batchUpdate({
       spreadsheetId: SPREADSHEET_ID,
       valueInputOption: 'RAW',
       resource: { // The 'resource' object is necessary for batchUpdate
@@ -439,7 +461,7 @@ async function updateTelemetrySheet(telemetryData) {
 async function checkOnlineStatusAndUpdateHeartbeat() {
   try {
     console.log('Checking online status and updating heartbeat...');
-    const response = await sheets.spreadsheets.values.get({
+    const response = await _LeaderboardAccount.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
       range: `${CONTROLLER_SHEET_NAME}!${ONLINE_CHECKBOX_CELL}`,
     });
@@ -452,7 +474,7 @@ async function checkOnlineStatusAndUpdateHeartbeat() {
       console.log('Online checkbox is TRUE.  Updating heartbeat.');
       // Update the heartbeat cell (e.g., set it to the current timestamp)
       try {
-        await sheets.spreadsheets.values.update({
+        await sheets_LeaderboardAccount.spreadsheets.values.update({
           spreadsheetId: SPREADSHEET_ID,
           range: `${CONTROLLER_SHEET_NAME}!A2`, // Example:  Update cell A2 with the heartbeat
           valueInputOption: 'RAW',
@@ -517,7 +539,8 @@ async function periodicUpdateLeaderboardSheet() {
 async function main() {
   try {
     
-    await authenticate(); // Authenticate with Google Sheets API
+    await authenticateLeaderboardAccount(); // Authenticate Leaderboard update account with Google Sheets API
+    await authenticateTelemetryAccount(); // Authenticate Telemetry update account with Google Sheets API
     await readReferenceData(); //read reference data
     targetCarNumber = await readTargetCarNumber();
     //console.log(`Target car number: ${targetCarNumber}`); // Log the target car number
