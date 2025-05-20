@@ -291,6 +291,8 @@ async function updateTelemetrySheet(telemetryData) {
         ]
       ]
     }
+    
+    gsheetTelemetryUpdateData.push(rpmColumns);
 
     /*
     const rankDisplay = getOrdinal(telemetryData.rank);
