@@ -411,7 +411,7 @@ async function updateTelemetrySheet(telemetryData) {
       };
 
       if (i !== 0 && thisCarIntervalSplit === undefined) {
-        thisCarIntervalSplit = leaderboardData[i].Time_Behind - leaderboardData[i-1].Time_Behind;
+        thisCarIntervalSplit = '+' + stringToRoundedDecimalString(leaderboardData[i].Time_Behind - leaderboardData[i-1].Time_Behind);
       } else if (thisCarIntervalSplit === undefined) {
         thisCarIntervalSplit = stringToRoundedDecimalString(leaderboardData[i].Time_Behind);
       }
@@ -430,7 +430,7 @@ async function updateTelemetrySheet(telemetryData) {
           thisDriverReferenceData.displayName, // Column 8 is Car Number
           'total time', // Column 9 is Total Time, not built yet
           thisCarTimeBehind, // Column 10 is Leader Split
-          '+' + thisCarIntervalSplit,
+          thisCarIntervalSplit,
           '=TEXT(K' + (i + 2) + ', "[s].000")&" "', // Column 12 is to truncate interval display using google sheets **** update to do this in JS
           'tire compound' // Column 13 is tire compound, not built yet
         ]]
