@@ -242,14 +242,19 @@ async function updateTelemetrySheet(telemetryData) {
       range: TELEMETRY_SHEET_NAME + '!A2:M2',
       majorDimension: 'ROWS',
       values: [[
-        telemetryData.carNumber,
-        telemetryData.rank,
-        telemetryData.speed,
-        telemetryData.rpm,
-        telemetryData.throttle,
-        telemetryData.brake,
-        telemetryData.battery,
-        telemetryData.pitStop,
+        telemetryData.carNumber, // Column A is car number
+        telemetryData.rank, // Column B is rank number
+        getOrdinal(telemetryData.rank), // Column C is rank ordinal (e.g. 1st = st, 2nd = nd)
+        referenceData.drivers[telemetryData.carNumber].firstName, // Column D is first name
+        referenceData.drivers[telemetryData.carNumber].lastName, // Column E is last name
+        referenceData.drivers[telemetryData.carNumber].firstName + ' ' + referenceData.drivers[telemetryData.carNumber].lastName, // Column F is display name (in this case full name)
+        referenceData.drivers[telemetryData.carNumber].headshot, // Column G is headshot URL (find in the tagboard graphic library and update in the google sheet 'Database')
+        telemetryData.speed, // Column H is speed
+        telemetryData.rpm, // Column I is rpm number
+        telemetryData.throttle, // Column J is throttle number
+        telemetryData.brake, // Column K is brake percentage
+        telemetryData.battery, // Column L is battery percentage
+        telemetryData.pitStop,// Column M is pit stop number       
       ]]
     };
 
