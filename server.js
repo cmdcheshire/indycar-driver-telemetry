@@ -239,7 +239,7 @@ async function updateTelemetrySheet(telemetryData) {
     let gsheetTelemetryUpdateData = [];
 
     let singleDataPoints = {
-      range: TELEMETRY_SHEET_NAME + + '!A' + (i+2) + ':' + 'M' + (i+2),
+      range: TELEMETRY_SHEET_NAME + '!A2:M2',
       majorDimension: 'COLUMNS',
       values: [[
         telemetryData.carNumber,
