@@ -700,7 +700,7 @@ async function main() {
                 for (i = 0; i < result.Position.length; i++) { 
                   let thisCarNumber = result.Position[i].$.Car;
                   let thisCarTelemetryData = {
-                    thisCarNumber: {
+                    [thisCarNumber]: {
                       carNumber: result.Position[i].$.Car,
                       rank: parseInt(result.Position[i].$.Rank, 10),
                       speed: parseFloat(result.Position[i].$.speed),
