@@ -698,16 +698,16 @@ async function main() {
                 //Store all telemetry data to update leaderboard with speed, etc
                 latestFullTelemetryData = []; // Clears last full telemetry data array
                 for (i = 0; i < result.Position.length; i++) { 
-                  let thisCarNumber = result.Position[i].Car;
+                  let thisCarNumber = result.Position[i].$.Car;
                   let thisCarTelemetryData = {
                     thisCarNumber: {
-                      carNumber: result.Position[i].Car,
-                      rank: parseInt(result.Position[i].Rank, 10),
-                      speed: parseFloat(result.Position[i].speed),
-                      rpm: parseInt(result.Position[i].rpm, 10),
-                      throttle: parseInt(result.Position[i].throttle, 10),
-                      brake: parseInt(result.Position[i].brake, 10),
-                      battery: parseInt(result.Position[i].Battery_Pct_Remaining, 10),
+                      carNumber: result.Position[i].$.Car,
+                      rank: parseInt(result.Position[i].$.Rank, 10),
+                      speed: parseFloat(result.Position[i].$.speed),
+                      rpm: parseInt(result.Position[i].$.rpm, 10),
+                      throttle: parseInt(result.Position[i].$.throttle, 10),
+                      brake: parseInt(result.Position[i].$.brake, 10),
+                      battery: parseInt(result.Position[i].$.Battery_Pct_Remaining, 10),
                       pitStop: 0, // Placeholder
                     }
                   };
