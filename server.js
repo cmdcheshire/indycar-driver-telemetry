@@ -194,7 +194,7 @@ async function readReferenceData() {
         timeBehindLeader:'-',
       };
       console.log(newLapDataObject);
-      latestLapData = Object.assign(newLapDataObject);
+      latestLapData = Object.assign({driverKeys[i]:newLapDataObject});
     };
     console.log(latestLapData);
 
