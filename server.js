@@ -636,6 +636,7 @@ async function main() {
     await authenticateTelemetryAccount(); // Authenticate Telemetry update account with Google Sheets API
     await readReferenceData(); //read reference data
     targetCarNumber = await readTargetCarNumber();
+    console.log(latestLapData);
     //console.log(`Target car number: ${targetCarNumber}`); // Log the target car number
     
     client = net.connect({ host: TCP_HOST, port: TCP_PORT }, () => {
