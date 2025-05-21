@@ -805,7 +805,7 @@ async function main() {
                 //console.log(result);
                 let thisCarNumber = result.$.Car;
                 console.log("Checking for existing lap data")
-                console.log(latestLapData[thisCarNumber])
+                console.log(latestLapData);
                 
                 if (latestLapData[thisCarNumber]) {
                   console.log('Updating lap ' + result.$.Lap_Number + ' data for car ' + thisCarNumber + '...');
