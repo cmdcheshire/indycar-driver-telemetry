@@ -179,6 +179,23 @@ async function readReferenceData() {
         console.warn(`Range ${range} in reference data sheet is empty.`);
       }
     }
+
+    // Setup structure of lap time data
+    let driverKeys = Object.keys(referenceData.drivers);
+    for (i = 0; i < driverKeys.length; i++) {
+      let newLapDataObject = {
+        carNumber:driverKeys[i],
+        fastestLap:'-',
+        lastLapNumber:'-',
+        lastLapTime:'-',
+        totalTime:'-',
+        lapsBehindLeader:'-',
+        timeBehindLeader:'-',
+      };
+      latestLapData = Object.assign(newLapDataObject);
+    };
+    console.log(latestLapData);
+
     console.log('Reference data read from Google Sheet:', referenceData);
   } catch (error) {
     console.error('Error reading reference data:', error);
@@ -479,8 +496,6 @@ async function updateTelemetrySheet(telemetryData) {
 
       // Find index of telemetry data for this car
       let thisCarTelemetryData = telemetryData[telemetryData.findIndex(item => item.carNumber === thisCarNumber)];
-
-      console.log(lapData);
 
       let thisLineObject = {
         range: LEADERBOARD_SHEET_NAME + '!A' + (i+2) + ':' + 'P' + (i+2),
@@ -787,15 +802,29 @@ async function main() {
                 //console.log(result);
                 let thisCarNumber = result.$.Car;
                 console.log('Updating lap' + result.$.Lap_Number + ' data for car ' + thisCarNumber + '...');
-                latestLapData[thisCarNumber] = {
-                  carNumber:result.$.Car,
-                  fastestLap:result.$.Fastest_Lap,
-                  lastLapNumber:result.$.Lap_Number,
-                  lastLapTime:result.$.Lap_Time,
-                  totalTime:result.$.Time,
-                  lapsBehindLeader:result.$.Laps_Behind_Leader,
-                  timeBehindLeader:result.$.Time_Behind_Leader
-                };
+                if (latestLapData[thisCarNumber]) {
+                  latestLapData[thisCarNumber] = {
+                    carNumber:result.$.Car,
+                    fastestLap:result.$.Fastest_Lap,
+                    lastLapNumber:result.$.Lap_Number,
+                    lastLapTime:result.$.Lap_Time,
+                    totalTime:result.$.Time,
+                    lapsBehindLeader:result.$.Laps_Behind_Leader,
+                    timeBehindLeader:result.$.Time_Behind_Leader
+                  };
+                } else {
+                  console.log('This driver was not found in the reference database...')
+                  let newLapDataObject = {
+                    carNumber:result.$.Car,
+                    fastestLap:result.$.Fastest_Lap,
+                    lastLapNumber:result.$.Lap_Number,
+                    lastLapTime:result.$.Lap_Time,
+                    totalTime:result.$.Time,
+                    lapsBehindLeader:result.$.Laps_Behind_Leader,
+                    timeBehindLeader:result.$.Time_Behind_Leader,
+                  };
+                  latestLapData = Object.assign(newLapDataObject);
+                }
               };
             } catch (error) {
               console.error('Error processing XML message:', error, 'Message:', message);
