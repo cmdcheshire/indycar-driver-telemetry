@@ -195,7 +195,7 @@ async function readReferenceData() {
         lastLapDelta:'-',
       };
       //console.log(newLapDataObject);
-      latestLapData.push(newLapDataObject));
+      latestLapData.push(newLapDataObject);
     };
     console.log(latestLapData);
 
