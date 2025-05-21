@@ -116,9 +116,9 @@ async function readReferenceData() {
 
     // Define the ranges we want to retrieve
     const ranges = [
-      `${DATABASE_SHEET_NAME}!A2:H28`, // Driver data
-      `${DATABASE_SHEET_NAME}!A31:B33`, // Tire image URLs
-      `${DATABASE_SHEET_NAME}!A36:B39`, // Indicator image URLs
+      `${DATABASE_SHEET_NAME}!A2:H34`, // Driver data
+      `${DATABASE_SHEET_NAME}!A52:B54`, // Tire image URLs
+      `${DATABASE_SHEET_NAME}!A57:B60`, // Indicator image URLs
     ];
 
     // Loop through the ranges and fetch the data for each
@@ -132,7 +132,7 @@ async function readReferenceData() {
 
       if (values && values.length > 0) {
         // Process data based on the current range
-        if (range === `${DATABASE_SHEET_NAME}!A2:H28`) {
+        if (range === `${DATABASE_SHEET_NAME}!A2:H34`) {
           // Process driver data
           for (let i = 0; i < values.length; i++) { // Start from 0
             const row = values[i];
@@ -147,7 +147,7 @@ async function readReferenceData() {
               headshot: row[7],
             };
           }
-        } else if (range === `${DATABASE_SHEET_NAME}!A31:B33`) {
+        } else if (range === `${DATABASE_SHEET_NAME}!A52:B54`) {
           // Process tire image URLs
           for (let i = 0; i < values.length; i++) {
             const row = values[i];
@@ -155,7 +155,7 @@ async function readReferenceData() {
             const tireImageUrl = row[1];
             referenceData.tireImages[tireType] = tireImageUrl;
           }
-        } else if (range === `${DATABASE_SHEET_NAME}!A36:B39`) {
+        } else if (range === `${DATABASE_SHEET_NAME}!A57:B60`) {
           // Process indicator image URLs
           for (let i = 0; i < values.length; i++) {
             const row = values[i];
