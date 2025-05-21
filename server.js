@@ -480,6 +480,8 @@ async function updateTelemetrySheet(telemetryData) {
       // Find index of telemetry data for this car
       let thisCarTelemetryData = telemetryData[telemetryData.findIndex(item => item.carNumber === thisCarNumber)];
 
+      console.log(lapData);
+
       let thisLineObject = {
         range: LEADERBOARD_SHEET_NAME + '!A' + (i+2) + ':' + 'P' + (i+2),
         majorDimension: 'ROWS',
