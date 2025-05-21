@@ -192,6 +192,7 @@ async function readReferenceData() {
         totalTime:'-',
         lapsBehindLeader:'-',
         timeBehindLeader:'-',
+        lastLapDelta:'-',
       };
       console.log(newLapDataObject);
       latestLapData = Object.assign({[driverKeys[i]]:[newLapDataObject]});
@@ -803,6 +804,8 @@ async function main() {
                 //console.log('Completed lap data found...')
                 //console.log(result);
                 let thisCarNumber = result.$.Car;
+                console.log("Checking for existing lap data")
+                console.log(latestLapData[thisCarNumber])
                 
                 if (latestLapData[thisCarNumber]) {
                   console.log('Updating lap ' + result.$.Lap_Number + ' data for car ' + thisCarNumber + '...');
@@ -824,6 +827,7 @@ async function main() {
                     totalTime:result.$.Time,
                     lapsBehindLeader:result.$.Laps_Behind_Leader,
                     timeBehindLeader:result.$.Time_Behind_Leader,
+                    lastLapDelta:'-',
                   };
                   console.log(newLapDataObject);
                   latestLapData = Object.assign({[result.$.Car]:[newLapDataObject]});
