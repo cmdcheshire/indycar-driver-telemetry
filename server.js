@@ -116,7 +116,7 @@ async function readReferenceData() {
 
     // Define the ranges we want to retrieve
     const ranges = [
-      `${DATABASE_SHEET_NAME}!A2:H34`, // Driver data
+      `${DATABASE_SHEET_NAME}!A2:H50`, // Driver data
       `${DATABASE_SHEET_NAME}!A52:B54`, // Tire image URLs
       `${DATABASE_SHEET_NAME}!A57:B60`, // Indicator image URLs
     ];
@@ -132,7 +132,7 @@ async function readReferenceData() {
 
       if (values && values.length > 0) {
         // Process data based on the current range
-        if (range === `${DATABASE_SHEET_NAME}!A2:H34`) {
+        if (range === `${DATABASE_SHEET_NAME}!A2:H50`) {
           // Process driver data
           for (let i = 0; i < values.length; i++) { // Start from 0
             const row = values[i];
