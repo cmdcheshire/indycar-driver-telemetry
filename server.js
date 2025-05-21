@@ -35,7 +35,7 @@ let latestFullTelemetryData = []; // Telemetry data for all cars
 let telemetryUpdateTime = 1500; // Set time in ms for interval to update telemetry sheet
 let latestLeaderboardData = [];
 let leaderboardUpdateTime = 2000; // Set time in ms for interval to update leaderboard sheet
-let lastLapData = []; // Store most recent lap times for all cars
+let latestLapData = []; // Store lap times and info for all cars
 let carData = {};
 
 /**
@@ -779,8 +779,19 @@ async function main() {
                 latestLeaderboardData = updatedUnofficialLeaderboardData;
                 console.log("latest leaderboard data updated locally.")
               } else if (completedLapStartIndex !== -1) {
-                console.log('Completed lap data found...')
-                console.log(result);
+                //console.log('Completed lap data found...')
+                //console.log(result);
+                let thisCarNumber = result.$.Car;
+                console.log('Updating lap' + result.$.Lap_Number + ' data for car ' + thisCarNumber + '...');
+                latestLapData[thisCarNumber] = {
+                  carNumber:result.$.Car,
+                  fastestLap:result.$.Fastest_Lap,
+                  lastLapNumber:result.$.Lap_Number,
+                  lastLapTime:result.$.Lap_Time,
+                  totalTime:result.$.Time,
+                  lapsBehindLeader:result.$.Laps_Behind_Leader,
+                  timeBehindLeader:result.$.Time_Behind_Leader
+                };
               };
             } catch (error) {
               console.error('Error processing XML message:', error, 'Message:', message);
