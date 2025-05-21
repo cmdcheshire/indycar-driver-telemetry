@@ -814,6 +814,7 @@ async function main() {
                     lapsBehindLeader:result.$.Laps_Behind_Leader,
                     timeBehindLeader:result.$.Time_Behind_Leader
                   };
+                  console.log(latestLapData[thisCarNumber]);
                 } else {
                   console.log('This driver was not found in the reference database...')
                   let newLapDataObject = {
