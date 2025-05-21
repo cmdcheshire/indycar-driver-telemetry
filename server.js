@@ -35,7 +35,7 @@ let latestFullTelemetryData = []; // Telemetry data for all cars
 let telemetryUpdateTime = 1500; // Set time in ms for interval to update telemetry sheet
 let latestLeaderboardData = [];
 let leaderboardUpdateTime = 2000; // Set time in ms for interval to update leaderboard sheet
-let latestLapData = []; // Store lap times and info for all cars
+let latestLapData = {}; // Store lap times and info for all cars
 let carData = {};
 
 /**
