@@ -35,6 +35,7 @@ let latestFullTelemetryData = []; // Telemetry data for all cars
 let telemetryUpdateTime = 1500; // Set time in ms for interval to update telemetry sheet
 let latestLeaderboardData = [];
 let leaderboardUpdateTime = 2000; // Set time in ms for interval to update leaderboard sheet
+let lastLapData = []; // Store most recent lap times for all cars
 let carData = {};
 
 /**
@@ -638,6 +639,8 @@ async function main() {
       const pitEnd = '</Pit_Summary>';
       const unofficialLeaderboardStart = '<Unofficial_Leaderboard';
       const unofficialLeaderboardEnd = '</Unofficial_Leaderboard>';
+      const completedLapStart = '<Completed_Lap';
+      const completedLapEnd = '/>';
 
       let message = null;
 
@@ -648,6 +651,7 @@ async function main() {
         //console.log("pit data start index... " + pitStartIndex);
         let unofficialLeaderboardStartIndex = buffer.indexOf(unofficialLeaderboardStart);
         //console.log("leaderboard data start index... " + unofficialLeaderboardStartIndex);
+        let completedLapStartIndex = buffer.indexOf(completedLapStart);
 
         if (telemetryStartIndex !== -1) {
           let telemetryEndIndex = buffer.indexOf(telemetryEnd, telemetryStartIndex);
@@ -673,6 +677,14 @@ async function main() {
             buffer = buffer.substring(unofficialLeaderboardEndIndex + unofficialLeaderboardEnd.length);
           } else {
             break; // Incomplete leaderboard message, wait for more data
+          }
+        } else if (completedLapStartIndex !== -1) {
+          let completedLapEndIndex = buffer.indexOf(completedLapEnd, completedLapStartIndex);
+          if (completedLapEndIndex !== -1) {
+            message = buffer.substring(completedLapStartIndex, completedLapEndIndex + completedLapEnd.length);
+            buffer = buffer.substring(completedLapEndIndex + completedLapEnd.length);
+          } else {
+            break; // Incomplete completed lap message, wait for more data
           }
         } else {
           break; // No recognizable start tag found, exit loop
@@ -766,6 +778,9 @@ async function main() {
                 //console.log(updatedUnofficialLeaderboardData);
                 latestLeaderboardData = updatedUnofficialLeaderboardData;
                 console.log("latest leaderboard data updated locally.")
+              } else if (completedLapStartIndex !== -1) {
+                console.log('Completed lap data found...')
+                console.log(result);
               };
             } catch (error) {
               console.error('Error processing XML message:', error, 'Message:', message);
