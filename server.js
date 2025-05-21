@@ -401,7 +401,7 @@ async function updateTelemetrySheet(telemetryData) {
  * Function to update leaderboard data.
  * 
  */
- async function updateLeaderboardSheet(leaderboardData, telemetryData) {
+ async function updateLeaderboardSheet(leaderboardData, telemetryData, lapData) {
   try {
     console.log('Updating leaderboard data in Google Sheet...');
 
@@ -498,6 +498,8 @@ async function updateTelemetrySheet(telemetryData) {
           thisCarTelemetryData.speed, // Column 12 is last known speed
           'tire compound', // Column 13 is tire compound, not built yet
           thisCarHighlight, // Column 14 is the link to the highlight graphic URL if this is the target car
+          lapData.lapNumber, // Column 15 is laps completed
+          lapData.lastLapTime, // Column 16 is last lap time
         ]]
       }
 
@@ -592,7 +594,7 @@ async function periodicUpdateLeaderboardSheet() {
   if (isOnline && latestLeaderboardData.length > 0) {
     try {
       console.log("periodicUpdateTelemetrySheet - Updating sheet"); //add
-      await updateLeaderboardSheet(latestLeaderboardData, latestFullTelemetryData); //send the data.
+      await updateLeaderboardSheet(latestLeaderboardData, latestFullTelemetryData, latestLapData); //send the data.
     }
     catch (e) {
       console.error("Error in sending data to sheet", e);
