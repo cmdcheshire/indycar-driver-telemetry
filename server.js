@@ -481,7 +481,7 @@ async function updateTelemetrySheet(telemetryData) {
       let thisCarTelemetryData = telemetryData[telemetryData.findIndex(item => item.carNumber === thisCarNumber)];
 
       let thisLineObject = {
-        range: LEADERBOARD_SHEET_NAME + '!A' + (i+2) + ':' + 'N' + (i+2),
+        range: LEADERBOARD_SHEET_NAME + '!A' + (i+2) + ':' + 'P' + (i+2),
         majorDimension: 'ROWS',
         values: [[
           leaderboardData[i].Rank, // Column 1 is Rank
