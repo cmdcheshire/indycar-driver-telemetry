@@ -35,7 +35,7 @@ let latestFullTelemetryData = []; // Telemetry data for all cars
 let telemetryUpdateTime = 1500; // Set time in ms for interval to update telemetry sheet
 let latestLeaderboardData = [];
 let leaderboardUpdateTime = 2000; // Set time in ms for interval to update leaderboard sheet
-let latestLapData = {}; // Store lap times and info for all cars
+let latestLapData = []; // Store lap times and info for all cars
 let carData = {};
 
 /**
@@ -194,8 +194,8 @@ async function readReferenceData() {
         timeBehindLeader:'-',
         lastLapDelta:'-',
       };
-      console.log(newLapDataObject);
-      latestLapData = Object.assign({[driverKeys[i]]:[newLapDataObject]});
+      //console.log(newLapDataObject);
+      latestLapData.push(newLapDataObject));
     };
     console.log(latestLapData);
 
@@ -807,17 +807,18 @@ async function main() {
                 let thisCarNumber = result.$.Car;
                 console.log("Checking for existing lap data")
                 console.log(latestLapData);
+                let completedLapCarIndex = latestLapData.find(item => item.carNumber === thisCarNumber);
                 
-                if (latestLapData[thisCarNumber]) {
+                if (completedLapCarIndex !== -1) {
                   console.log('Updating lap ' + result.$.Lap_Number + ' data for car ' + thisCarNumber + '...');
-                  latestLapData[thisCarNumber].carNumber = result.$.Car;
-                  latestLapData[thisCarNumber].fastestLap = result.$.Fastest_Lap;
-                  latestLapData[thisCarNumber].lastLapNumber = result.$.Lap_Number;
-                  latestLapData[thisCarNumber].lastLapTime = result.$.Lap_Time;
-                  latestLapData[thisCarNumber].totalTime = result.$.Time;
-                  latestLapData[thisCarNumber].lapsBehindLeader = result.$.Laps_Behind_Leader;
-                  latestLapData[thisCarNumber].timeBehindLeader = result.$.Time_Behind_Leader;
-                  console.log(latestLapData[thisCarNumber]);
+                  latestLapData[completedLapCarIndex].carNumber = result.$.Car;
+                  latestLapData[completedLapCarIndex].fastestLap = result.$.Fastest_Lap;
+                  latestLapData[completedLapCarIndex].lastLapNumber = result.$.Lap_Number;
+                  latestLapData[completedLapCarIndex].lastLapTime = result.$.Lap_Time;
+                  latestLapData[completedLapCarIndex].totalTime = result.$.Time;
+                  latestLapData[completedLapCarIndex].lapsBehindLeader = result.$.Laps_Behind_Leader;
+                  latestLapData[completedLapCarIndex].timeBehindLeader = result.$.Time_Behind_Leader;
+                  console.log(latestLapData[completedLapCarIndex]);
                 } else {
                   console.log('This driver was not found in the reference database...')
                   let newLapDataObject = {
@@ -831,7 +832,7 @@ async function main() {
                     lastLapDelta:'-',
                   };
                   console.log(newLapDataObject);
-                  latestLapData = Object.assign({[result.$.Car]:[newLapDataObject]});
+                  latestLapData.push(newLapDataObject);
                 }
               };
             } catch (error) {
