@@ -803,17 +803,16 @@ async function main() {
                 //console.log('Completed lap data found...')
                 //console.log(result);
                 let thisCarNumber = result.$.Car;
-                console.log('Updating lap' + result.$.Lap_Number + ' data for car ' + thisCarNumber + '...');
+                
                 if (latestLapData[thisCarNumber]) {
-                  latestLapData[thisCarNumber] = {
-                    carNumber:result.$.Car,
-                    fastestLap:result.$.Fastest_Lap,
-                    lastLapNumber:result.$.Lap_Number,
-                    lastLapTime:result.$.Lap_Time,
-                    totalTime:result.$.Time,
-                    lapsBehindLeader:result.$.Laps_Behind_Leader,
-                    timeBehindLeader:result.$.Time_Behind_Leader
-                  };
+                  console.log('Updating lap ' + result.$.Lap_Number + ' data for car ' + thisCarNumber + '...');
+                  latestLapData[thisCarNumber].carNumber = result.$.Car;
+                  latestLapData[thisCarNumber].fastestLap = result.$.Fastest_Lap;
+                  latestLapData[thisCarNumber].lastLapNumber = result.$.Lap_Number;
+                  latestLapData[thisCarNumber].lastLapTime = result.$.Lap_Time;
+                  latestLapData[thisCarNumber].totalTime = result.$.Time;
+                  latestLapData[thisCarNumber].lapsBehindLeader = result.$.Laps_Behind_Leader;
+                  latestLapData[thisCarNumber].timeBehindLeader = result.$.Time_Behind_Leader;
                   console.log(latestLapData[thisCarNumber]);
                 } else {
                   console.log('This driver was not found in the reference database...')
@@ -826,7 +825,8 @@ async function main() {
                     lapsBehindLeader:result.$.Laps_Behind_Leader,
                     timeBehindLeader:result.$.Time_Behind_Leader,
                   };
-                  latestLapData = Object.assign(newLapDataObject);
+                  console.log(newLapDataObject);
+                  latestLapData = Object.assign({[result.$.Car]:[newLapDataObject]});
                 }
               };
             } catch (error) {
