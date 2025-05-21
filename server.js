@@ -112,6 +112,7 @@ async function readReferenceData() {
       drivers: {},
       tireImages: {},
       indicatorImages: {},
+      leaderboardImages: {},
     };
 
     // Define the ranges we want to retrieve
@@ -119,6 +120,7 @@ async function readReferenceData() {
       `${DATABASE_SHEET_NAME}!A2:H50`, // Driver data
       `${DATABASE_SHEET_NAME}!A52:B54`, // Tire image URLs
       `${DATABASE_SHEET_NAME}!A57:B60`, // Indicator image URLs
+      `${DATABASE_SHEET_NAME}!A62:B63`, // Leaderboard image URLs
     ];
 
     // Loop through the ranges and fetch the data for each
@@ -162,6 +164,14 @@ async function readReferenceData() {
             const indicatorType = row[0];
             const indicatorImageUrl = row[1];
             referenceData.indicatorImages[indicatorType] = indicatorImageUrl;
+          }
+        } else if (range === `${DATABASE_SHEET_NAME}!A62:B63`) {
+          // Process leaderboard image URLs
+          for (let i = 0; i < values.length; i++) {
+            const row = values[i];
+            const imageType = row[0];
+            const imageUrl = row[1];
+            referenceData.leaderboardImages[imageType] = imageUrl;
           }
         }
       } else {
@@ -439,14 +449,26 @@ async function updateTelemetrySheet(telemetryData) {
       let thisCarTimeBehind;
       let thisCarIntervalSplit;
       //console.log("This car laps behind " + leaderboardData[i].Laps_Behind);
-      if (leaderboardData[i].Laps_Behind !== "0") {
-        //console.log("This car is lapped, changing time behind to laps.")
+      if (leaderboardData[i].Laps_Behind !== "0" && leaderboardData[i].Laps_Behind !== "1") {
+        //console.log("This car is lapped multiple times, changing time behind to laps.")
         thisCarTimeBehind = leaderboardData[i].Time_Behind + leaderboardData[i].Laps_Behind + " laps";
+        thisCarIntervalSplit = thisCarTimeBehind;
+      } else if (leaderboardData[i].Laps_Behind === "1") {
+        //console.log("This car is lapped once, changing time behind to lap.")
+        thisCarTimeBehind = leaderboardData[i].Time_Behind + leaderboardData[i].Laps_Behind + " lap";
         thisCarIntervalSplit = thisCarTimeBehind;
       } else {
         //console.log("This car is not lapped.")
         thisCarTimeBehind = leaderboardData[i].Time_Behind;
       };
+
+      // Handler for target car highlight
+      let thisCarHighlight;
+      if (thisCarNumber === targetCarNumber) {
+        thisCarHighlight = referenceData.leaderboardImages['Highlight'];
+      } else {
+        thisCarHighlight = '';
+      }
 
       if (i !== 0 && thisCarIntervalSplit === undefined) {
         thisCarIntervalSplit = '+' + stringToRoundedDecimalString(leaderboardData[i].Time_Behind - leaderboardData[i-1].Time_Behind);
@@ -458,24 +480,26 @@ async function updateTelemetrySheet(telemetryData) {
       let thisCarTelemetryData = telemetryData[telemetryData.findIndex(item => item.carNumber === thisCarNumber)];
 
       let thisLineObject = {
-        range: LEADERBOARD_SHEET_NAME + '!A' + (i+2) + ':' + 'M' + (i+2),
+        range: LEADERBOARD_SHEET_NAME + '!A' + (i+2) + ':' + 'N' + (i+2),
         majorDimension: 'ROWS',
         values: [[
           leaderboardData[i].Rank, // Column 1 is Rank
           thisCarNumber, // Column 2 is Car Number
-          thisDriverReferenceData.carLogo, // Column 3 is Car Number
-          thisDriverReferenceData.team, // Column 4 is Car Number
-          thisDriverReferenceData.teamLogo, // Column 5 is Car Number
-          thisDriverReferenceData.firstName, // Column 6 is Car Number
-          thisDriverReferenceData.lastName, // Column 7 is Car Number
-          thisDriverReferenceData.displayName, // Column 8 is Car Number
+          thisDriverReferenceData.carLogo, // Column 3 is Car Logo
+          thisDriverReferenceData.team, // Column 4 is Team Name
+          thisDriverReferenceData.teamLogo, // Column 5 is Team Logo
+          thisDriverReferenceData.firstName, // Column 6 is First Name
+          thisDriverReferenceData.lastName, // Column 7 is Last Name
+          thisDriverReferenceData.displayName, // Column 8 is Display Name
           'total time', // Column 9 is Total Time, not built yet
           thisCarTimeBehind, // Column 10 is Leader Split
-          thisCarIntervalSplit,
+          thisCarIntervalSplit, // Column 10 is Interval Split
           thisCarTelemetryData.speed, // Column 12 is last known speed
-          'tire compound' // Column 13 is tire compound, not built yet
+          'tire compound', // Column 13 is tire compound, not built yet
+          thisCarHighlight, // Column 14 is the link to the highlight graphic URL if this is the target car
         ]]
       }
+
       gsheetLeaderboardUpdateData.push(thisLineObject);
     };
 
