@@ -826,7 +826,7 @@ async function periodicUpdateTelemetrySheet() {
 
 async function periodicUpdateLeaderboardSheet() {
   console.log("periodicUpdateLeaderboardSheet called"); //add
-  if (isOnline && latestLeaderboardData.length > 0 && latestTelemetryData.length > 0 && latestLapData.length > 0) {
+  if (isOnline && latestLeaderboardData.length > 0 && latestFullTelemetryData.length > 0 && latestLapData.length > 0) {
     try {
       console.log("periodicUpdateTelemetrySheet - Updating sheet"); //add
       await updateLeaderboardSheet(latestLeaderboardData, latestFullTelemetryData, latestLapData); //send the data.
@@ -842,7 +842,7 @@ async function periodicUpdateLeaderboardSheet() {
 
 async function periodicUpdateDriverInfoSheet() {
   console.log("periodicUpdateLeaderboardSheet called"); //add
-  if (isOnline && latestLeaderboardData.length > 0 && latestTelemetryData.length > 0 && latestLapData.length > 0) {
+  if (isOnline && latestLeaderboardData.length > 0 && latestTargetTelemetryData.length > 0 && latestLapData.length > 0) {
     try {
       console.log("periodicUpdateTelemetrySheet - Updating sheet"); //add
       await updateLeaderboardSheet(latestLeaderboardData, latestTargetTelemetryData, latestLapData); //send the data.
