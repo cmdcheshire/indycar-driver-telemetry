@@ -646,7 +646,7 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
       }
     });
 
-    lastDriverInfoUpdate = gsheetDriverUpdateData;
+    lastDriverInfoUpdate = gsheetDriverInfoUpdateData;
 
     console.log('Driver info data updated in Google Sheet: ', response.data.totalUpdatedRows + ' rows');
 
