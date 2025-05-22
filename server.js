@@ -499,6 +499,8 @@ async function updateTelemetrySheet(telemetryData) {
 
       // Find index of telemetry data for this car
       let thisCarTelemetryData = telemetryData[telemetryData.findIndex(item => item.carNumber === thisCarNumber)];
+      // Find index of the lap data for this car
+      let thisCarLapData = lapData[lapData.findIndex(item => item.carNumber === thisCarNumber)];
 
       let thisLineObject = {
         range: LEADERBOARD_SHEET_NAME + '!A' + (i+2) + ':' + 'P' + (i+2),
@@ -518,8 +520,8 @@ async function updateTelemetrySheet(telemetryData) {
           thisCarTelemetryData.speed, // Column 12 is last known speed
           'tire compound', // Column 13 is tire compound, not built yet
           thisCarHighlight, // Column 14 is the link to the highlight graphic URL if this is the target car
-          lapData.lapNumber, // Column 15 is laps completed
-          lapData.lastLapTime, // Column 16 is last lap time
+          thisCarLapData.lapNumber, // Column 15 is laps completed
+          thisCarLapData.lastLapTime, // Column 16 is last lap time
         ]]
       }
 
