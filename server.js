@@ -499,11 +499,11 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
     let thisDriverTelemetryData = telemetryData;
 
     // Find info about near drivers
-    let driverAheadLeaderboardDataIndex = leaderboardData.findIndex(item => item.Rank === (thisDriverLeaderboardData.Rank - 1));
+    let driverAheadLeaderboardDataIndex = leaderboardData.findIndex(item => item.Rank === ((parseInt(thisDriverLeaderboardData.Rank)) - 1).toString);
     let driverAheadLeaderboardData = leaderboardData[driverAheadLeaderboardDataIndex];
     console.log(driverAheadLeaderboardData);
     let driverAheadReferenceData = referenceData.drivers[driverAheadLeaderboardData.Car];
-    let driverBehindLeaderboardDataIndex = leaderboardData.findIndex(item => item.Rank === (thisDriverLeaderboardData.Rank + 1));
+    let driverBehindLeaderboardDataIndex = leaderboardData.findIndex(item => item.Rank === ((parseInt(thisDriverLeaderboardData.Rank) + 1).toString);
     let driverBehindLeaderboardData = leaderboardData[driverBehindLeaderboardDataIndex];
     let driverBehindReferenceData = referenceData.drivers[driverBehindLeaderboardData.Car];
     
