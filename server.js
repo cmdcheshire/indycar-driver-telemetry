@@ -870,7 +870,7 @@ async function periodicUpdateLeaderboardSheet() {
   console.log("periodicUpdateLeaderboardSheet called"); //add
   if (isOnline && latestLeaderboardData.length > 0 && latestFullTelemetryData.length > 0 && latestLapData.length > 0) {
     try {
-      console.log("periodicUpdateTelemetrySheet - Updating sheet"); //add
+      console.log("periodicUpdateLeaderboardSheet - Updating sheet"); //add
       await updateLeaderboardSheet(latestLeaderboardData, latestFullTelemetryData, latestLapData); //send the data.
     }
     catch (e) {
@@ -886,7 +886,7 @@ async function periodicUpdateDriverInfoSheet() {
   console.log("periodicUpdateDriverInfoSheet called"); //add
   if (isOnline && latestLeaderboardData.length > 0 && Object.keys(latestTargetTelemetryData).length > 0 && latestLapData.length > 0) {
     try {
-      console.log("periodicUpdateTelemetrySheet - Updating sheet"); //add
+      console.log("periodicUpdateDriverInfoSheet - Updating sheet"); //add
       await updateDriverInfoSheet(latestLeaderboardData, latestTargetTelemetryData, latestLapData); //send the data.
     }
     catch (e) {
