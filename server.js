@@ -829,8 +829,9 @@ async function updateTelemetrySheet(telemetryData) {
       }
 
       //Finds interval split and handles if car ahead is in the pit lane
+      let thisCarDeltaData;
       if (i !== 0) {
-        let thisCarDeltaData = leaderboardData[i].Time_Behind - leaderboardData[i-1].Time_Behind;
+        thisCarDeltaData = leaderboardData[i].Time_Behind - leaderboardData[i-1].Time_Behind;
       } else {
         thisCarDeltaData = '0.000';
       }
