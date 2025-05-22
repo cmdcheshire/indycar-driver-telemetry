@@ -440,40 +440,6 @@ async function updateTelemetrySheet(telemetryData) {
   try {
     console.log('Updating driver info data in Google Sheet...');
 
-    // Check if the sheet exists (optimization: check once at startup)
-    if (!driverInfoSheetChecked) {
-      try {
-        const spreadsheetInfo = await sheets_TelemetryAccount.spreadsheets.get({
-          spreadsheetId: SPREADSHEET_ID,
-        });
-        const sheetExists = spreadsheetInfo.data.sheets.some(sheet => sheet.properties.title === DRIVERINFO_SHEET_NAME);
-
-        if (!sheetExists) {
-          console.log(`Sheet "${DRIVERINFO_SHEET_NAME}" does not exist. Creating it...`);
-          await sheets_TelemetryAccount.spreadsheets.batchUpdate({
-            spreadsheetId: SPREADSHEET_ID,
-            resource: {
-              requests: [{
-                addSheet: {
-                  properties: {
-                    title: DRIVERINFO_SHEET_NAME,
-                  },
-                },
-              }],
-            },
-          });
-          console.log(`Sheet "${DRIVERINFO_SHEET_NAME}" created.`);
-        } else {
-          console.log('Driver Info sheet ' + DRIVERINFO_SHEET_NAME + ' exists. Using...');
-        }
-        driverInfoSheetChecked = true; // Set flag after successful check/creation
-      } catch (error) {
-        console.error('Error checking or creating Driver Info sheet:', error);
-        return; // Stop if there's an error checking/creating the sheet
-      }
-    }
-
-
     // Define specific data in human-readable way
     let thisDriverReferenceData = referenceData.drivers[targetCarNumber];
     // Handle cases where targetCarNumber might not be in referenceData (e.g., '06' or invalid number)
