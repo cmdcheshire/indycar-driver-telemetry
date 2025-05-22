@@ -42,6 +42,16 @@ let latestLapData = []; // Store lap times and info for all cars
 let lastDriverInfoUpdate; // Used to store last driver update info to calculate if splits are better or worse to make them red or green
 let carData = {};
 
+// Global Variables for storing split time information and metadata
+let prevLapDeltaValue = null; // Stores the numeric value of the last lap delta
+let prevLapDeltaColorState = 'white'; // 'white', 'green', 'red'
+
+let prevDriverAheadSplitValue = null; // Stores the numeric value of the driver ahead split
+let prevDriverAheadSplitColorState = 'white'; // 'white', 'green', 'red'
+
+let prevDriverBehindSplitValue = null; // Stores the numeric value of the driver behind split
+let prevDriverBehindSplitColorState = 'white'; // 'white', 'green', 'red'
+
 /**
  * Function to authenticate with the Google Sheets API using a service account for Telemetry update service account.
  * THIS IS USING TWO DIFFERENT SERVICE ACCOUNTS BECAUSE THE SHEETS API IS RATE LIMITED TO 60 CALLS PER LIMIT (PER ACCOUNT)
@@ -423,50 +433,93 @@ async function updateTelemetrySheet(telemetryData) {
  * Function to update driver info data.
  * 
  */
-async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
+/**
+ * Function to update driver info data.
+ */
+ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
   try {
     console.log('Updating driver info data in Google Sheet...');
 
+    // Check if the sheet exists (optimization: check once at startup)
+    if (!driverInfoSheetChecked) {
+      try {
+        const spreadsheetInfo = await sheets_TelemetryAccount.spreadsheets.get({
+          spreadsheetId: SPREADSHEET_ID,
+        });
+        const sheetExists = spreadsheetInfo.data.sheets.some(sheet => sheet.properties.title === DRIVERINFO_SHEET_NAME);
+
+        if (!sheetExists) {
+          console.log(`Sheet "${DRIVERINFO_SHEET_NAME}" does not exist. Creating it...`);
+          await sheets_TelemetryAccount.spreadsheets.batchUpdate({
+            spreadsheetId: SPREADSHEET_ID,
+            resource: {
+              requests: [{
+                addSheet: {
+                  properties: {
+                    title: DRIVERINFO_SHEET_NAME,
+                  },
+                },
+              }],
+            },
+          });
+          console.log(`Sheet "${DRIVERINFO_SHEET_NAME}" created.`);
+        } else {
+          console.log('Driver Info sheet ' + DRIVERINFO_SHEET_NAME + ' exists. Using...');
+        }
+        driverInfoSheetChecked = true; // Set flag after successful check/creation
+      } catch (error) {
+        console.error('Error checking or creating Driver Info sheet:', error);
+        return; // Stop if there's an error checking/creating the sheet
+      }
+    }
+
+
     // Define specific data in human-readable way
     let thisDriverReferenceData = referenceData.drivers[targetCarNumber];
-    console.log("this driver reference data");
-    console.log(thisDriverReferenceData);
+    // Handle cases where targetCarNumber might not be in referenceData (e.g., '06' or invalid number)
+    if (!thisDriverReferenceData) {
+        console.warn(`Reference data not found for target car number: ${targetCarNumber}. Skipping driver info update.`);
+        return; // Exit if no reference data for the target car
+    }
+
     let driverInfoLapDataIndex = lapData.findIndex(item => item.carNumber === targetCarNumber);
-    console.log("this driver lap data index");
-    console.log(driverInfoLapDataIndex);
     let thisDriverLapData = lapData[driverInfoLapDataIndex];
-    console.log("this driver lap data");
-    console.log(thisDriverLapData);
+    // Handle case where lap data might not exist yet for target car
+    if (!thisDriverLapData) {
+        console.warn(`Lap data not found for target car number: ${targetCarNumber}. Skipping driver info update.`);
+        return;
+    }
+
     let thisDriverLeaderboardDataIndex = leaderboardData.findIndex(item => item.Car === targetCarNumber);
-    console.log("this driver leaderboard data index");
-    console.log(thisDriverLeaderboardDataIndex);
     let thisDriverLeaderboardData = leaderboardData[thisDriverLeaderboardDataIndex];
-    console.log("this driver leaderboard data");
-    console.log(thisDriverLeaderboardData);
+    // Handle case where leaderboard data might not exist yet for target car
+    if (!thisDriverLeaderboardData) {
+        console.warn(`Leaderboard data not found for target car number: ${targetCarNumber}. Skipping driver info update.`);
+        return;
+    }
+
     let thisDriverTelemetryData = telemetryData;
-    console.log("this driver telemetry data");
-    console.log(thisDriverTelemetryData);
+    // Telemetry data is usually for the *selected* car, so it should exist if connection is good.
 
     // Find info about near drivers
-    let driverAheadLeaderboardDataIndex = thisDriverLeaderboardDataIndex - 1;
-    console.log("driver ahead leaderboard data index");
-    console.log(driverAheadLeaderboardDataIndex);
-    let driverAheadLeaderboardData = leaderboardData[driverAheadLeaderboardDataIndex];
-    console.log("driver ahead leaderboard data");
-    console.log(driverAheadLeaderboardData);
-    let driverAheadReferenceData = referenceData.drivers[driverAheadLeaderboardData.Car];
-    console.log("driver ahead reference data");
-    console.log(driverAheadReferenceData);
-    let driverBehindLeaderboardDataIndex = thisDriverLeaderboardDataIndex + 1;
-    console.log("driver behind leaderboard data index");
-    console.log(driverBehindLeaderboardDataIndex);
-    let driverBehindLeaderboardData = leaderboardData[driverBehindLeaderboardDataIndex];
-    console.log("driver behind leaderboard data");
-    console.log(driverBehindLeaderboardData);
-    let driverBehindReferenceData = referenceData.drivers[driverBehindLeaderboardData.Car];
-    console.log("driver behind leaderboard data");
-    console.log(driverBehindLeaderboardData);
-    
+    let driverAheadLeaderboardData = null;
+    let driverAheadReferenceData = null;
+    if (thisDriverLeaderboardDataIndex > 0) { // Check if there's a driver ahead
+      driverAheadLeaderboardData = leaderboardData[thisDriverLeaderboardDataIndex - 1];
+      driverAheadReferenceData = referenceData.drivers[driverAheadLeaderboardData.Car];
+    } else {
+        console.log(`No driver ahead of car ${targetCarNumber} (currently P1).`);
+    }
+
+    let driverBehindLeaderboardData = null;
+    let driverBehindReferenceData = null;
+    if (thisDriverLeaderboardDataIndex < leaderboardData.length - 1) { // Check if there's a driver behind
+      driverBehindLeaderboardData = leaderboardData[thisDriverLeaderboardDataIndex + 1];
+      driverBehindReferenceData = referenceData.drivers[driverBehindLeaderboardData.Car];
+    } else {
+        console.log(`No driver behind car ${targetCarNumber} (currently last place).`);
+    }
+
     // Build object to push to Google sheet
     let gsheetDriverInfoUpdateData = [];
     let singleDataPoints = {
@@ -478,171 +531,231 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
         getOrdinal(thisDriverLeaderboardData.Rank), // Column C is rank ordinal (e.g. 1st = st, 2nd = nd)
         thisDriverReferenceData.firstName, // Column D is first name
         thisDriverReferenceData.lastName, // Column E is last name
-        thisDriverReferenceData.firstName + ' ' + referenceData.drivers[telemetryData.carNumber].lastName, // Column F is display name (in this case full name)
+        thisDriverReferenceData.firstName + ' ' + thisDriverReferenceData.lastName, // Column F is display name (in this case full name)
         thisDriverReferenceData.headshot, // Column G is headshot URL (find in the tagboard graphic library and update in the google sheet 'Database')
-        thisDriverReferenceData.teamLogo + ' ', // Column H is team logo
-        thisDriverReferenceData.manufacturerLogo, // Column I is manufacturer logo
-        thisDriverLapData.lapNumber, // Column J is lap number
-        thisDriverLapData.lapNumber, // Column K is last lap time
-        thisDriverTelemetryData.speed, // Column L is speed
+        thisDriverReferenceData.teamLogo + ' ', // Column H is team logo (added space for formatting)
+        thisDriverReferenceData.manufacturerLogo, // Column I is manufacturer logo (assuming this exists in referenceData.drivers)
+        thisDriverLapData.lastLapNumber, // Column J is last lap number
+        thisDriverLapData.lastLapTime, // Column K is last lap time (not lapNumber as previously)
+        stringToRoundedWholeString(thisDriverTelemetryData.speed), // Column L is speed
         'tbd', // Column M is average speed
-        driverAheadReferenceData.lastName, // Column N is driver ahead last name 
-        driverBehindReferenceData.lastName, // Column M is driver behind last name        
+        driverAheadReferenceData ? driverAheadReferenceData.lastName : '-', // Column N is driver ahead last name
+        driverBehindReferenceData ? driverBehindReferenceData.lastName : '-', // Column O is driver behind last name
       ]]
     };
 
     gsheetDriverInfoUpdateData.push(singleDataPoints);
 
-    // Build lap time delta object
+    // --- Last Lap Delta Logic ---
     let lapDeltaData;
-    console.log('last lap delta');
-    console.log(thisDriverLapData.lastLapDelta);
-    if (thisDriverLapData.lastLapDelta.includes('-')) {
-      lapDeltaData = {
-        range: DRIVERINFO_SHEET_NAME + '!Q2:Q4',
-        majorDimension: 'COLUMNS',
-        values: [[
-          '',
-          thisDriverLapData.lastLapDelta, // this puts makes the delta text GREEN because the lap time got BETTER
-          '',
-        ]]
-      };
-    } else if (thisDriverLapData.lastLapDelta.includes('+')) {
-      lapDeltaData = {
-        range: DRIVERINFO_SHEET_NAME + '!Q2:Q4',
-        majorDimension: 'COLUMNS',
-        values: [[
-          '',
-          '', 
-          thisDriverLapData.lastLapDelta, // this puts makes the delta text RED because the lap time got WORSE
-        ]]
-      };
-    } else {
-      lapDeltaData = {
-        range: DRIVERINFO_SHEET_NAME + '!Q2:Q4',
-        majorDimension: 'COLUMNS',
-        values: [[
-          thisDriverLapData.lastLapDelta, // this puts makes the delta text WHITE to handle all other scenarios
-          '', 
-          '', 
-        ]]
-      };
-    }
+    const currentLapDelta = parseFloat(thisDriverLapData.lastLapDelta); // Convert to number for comparison
 
+    if (isNaN(currentLapDelta) || thisDriverLapData.lastLapDelta.trim() === '' || thisDriverLapData.lastLapDelta.includes('NaN')) {
+        // If delta is invalid, empty, or NaN, reset to white
+        lapDeltaData = {
+            range: DRIVERINFO_SHEET_NAME + '!Q2:Q4',
+            majorDimension: 'COLUMNS',
+            values: [['', '', '']] // All white
+        };
+        prevLapDeltaColorState = 'white';
+        prevLapDeltaValue = null;
+        console.log('Lap delta is invalid or empty. Resetting to white.');
+    } else if (currentLapDelta < 0) { // Better (Green)
+        lapDeltaData = {
+            range: DRIVERINFO_SHEET_NAME + '!Q2:Q4',
+            majorDimension: 'COLUMNS',
+            values: [['', thisDriverLapData.lastLapDelta, '']] // Green
+        };
+        prevLapDeltaColorState = 'green';
+        prevLapDeltaValue = currentLapDelta;
+        console.log('Lap delta is BETTER (Green).');
+    } else if (currentLapDelta > 0) { // Worse (Red)
+        lapDeltaData = {
+            range: DRIVERINFO_SHEET_NAME + '!Q2:Q4',
+            majorDimension: 'COLUMNS',
+            values: [['', '', thisDriverLapData.lastLapDelta]] // Red
+        };
+        prevLapDeltaColorState = 'red';
+        prevLapDeltaValue = currentLapDelta;
+        console.log('Lap delta is WORSE (Red).');
+    } else { // Neutral / Zero
+        lapDeltaData = {
+            range: DRIVERINFO_SHEET_NAME + '!Q2:Q4',
+            majorDimension: 'COLUMNS',
+            values: [[thisDriverLapData.lastLapDelta, '', '']] // White
+        };
+        prevLapDeltaColorState = 'white';
+        prevLapDeltaValue = currentLapDelta;
+        console.log('Lap delta is NEUTRAL (White).');
+    }
     gsheetDriverInfoUpdateData.push(lapDeltaData);
 
-    //Build the driver ahead split object
+
+    // --- Driver Ahead Split Logic ---
     let driverAheadSplitData;
-    let driverAheadSplit = stringToRoundedDecimalString(thisDriverLeaderboardData.Time_Behind - driverAheadLeaderboardData.Time_Behind);
-    console.log('driver ahead split');
-    console.log(driverAheadSplit);
-    console.log('last driver info update');
-    console.log(lastDriverInfoUpdate);
-    if (lastDriverInfoUpdate !== undefined) {
-      console.log('last driver ahead split ', parseFloat(lastDriverInfoUpdate[2].values[0][0]), ' is greater than this split? ', parseFloat(driverAheadSplit) < parseFloat(lastDriverInfoUpdate[2].values[0][0]));
-      if ((parseFloat(lastDriverInfoUpdate[2].values[0][0]) && parseFloat(driverAheadSplit) <= parseFloat(lastDriverInfoUpdate[2].values[0][0])) || (parseFloat(lastDriverInfoUpdate[2].values[0][1]) && parseFloat(driverAheadSplit) <= parseFloat(lastDriverInfoUpdate[2].values[0][1])) || (parseFloat(lastDriverInfoUpdate[2].values[0][2]) && parseFloat(driverAheadSplit) <= parseFloat(lastDriverInfoUpdate[2].values[0][2]))) {
-        driverAheadSplitData = {
-          range: DRIVERINFO_SHEET_NAME + '!R2:R4',
-          majorDimension: 'COLUMNS',
-          values: [[
-            '',
-            '+' + driverAheadSplit, // this puts makes the delta text GREEN because the split got SMALLER
-            '', 
-          ]]
-        };
-        console.log('Driver ahead split got smaller.')
-      } else if ((parseFloat(lastDriverInfoUpdate[2].values[0][0]) && parseFloat(driverAheadSplit) >= parseFloat(lastDriverInfoUpdate[2].values[0][0])) || (parseFloat(lastDriverInfoUpdate[2].values[0][1]) && parseFloat(driverAheadSplit) >= parseFloat(lastDriverInfoUpdate[2].values[0][1])) || (parseFloat(lastDriverInfoUpdate[2].values[0][2]) && parseFloat(driverAheadSplit) >= parseFloat(lastDriverInfoUpdate[2].values[0][2]))) {
-        driverAheadSplitData = {
-          range: DRIVERINFO_SHEET_NAME + '!R2:R4',
-          majorDimension: 'COLUMNS',
-          values: [[
-            '',
-            '', 
-            '+' + driverAheadSplit, // this puts makes the delta text RED because the split got BIGGER
-          ]]
-        };
-        console.log('Driver ahead split got larger.')
-      } else {
-        driverAheadSplitData = {
-          range: DRIVERINFO_SHEET_NAME + '!R2:R4',
-          majorDimension: 'COLUMNS',
-          values: [[
-            '+' + driverAheadSplit, // this puts makes the delta text WHITE to handle all other situations
-            '', 
-            '', 
-          ]]
-        };
-      }
-    } else {
-      driverAheadSplitData = {
-        range: DRIVERINFO_SHEET_NAME + '!R2:R4',
-        majorDimension: 'COLUMNS',
-        values: [[
-          '', // this puts makes the delta text WHITE to handle all other situations
-          '', 
-          '', 
-        ]]
-      };
-      console.log('last driver ahead info update:', lastDriverInfoUpdate, ' not updating splits');
+    let currentDriverAheadSplit = null;
+
+    if (driverAheadLeaderboardData) {
+        currentDriverAheadSplit = parseFloat(stringToRoundedDecimalString(
+            thisDriverLeaderboardData.Time_Behind - driverAheadLeaderboardData.Time_Behind
+        ));
     }
 
+    if (driverAheadLeaderboardData === null || isNaN(currentDriverAheadSplit) || currentDriverAheadSplit === 0) {
+        // If no driver ahead, or split is invalid/zero, reset to white
+        driverAheadSplitData = {
+            range: DRIVERINFO_SHEET_NAME + '!R2:R4',
+            majorDimension: 'COLUMNS',
+            values: [['', '', '']] // All white
+        };
+        prevDriverAheadSplitColorState = 'white';
+        prevDriverAheadSplitValue = null;
+        console.log('Driver ahead split is invalid, zero, or no driver ahead. Resetting to white.');
+    } else {
+        // Check current state and apply sticky logic
+        let displayValue = '+' + currentDriverAheadSplit.toFixed(3); // Always display as positive with +
+
+        if (prevDriverAheadSplitValue === null) {
+            // First time, or previous was reset. Set initial color based on value.
+            driverAheadSplitData = {
+                range: DRIVERINFO_SHEET_NAME + '!R2:R4',
+                majorDimension: 'COLUMNS',
+                values: [[displayValue, '', '']] // Default to white
+            };
+            prevDriverAheadSplitColorState = 'white'; // Start as white
+            console.log('Driver ahead split: Initializing to White.');
+        } else if (currentDriverAheadSplit < prevDriverAheadSplitValue) {
+            // Split decreased (better)
+            driverAheadSplitData = {
+                range: DRIVERINFO_SHEET_NAME + '!R2:R4',
+                majorDimension: 'COLUMNS',
+                values: [['', displayValue, '']] // Green
+            };
+            prevDriverAheadSplitColorState = 'green';
+            console.log('Driver ahead split: Got SMALLER (Green).');
+        } else if (currentDriverAheadSplit > prevDriverAheadSplitValue) {
+            // Split increased (worse)
+            driverAheadSplitData = {
+                range: DRIVERINFO_SHEET_NAME + '!R2:R4',
+                majorDimension: 'COLUMNS',
+                values: [['', '', displayValue]] // Red
+            };
+            prevDriverAheadSplitColorState = 'red';
+            console.log('Driver ahead split: Got LARGER (Red).');
+        } else {
+            // Value stayed the same, or slight fluctuation without crossing a threshold.
+            // Stick to the previous color.
+            if (prevDriverAheadSplitColorState === 'green') {
+                driverAheadSplitData = {
+                    range: DRIVERINFO_SHEET_NAME + '!R2:R4',
+                    majorDimension: 'COLUMNS',
+                    values: [['', displayValue, '']] // Stick to Green
+                };
+                console.log('Driver ahead split: Sticking to GREEN.');
+            } else if (prevDriverAheadSplitColorState === 'red') {
+                driverAheadSplitData = {
+                    range: DRIVERINFO_SHEET_NAME + '!R2:R4',
+                    majorDimension: 'COLUMNS',
+                    values: [['', '', displayValue]] // Stick to Red
+                };
+                console.log('Driver ahead split: Sticking to RED.');
+            } else {
+                // Was white, or no significant change to trigger color change
+                driverAheadSplitData = {
+                    range: DRIVERINFO_SHEET_NAME + '!R2:R4',
+                    majorDimension: 'COLUMNS',
+                    values: [[displayValue, '', '']] // Stick to White
+                };
+                prevDriverAheadSplitColorState = 'white'; // Explicitly keep as white
+                console.log('Driver ahead split: Sticking to WHITE.');
+            }
+        }
+    }
+    prevDriverAheadSplitValue = currentDriverAheadSplit; // Update stored value for next comparison
     gsheetDriverInfoUpdateData.push(driverAheadSplitData);
 
-    //Build the driver behind split object
+
+    // --- Driver Behind Split Logic ---
     let driverBehindSplitData;
-    let driverBehindSplit = stringToRoundedDecimalString(driverBehindLeaderboardData.Time_Behind - thisDriverLeaderboardData.Time_Behind);
-    console.log('driver behind split');
-    console.log(driverBehindSplit);
-    console.log('last driver info update');
-    console.log(lastDriverInfoUpdate);
-    if (lastDriverInfoUpdate !== undefined) {
-      console.log('last driver behind split ', parseFloat(lastDriverInfoUpdate[3].values[0][0]), ' is greater than this split? ', parseFloat(driverBehindSplit) < parseFloat(lastDriverInfoUpdate[3].values[0][0]));
-      if ((parseFloat(lastDriverInfoUpdate[3].values[0][0]) && parseFloat(driverBehindSplit) <= parseFloat(lastDriverInfoUpdate[3].values[0][0])) || (parseFloat(lastDriverInfoUpdate[3].values[0][1]) && parseFloat(driverBehindSplit) <= parseFloat(lastDriverInfoUpdate[3].values[0][1])) || (parseFloat(lastDriverInfoUpdate[3].values[0][2]) && parseFloat(driverBehindSplit) <= parseFloat(lastDriverInfoUpdate[3].values[0][2]))) {
-        driverBehindSplitData = {
-          range: DRIVERINFO_SHEET_NAME + '!S2:S4',
-          majorDimension: 'COLUMNS',
-          values: [[
-            '',
-            '+' + driverBehindSplit, // this makes the delta text GREEN because the split got SMALLER
-            '', 
-          ]]
-        };
-        console.log('Driver behind split got smaller.')
-      } else if ((parseFloat(lastDriverInfoUpdate[3].values[0][0]) && parseFloat(driverBehindSplit) >= parseFloat(lastDriverInfoUpdate[3].values[0][0])) || (parseFloat(lastDriverInfoUpdate[3].values[0][1]) && parseFloat(driverBehindSplit) >= parseFloat(lastDriverInfoUpdate[3].values[0][1])) || (parseFloat(lastDriverInfoUpdate[3].values[0][2]) && parseFloat(driverBehindSplit) >= parseFloat(lastDriverInfoUpdate[3].values[0][2]))) {
-        driverBehindSplitData = {
-          range: DRIVERINFO_SHEET_NAME + '!S2:S4',
-          majorDimension: 'COLUMNS',
-          values: [[
-            '',
-            '', 
-            '+' + driverBehindSplit, // this makes the delta text RED because the split got BIGGER
-          ]]
-        };
-        console.log('Driver behind split got larger.')
-      } else {
-        driverBehindSplitData = {
-          range: DRIVERINFO_SHEET_NAME + '!S2:S4',
-          majorDimension: 'COLUMNS',
-          values: [[
-            '+' + driverBehindSplit, // this makes the delta text WHITE to handle all other situations
-            '', 
-            '', 
-          ]]
-        };
-      }
-    } else {
-      driverBehindSplitData = {
-        range: DRIVERINFO_SHEET_NAME + '!S2:S4',
-        majorDimension: 'COLUMNS',
-        values: [[
-          '', // this puts makes the delta text WHITE to handle all other situations
-          '', 
-          '', 
-        ]]
-      };
-      console.log('last driver behind info update:', lastDriverInfoUpdate, ' not updating splits');
+    let currentDriverBehindSplit = null;
+
+    if (driverBehindLeaderboardData) {
+        currentDriverBehindSplit = parseFloat(stringToRoundedDecimalString(
+            driverBehindLeaderboardData.Time_Behind - thisDriverLeaderboardData.Time_Behind
+        ));
     }
 
+    if (driverBehindLeaderboardData === null || isNaN(currentDriverBehindSplit) || currentDriverBehindSplit === 0) {
+        // If no driver behind, or split is invalid/zero, reset to white
+        driverBehindSplitData = {
+            range: DRIVERINFO_SHEET_NAME + '!S2:S4',
+            majorDimension: 'COLUMNS',
+            values: [['', '', '']] // All white
+        };
+        prevDriverBehindSplitColorState = 'white';
+        prevDriverBehindSplitValue = null;
+        console.log('Driver behind split is invalid, zero, or no driver behind. Resetting to white.');
+    } else {
+        // Check current state and apply sticky logic
+        let displayValue = '+' + currentDriverBehindSplit.toFixed(3); // Always display as positive with +
+
+        if (prevDriverBehindSplitValue === null) {
+            // First time, or previous was reset. Set initial color based on value.
+            driverBehindSplitData = {
+                range: DRIVERINFO_SHEET_NAME + '!S2:S4',
+                majorDimension: 'COLUMNS',
+                values: [[displayValue, '', '']] // Default to white
+            };
+            prevDriverBehindSplitColorState = 'white'; // Start as white
+            console.log('Driver behind split: Initializing to White.');
+        } else if (currentDriverBehindSplit < prevDriverBehindSplitValue) {
+            // Split decreased (better)
+            driverBehindSplitData = {
+                range: DRIVERINFO_SHEET_NAME + '!S2:S4',
+                majorDimension: 'COLUMNS',
+                values: [['', displayValue, '']] // Green
+            };
+            prevDriverBehindSplitColorState = 'green';
+            console.log('Driver behind split: Got SMALLER (Green).');
+        } else if (currentDriverBehindSplit > prevDriverBehindSplitValue) {
+            // Split increased (worse)
+            driverBehindSplitData = {
+                range: DRIVERINFO_SHEET_NAME + '!S2:S4',
+                majorDimension: 'COLUMNS',
+                values: [['', '', displayValue]] // Red
+            };
+            prevDriverBehindSplitColorState = 'red';
+            console.log('Driver behind split: Got LARGER (Red).');
+        } else {
+            // Value stayed the same, or slight fluctuation without crossing a threshold.
+            // Stick to the previous color.
+            if (prevDriverBehindSplitColorState === 'green') {
+                driverBehindSplitData = {
+                    range: DRIVERINFO_SHEET_NAME + '!S2:S4',
+                    majorDimension: 'COLUMNS',
+                    values: [['', displayValue, '']] // Stick to Green
+                };
+                console.log('Driver behind split: Sticking to GREEN.');
+            } else if (prevDriverBehindSplitColorState === 'red') {
+                driverBehindSplitData = {
+                    range: DRIVERINFO_SHEET_NAME + '!S2:S4',
+                    majorDimension: 'COLUMNS',
+                    values: [['', '', displayValue]] // Stick to Red
+                };
+                console.log('Driver behind split: Sticking to RED.');
+            } else {
+                // Was white, or no significant change to trigger color change
+                driverBehindSplitData = {
+                    range: DRIVERINFO_SHEET_NAME + '!S2:S4',
+                    majorDimension: 'COLUMNS',
+                    values: [[displayValue, '', '']] // Stick to White
+                };
+                prevDriverBehindSplitColorState = 'white'; // Explicitly keep as white
+                console.log('Driver behind split: Sticking to WHITE.');
+            }
+        }
+    }
+    prevDriverBehindSplitValue = currentDriverBehindSplit; // Update stored value for next comparison
     gsheetDriverInfoUpdateData.push(driverBehindSplitData);
 
     // Send the data to the correct cells in the google sheet.
@@ -654,15 +767,18 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
       }
     });
 
-    lastDriverInfoUpdate = gsheetDriverInfoUpdateData;
-
     console.log('Driver info data updated in Google Sheet: ', response.data.totalUpdatedRows + ' rows');
 
   } catch (error) {
-    console.error('Error: ', error);
-    return;
-  };
-
+    console.error('Error in updateDriverInfoSheet:', error);
+    // Optionally, reset color states on major error to avoid sticking to incorrect colors
+    prevLapDeltaColorState = 'white';
+    prevLapDeltaValue = null;
+    prevDriverAheadSplitColorState = 'white';
+    prevDriverAheadSplitValue = null;
+    prevDriverBehindSplitColorState = 'white';
+    prevDriverBehindSplitValue = null;
+  }
 }
 
 
