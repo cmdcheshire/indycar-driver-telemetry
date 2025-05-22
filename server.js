@@ -501,6 +501,7 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
     // Find info about near drivers
     let driverAheadLeaderboardDataIndex = leaderboardData.findIndex(item => item.Rank === (thisDriverLeaderboardData.Rank - 1));
     let driverAheadLeaderboardData = leaderboardData[driverAheadLeaderboardDataIndex];
+    console.log(driverAheadLeaderboardData);
     let driverAheadReferenceData = referenceData.drivers[driverAheadLeaderboardData.Car];
     let driverBehindLeaderboardDataIndex = leaderboardData.findIndex(item => item.Rank === (thisDriverLeaderboardData.Rank + 1));
     let driverBehindLeaderboardData = leaderboardData[driverBehindLeaderboardDataIndex];
