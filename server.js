@@ -289,18 +289,18 @@ function getOrdinal(n) {
 }
 
 /**
- * Converts a time string from "SS.000" format to "M:SS.000" format.
+ * Converts a time string from "SS.000" format (or any floating point number) to "M:SS.000" format.
  *
- * @param {string} timeString The input time string in "SS.000" format (e.g., "75.123", "5.000", "0.5").
+ * @param {string} timeString The input time string (e.g., "75.123", "5.000", "0.5", "12.34567").
  * @returns {string} The formatted time string in "M:SS.000" format (e.g., "1:15.123", "0:05.000", "0:00.500"),
  * or the original string if the input format is invalid.
  */
  function convertSecondsToMinutesSeconds(timeString) {
   // --- Input Validation ---
-  // Check if the input is a string and matches a basic numeric format
-  // (e.g., "123", "123.4", "123.456"). It allows for 0 to 3 decimal places.
-  if (typeof timeString !== 'string' || !/^\d+(\.\d{0,3})?$/.test(timeString)) {
-      console.warn(`Invalid input format for time conversion: "${timeString}". Expected 'SS.000' or 'SS'. Returning original string.`);
+  // Check if the input is a string and matches a basic numeric format.
+  // It now allows for any number of decimal places, but the output will be truncated to 3.
+  if (typeof timeString !== 'string' || !/^\d+(\.\d*)?$/.test(timeString)) {
+      console.warn(`Invalid input format for time conversion: "${timeString}". Expected a numeric string. Returning original string.`);
       return timeString; // Return the original string for invalid input
   }
 
@@ -311,6 +311,7 @@ function getOrdinal(n) {
   // Get the milliseconds part, ensuring it's always 3 digits.
   // If no milliseconds are provided (e.g., "60"), default to "000".
   // If fewer than 3 digits (e.g., "123.4"), pad with zeros ("400").
+  // If more than 3 digits (e.g., "123.4567"), it will be truncated to 3 ("456").
   const milliseconds = parts[1] ? parts[1].padEnd(3, '0').substring(0, 3) : '000';
 
   // --- Calculation ---
@@ -324,6 +325,7 @@ function getOrdinal(n) {
   // Combine minutes, formatted seconds, and milliseconds
   return `${minutes}:${formattedSeconds}.${milliseconds}`;
 }
+
 
 /**
  * Function to update the Google Sheet with the telemetry data for the target car.
