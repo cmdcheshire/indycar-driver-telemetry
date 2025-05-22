@@ -285,35 +285,6 @@ async function updateTelemetrySheet(telemetryData) {
   try {
     console.log('Updating telemetry data in Google Sheet...');
 
-    // Check if the sheet exists (optional, but good for avoiding errors if the name is wrong)
-    let spreadsheetInfo;
-    try {
-      spreadsheetInfo = await sheets_TelemetryAccount.spreadsheets.get({
-        spreadsheetId: SPREADSHEET_ID,
-      });
-      const sheetExists = spreadsheetInfo.data.sheets.some(sheet => sheet.properties.title === TELEMETRY_SHEET_NAME);
-
-      if (!sheetExists) {
-        console.log(`Sheet "${TELEMETRY_SHEET_NAME}" does not exist. Creating it...`);
-        await _TelemetryAccount.spreadsheets.batchUpdate({
-          spreadsheetId: SPREADSHEET_ID,
-          resource: {
-            requests: [{
-              addSheet: {
-                properties: {
-                  title: TELEMETRY_SHEET_NAME,
-                },
-              },
-            }],
-          },
-        });
-        console.log(`Sheet "${TELEMETRY_SHEET_NAME}" created.`);
-      }
-    } catch (error) {
-      console.error('Error checking or creating sheet:', error);
-      return; // Stop if there's an error checking/creating the sheet
-    }
-
     // Build telemetry data object to batch update google sheet
     let gsheetTelemetryUpdateData = [];
 
@@ -455,40 +426,6 @@ async function updateTelemetrySheet(telemetryData) {
 async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
   try {
     console.log('Updating driver info data in Google Sheet...');
-
-    // Check if the sheet exists
-    let spreadsheetInfo;
-    try {
-      spreadsheetInfo = await sheets_TelemetryAccount.spreadsheets.get({
-        spreadsheetId: SPREADSHEET_ID,
-      });
-      const sheetExists = spreadsheetInfo.data.sheets.some(sheet => sheet.properties.title === DRIVERINFO_SHEET_NAME);
-
-      if (sheetExists) {
-        console.log('Leaderboard sheet '+ DRIVERINFO_SHEET_NAME + ' exists. Using...');
-      }
-
-      if (!sheetExists) {
-        console.log(`Sheet "${DRIVERINFO_SHEET_NAME}" does not exist. Creating it...`);
-        await sheets_TelemetryAccount.spreadsheets.batchUpdate({
-          spreadsheetId: SPREADSHEET_ID,
-          resource: {
-            requests: [{
-              addSheet: {
-                properties: {
-                  title: DRIVERINFO_SHEET_NAME,
-                },
-              },
-            }],
-          },
-        });
-        console.log(`Sheet "${DRIVERINFO_SHEET_NAME}" created.`);
-      }
-
-    } catch (error) {
-      console.error('Error checking or creating sheet:', error);
-      return; // Stop if there's an error checking/creating the sheet
-    };
 
     // Define specific data in human-readable way
     let thisDriverReferenceData = referenceData.drivers[targetCarNumber];
@@ -734,40 +671,6 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
  async function updateLeaderboardSheet(leaderboardData, telemetryData, lapData) {
   try {
     console.log('Updating leaderboard data in Google Sheet...');
-
-    // Check if the sheet exists (optional, but good for avoiding errors if the name is wrong)
-    let spreadsheetInfo;
-    try {
-      spreadsheetInfo = await sheets_LeaderboardAccount.spreadsheets.get({
-        spreadsheetId: SPREADSHEET_ID,
-      });
-      const sheetExists = spreadsheetInfo.data.sheets.some(sheet => sheet.properties.title === LEADERBOARD_SHEET_NAME);
-
-      if (sheetExists) {
-        console.log('Leaderboard sheet '+ LEADERBOARD_SHEET_NAME + ' exists. Using...');
-      }
-
-      if (!sheetExists) {
-        console.log(`Sheet "${LEADERBOARD_SHEET_NAME}" does not exist. Creating it...`);
-        await sheets_LeaderboardAccount.spreadsheets.batchUpdate({
-          spreadsheetId: SPREADSHEET_ID,
-          resource: {
-            requests: [{
-              addSheet: {
-                properties: {
-                  title: LEADERBOARD_SHEET_NAME,
-                },
-              },
-            }],
-          },
-        });
-        console.log(`Sheet "${LEADERBOARD_SHEET_NAME}" created.`);
-      }
-
-    } catch (error) {
-      console.error('Error checking or creating sheet:', error);
-      return; // Stop if there's an error checking/creating the sheet
-    }
 
     // Build array to update google sheet
     let gsheetLeaderboardUpdateData = [];
