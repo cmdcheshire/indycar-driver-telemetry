@@ -840,6 +840,7 @@ async function updateTelemetrySheet(telemetryData) {
         carAheadInPit = true;
         } else {
         carAheadInPit = false;
+        }
       } else {
         carAheadInPit = false; // This is a band aid that can't detect if the first car pits
       };
