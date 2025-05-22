@@ -805,6 +805,8 @@ async function updateTelemetrySheet(telemetryData) {
       // Handler for lapped car data
       let thisCarTimeBehind;
       let thisCarIntervalSplit;
+      let carAheadInPit;
+      let thisCarDeltaData = leaderboardData[i].Time_Behind - leaderboardData[i-1].Time_Behind;
       //console.log("This car laps behind " + leaderboardData[i].Laps_Behind);
       if (leaderboardData[i].Laps_Behind !== "0" && leaderboardData[i].Laps_Behind !== "1") {
         //console.log("This car is lapped multiple times, changing time behind to laps.")
@@ -827,11 +829,21 @@ async function updateTelemetrySheet(telemetryData) {
         thisCarHighlight = '';
       }
 
-      if (i !== 0 && thisCarIntervalSplit === undefined) {
+      //Finds interval split and handles if car ahead is in the pit lane
+
+      if (leaderboardData[i-1].Time_Behind - leaderboardData[i-2].Time_Behind < 0 ) {
+        carAheadInPit = true;
+      } else {
+        carAheadInPit = false;
+      };
+
+      if (i !== 0 && carAheadInPit === false && thisCarIntervalSplit === undefined && thisCarDeltaData > 0) {
         thisCarIntervalSplit = '+' + stringToRoundedDecimalString(leaderboardData[i].Time_Behind - leaderboardData[i-1].Time_Behind);
-      } else if (thisCarIntervalSplit < 0 && thisCarIntervalSplit === undefined) {
+      } else if (i !== 0 && carAheadInPit === true && thisCarIntervalSplit === undefined) { // Car ahead is in Pit, look two cars ahead for gap
+        thisCarIntervalSplit = '+' + stringToRoundedDecimalString(leaderboardData[i].Time_Behind - leaderboardData[i-2].Time_Behind);
+      ] else if (thisCarDeltaData < 0 && thisCarIntervalSplit === undefined) {
         thisCarIntervalSplit = 'IN PIT';
-      } else if (thisCarIntervalSplit === undefined) {
+      } else if (thisCarIntervalSplit === undefined) { // This car is the leader, enter time behind (usually 0)
         thisCarIntervalSplit = stringToRoundedDecimalString(leaderboardData[i].Time_Behind);
       }
 
