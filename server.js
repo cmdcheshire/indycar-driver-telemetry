@@ -91,8 +91,8 @@ async function readIpInformation() {
 
     const values = response.data.values;
     if (values && values.length > 0 && values[0].length > 0 && values[1].length > 0) {
-      TCP_HOST = values[0];
-      TCP_PORT = values[1];
+      TCP_HOST = values[0].toString();
+      TCP_PORT = values[1].toString();
       console.log('Server information read from Google sheet: ' + TCP_HOST + ':' + TCP_PORT);
     } else {
       console.warn('IP information not found in google sheet. Using default: ' + TCP_HOST + ':' + TCP_PORT);
