@@ -558,7 +558,7 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
 
     // Build lap time delta object
     let lapDeltaData;
-    if (thisDriverLapData.lastLapDelta.contains('-')) {
+    if (thisDriverLapData.lastLapDelta.includes('-')) {
       lapDeltaData = {
         range: DRIVERINFO_SHEET_NAME + '!Q2:Q4',
         majorDimension: 'COLUMNS',
@@ -568,7 +568,7 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
           '',
         ]]
       };
-    } else if (thisDriverLapData.lastLapDelta.contains('+')) {
+    } else if (thisDriverLapData.lastLapDelta.includes('+')) {
       lapDeltaData = {
         range: DRIVERINFO_SHEET_NAME + '!Q2:Q4',
         majorDimension: 'COLUMNS',
