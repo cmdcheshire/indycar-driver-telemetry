@@ -492,20 +492,43 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
 
     // Define specific data in human-readable way
     let thisDriverReferenceData = referenceData.drivers[targetCarNumber];
+    console.log("this driver reference data");
+    console.log(thisDriverReferenceData);
     let driverInfoLapDataIndex = lapData.findIndex(item => item.carNumber === targetCarNumber);
+    console.log("this driver lap data index");
+    console.log(driverInfoLapDataIndex);
     let thisDriverLapData = lapData[driverInfoLapDataIndex];
+    console.log("this driver lap data");
+    console.log(thisDriverLapData);
     let thisDriverLeaderboardDataIndex = leaderboardData.findIndex(item => item.Car === targetCarNumber);
+    console.log("this driver leaderboard data index");
+    console.log(thisDriverLeaderboardDataIndex);
     let thisDriverLeaderboardData = leaderboardData[thisDriverLeaderboardDataIndex];
+    console.log("this driver leaderboard data");
+    console.log(thisDriverLeaderboardData);
     let thisDriverTelemetryData = telemetryData;
+    console.log("this driver telemetry data");
+    console.log(thisDriverTelemetryData);
 
     // Find info about near drivers
-    let driverAheadLeaderboardDataIndex = leaderboardData.findIndex(item => item.Rank === ((parseInt(thisDriverLeaderboardData.Rank)) - 1).toString);
+    let driverAheadLeaderboardDataIndex = thisDriverLeaderboardDataIndex - 1;
+    console.log("driver ahead leaderboard data index");
+    console.log(driverAheadLeaderboardDataIndex);
     let driverAheadLeaderboardData = leaderboardData[driverAheadLeaderboardDataIndex];
+    console.log("driver ahead leaderboard data");
     console.log(driverAheadLeaderboardData);
     let driverAheadReferenceData = referenceData.drivers[driverAheadLeaderboardData.Car];
-    let driverBehindLeaderboardDataIndex = leaderboardData.findIndex(item => item.Rank === ((parseInt(thisDriverLeaderboardData.Rank)) + 1).toString);
+    console.log("driver ahead reference data");
+    console.log(driverAheadReferenceData);
+    let driverBehindLeaderboardDataIndex = thisDriverLeaderboardDataIndex + 1;
+    console.log("driver behind leaderboard data index");
+    console.log(driverBehindLeaderboardDataIndex);
     let driverBehindLeaderboardData = leaderboardData[driverBehindLeaderboardDataIndex];
+    console.log("driver behind leaderboard data");
+    console.log(driverBehindLeaderboardData);
     let driverBehindReferenceData = referenceData.drivers[driverBehindLeaderboardData.Car];
+    console.log("driver behind leaderboard data");
+    console.log(driverBehindLeaderboardData);
     
     // Build object to push to Google sheet
     let gsheetDriverInfoUpdateData = [];
