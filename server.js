@@ -601,7 +601,7 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
     console.log(lastDriverInfoUpdate);
     if (lastDriverInfoUpdate !== undefined) {
       console.log('last driver ahead split ', parseFloat(lastDriverInfoUpdate[2].values[0][0]), ' is greater than this split? ', parseFloat(driverAheadSplit) < parseFloat(lastDriverInfoUpdate[2].values[0][0]));
-      if ((parseInt(lastDriverInfoUpdate[2].values[0][0]) && parseInt(driverAheadSplit) < parseInt(lastDriverInfoUpdate[2].values[0][0])) || (parseInt(lastDriverInfoUpdate[2].values[0][1]) && parseInt(driverAheadSplit) < parseInt(lastDriverInfoUpdate[2].values[0][1])) || (parseInt(lastDriverInfoUpdate[2].values[0][2]) && parseInt(driverAheadSplit) < parseInt(lastDriverInfoUpdate[2].values[0][2]))) {
+      if ((parseFloat(lastDriverInfoUpdate[2].values[0][0]) && parseFloat(driverAheadSplit) < parseFloat(lastDriverInfoUpdate[2].values[0][0])) || (parseFloat(lastDriverInfoUpdate[2].values[0][1]) && parseFloat(driverAheadSplit) < parseFloat(lastDriverInfoUpdate[2].values[0][1])) || (parseFloat(lastDriverInfoUpdate[2].values[0][2]) && parseFloat(driverAheadSplit) < parseFloat(lastDriverInfoUpdate[2].values[0][2]))) {
         driverAheadSplitData = {
           range: DRIVERINFO_SHEET_NAME + '!R2:R4',
           majorDimension: 'COLUMNS',
@@ -612,7 +612,7 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
           ]]
         };
         console.log('Driver ahead split got smaller.')
-      } else if ((parseInt(lastDriverInfoUpdate[2].values[0][0]) && parseInt(driverAheadSplit) > parseInt(lastDriverInfoUpdate[2].values[0][0])) || (parseInt(lastDriverInfoUpdate[2].values[0][1]) && parseInt(driverAheadSplit) > parseInt(lastDriverInfoUpdate[2].values[0][1])) || (parseInt(lastDriverInfoUpdate[2].values[0][2]) && parseInt(driverAheadSplit) > parseInt(lastDriverInfoUpdate[2].values[0][2]))) {
+      } else if ((parseFloat(lastDriverInfoUpdate[2].values[0][0]) && parseFloat(driverAheadSplit) > parseFloat(lastDriverInfoUpdate[2].values[0][0])) || (parseFloat(lastDriverInfoUpdate[2].values[0][1]) && parseFloat(driverAheadSplit) > parseFloat(lastDriverInfoUpdate[2].values[0][1])) || (parseFloat(lastDriverInfoUpdate[2].values[0][2]) && parseFloat(driverAheadSplit) > parseFloat(lastDriverInfoUpdate[2].values[0][2]))) {
         driverAheadSplitData = {
           range: DRIVERINFO_SHEET_NAME + '!R2:R4',
           majorDimension: 'COLUMNS',
