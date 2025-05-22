@@ -4,8 +4,6 @@ const { google } = require('googleapis');
 const { JWT } = require('google-auth-library');
 
 // Constants - REPLACE THESE WITH YOUR ACTUAL VALUES
-const TCP_HOST = 'localhost';
-const TCP_PORT = 5000;
 const SPREADSHEET_ID = '1UIpgq72cvEUT-qvEB4gmwDjvFU4CDIXf2rllNseYEUM';
 const GOOGLE_TELEMETRY_SERVICE_ACCOUNT_KEY_PATH = 'indycar-live-data-telemetry-account.json';
 const GOOGLE_LEADERBOARD_SERVICE_ACCOUNT_KEY_PATH = 'indycar-live-data-leaderboard-account.json';
@@ -15,10 +13,13 @@ const TELEMETRY_SHEET_NAME = 'Live Telemetry'; // Sheet to write telemetry data
 const DRIVERINFO_SHEET_NAME = 'Live Driver Info';
 const DATABASE_SHEET_NAME = 'Database'; // Sheet containing driver and reference data
 const CONTROLLER_SHEET_NAME = 'Live Data Controller'; // Sheet for the controller tab
+const IP_ADDRESS_PORT_RANGE = 'E8:E9';
 const TELEMETRY_ONLINE_CHECKBOX_CELL = 'B4'; // Cell containing the online checkbox
 const TARGET_CAR_CELL = 'B5';    // Cell containing the target car
 
 // Global Variables
+let TCP_HOST = 'localhost';
+let TCP_PORT = 5000;
 let client;
 let xmlParser = new xml2js.Parser({ explicitRoot: false, ignoreAttributes: false, trim: true });
 let googleAuthClient;
@@ -76,6 +77,33 @@ async function authenticateTelemetryAccount() {
     console.error('Error authenticating with Google Sheets API:', error);
     throw error; // Terminate the application if authentication fails
   }
+}
+
+/**
+ * Function to read the entered IP information from the Google Sheet.
+ */
+async function readIpInformation() {
+  try {
+    const response = await sheets_LeaderboardAccount.spreadsheets.values.get({ // Use the 'sheets' object
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${TARGET_CAR_SHEET_NAME}!${IP_ADDRESS_PORT_RANGE}`,
+    });
+
+    const values = response.data.values;
+    if (values && values.length > 0 && values[0].length > 0 && values[1].length > 0) {
+      TCP_HOST = values[0];
+      TCP_PORT = values[1];
+      console.log('Server information read from Google sheet: ' + TCP_HOST + ':' + TCP_PORT);
+    } else {
+      console.warn('IP information not found in google sheet. Using default: ' + TCP_HOST + ':' + TCP_PORT);
+      return null;
+    };
+
+  } catch (error) {
+    console.error('Error reading server IP information:', error);
+    return null;
+  }
+
 }
 
 /**
@@ -637,6 +665,7 @@ async function main() {
     
     await authenticateLeaderboardAccount(); // Authenticate Leaderboard update account with Google Sheets API
     await authenticateTelemetryAccount(); // Authenticate Telemetry update account with Google Sheets API
+    await readIpInformation();
     await readReferenceData(); //read reference data
     targetCarNumber = await readTargetCarNumber();
     console.log(latestLapData);
