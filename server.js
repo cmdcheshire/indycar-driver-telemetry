@@ -841,7 +841,7 @@ async function updateTelemetrySheet(telemetryData) {
         thisCarIntervalSplit = '+' + stringToRoundedDecimalString(leaderboardData[i].Time_Behind - leaderboardData[i-1].Time_Behind);
       } else if (i !== 0 && carAheadInPit === true && thisCarIntervalSplit === undefined) { // Car ahead is in Pit, look two cars ahead for gap
         thisCarIntervalSplit = '+' + stringToRoundedDecimalString(leaderboardData[i].Time_Behind - leaderboardData[i-2].Time_Behind);
-      ] else if (thisCarDeltaData < 0 && thisCarIntervalSplit === undefined) {
+      } else if (thisCarDeltaData < 0 && thisCarIntervalSplit === undefined) {
         thisCarIntervalSplit = 'IN PIT';
       } else if (thisCarIntervalSplit === undefined) { // This car is the leader, enter time behind (usually 0)
         thisCarIntervalSplit = stringToRoundedDecimalString(leaderboardData[i].Time_Behind);
