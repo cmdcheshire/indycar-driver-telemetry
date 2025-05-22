@@ -835,10 +835,13 @@ async function updateTelemetrySheet(telemetryData) {
         thisCarDeltaData = '0.000';
       }
 
-      if (leaderboardData[i-1].Time_Behind - leaderboardData[i-2].Time_Behind < 0 ) {
+      if (i < 2) {
+        if (leaderboardData[i-1].Time_Behind - leaderboardData[i-2].Time_Behind < 0 ) {
         carAheadInPit = true;
-      } else {
+        } else {
         carAheadInPit = false;
+      } else {
+        carAheadInPit = false; // This is a band aid that can't detect if the first car pits
       };
 
       if (i !== 0 && carAheadInPit === false && thisCarIntervalSplit === undefined && thisCarDeltaData > 0) {
