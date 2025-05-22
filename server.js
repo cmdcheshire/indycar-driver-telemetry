@@ -594,9 +594,11 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
 
     //Build the driver ahead split object
     let driverAheadSplitData;
-    let driverAheadSplit = thisDriverLeaderboardData.Time_Behind - driverAheadLeaderboardData.Time_Behind;
+    let driverAheadSplit = stringToRoundedDecimalString(thisDriverLeaderboardData.Time_Behind - driverAheadLeaderboardData.Time_Behind);
     console.log('driver ahead split');
     console.log(driverAheadSplit);
+    console.log('last driver info update');
+    console.log(lastDriverInfoUpdate);
     if (lastDriverInfoUpdate !== undefined) {
       if ((parseInt(lastDriverInfoUpdate[2].values[0][0]) && parseInt(driverAheadSplit) < parseInt(lastDriverInfoUpdate[2].values[0][0])) || (parseInt(lastDriverInfoUpdate[2].values[0][1]) && parseInt(driverAheadSplit) < parseInt(lastDriverInfoUpdate[2].values[0][1])) || (parseInt(lastDriverInfoUpdate[2].values[0][2]) && parseInt(driverAheadSplit) < parseInt(lastDriverInfoUpdate[2].values[0][2]))) {
         driverAheadSplitData = {
@@ -631,6 +633,8 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
           ]]
         };
       }
+    } else {
+      console.log('last driver info update:', lastDriverInfoUpdate, ' not updating splits');
     }
 
     gsheetDriverInfoUpdateData.push(driverAheadSplitData);
