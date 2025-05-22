@@ -249,7 +249,8 @@ async function readReferenceData() {
       //console.log(newLapDataObject);
       carStatusData.push(newCarStatusDataObject);
     };
-    //console.log(latestLapData);
+    console.log('Initial car status data:');
+    console.log(carStatusData);
 
     console.log('Reference data read from Google Sheet:', referenceData);
   } catch (error) {
@@ -1273,7 +1274,7 @@ async function main() {
                   };
 
                   carStatusData[carStatusDataIndex] = newCarStatusObject;
-                  console.log(latestLapData[completedLapCarIndex]);
+                  console.log(carStatusData[carStatusDataIndex]);
 
                 } else {
                   console.log('This driver was not found in the reference database...adding')
