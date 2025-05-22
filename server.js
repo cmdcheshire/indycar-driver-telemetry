@@ -226,7 +226,7 @@ async function readReferenceData() {
       //console.log(newLapDataObject);
       latestLapData.push(newLapDataObject);
     };
-    console.log(latestLapData);
+    //console.log(latestLapData);
 
     console.log('Reference data read from Google Sheet:', referenceData);
   } catch (error) {
@@ -668,7 +668,6 @@ async function main() {
     await readIpInformation();
     await readReferenceData(); //read reference data
     targetCarNumber = await readTargetCarNumber();
-    console.log(latestLapData);
     //console.log(`Target car number: ${targetCarNumber}`); // Log the target car number
     
     client = net.connect({ host: TCP_HOST, port: TCP_PORT }, () => {
@@ -838,7 +837,7 @@ async function main() {
                 //console.log(result);
                 let thisCarNumber = result.$.Car;
                 console.log("Checking for existing lap data")
-                console.log(latestLapData);
+                //console.log(latestLapData);
                 let completedLapCarIndex = latestLapData.findIndex(item => item.carNumber === thisCarNumber);
                 
                 if (completedLapCarIndex !== -1) {
@@ -856,7 +855,7 @@ async function main() {
                   latestLapData[completedLapCarIndex] = newLapDataObject;
                   console.log(latestLapData[completedLapCarIndex]);
                 } else {
-                  console.log('This driver was not found in the reference database...')
+                  console.log('This driver was not found in the reference database...adding')
                   let newLapDataObject = {
                     carNumber:result.$.Car,
                     fastestLap:result.$.Fastest_Lap,
