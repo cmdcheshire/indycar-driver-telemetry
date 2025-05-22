@@ -853,6 +853,10 @@ async function updateTelemetrySheet(telemetryData) {
       let thisCarDNF;
       let thisCarDNFImg;
 
+      let thisCarStatusIndex = carStatusData.findIndex(item => item.carNumber === thisCarNumber);
+      console.log(thisCarStatusIndex);
+      let thisCarStatusCoverImg = '';
+
       if (carStatusData[thisCarStatusIndex].carStatus === 'DNF') {
         thisCarDNF = true;
         thisCarDNFImg = referenceData.leaderboardImages['DNF'];
@@ -882,10 +886,6 @@ async function updateTelemetrySheet(telemetryData) {
       } else {
         carAheadInPit = false; // This is a band aid that can't detect if the first car pits
       };
-
-      let thisCarStatusIndex = carStatusData.findIndex(item => item.carNumber === thisCarNumber);
-      console.log(thisCarStatusIndex);
-      let thisCarStatusCoverImg = '';
 
       if (thisCarDNF) {
         thisCarIntervalSplit = 'DNF';
