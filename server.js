@@ -1186,7 +1186,7 @@ async function main() {
                     totalTime:result.$.Time,
                     lapsBehindLeader:result.$.Laps_Behind_Leader,
                     timeBehindLeader:result.$.Time_Behind_Leader,
-                    lastLapDelta:lapDelta,
+                    lastLapDelta:stringToRoundedDecimalString(lapDelta),
                   };
 
                   latestLapData[completedLapCarIndex] = newLapDataObject;
