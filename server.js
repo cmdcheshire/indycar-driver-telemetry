@@ -858,6 +858,7 @@ async function updateTelemetrySheet(telemetryData) {
       };
 
       let thisCarStatusIndex = carStatusData.indexOf(item => item.carNumber === thisCarNumber);
+      console.log(thisCarStatusIndex);
       let thisCarStatusCoverImg = '';
 
       if (carStatusData[thisCarStatusIndex].carStatus === 'DNF') {
