@@ -223,7 +223,7 @@ async function readReferenceData() {
 
     // Setup structure of lap time data
     let driverKeys = Object.keys(referenceData.drivers);
-    console.log(driverKeys);
+    //console.log(driverKeys);
     for (i = 0; i < driverKeys.length; i++) {
       let newLapDataObject = {
         carNumber:driverKeys[i],
@@ -240,8 +240,7 @@ async function readReferenceData() {
     };
 
     // Setup structure of car status data
-    let driverKeys = Object.keys(referenceData.drivers);
-    console.log(driverKeys);
+    //console.log(driverKeys);
     for (i = 0; i < driverKeys.length; i++) {
       let newCarStatusDataObject = {
         carNumber:driverKeys[i],
