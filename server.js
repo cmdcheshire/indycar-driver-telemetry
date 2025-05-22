@@ -36,8 +36,8 @@ let latestTargetTelemetryData = {}; // Telemetry data for car selected in google
 let latestFullTelemetryData = []; // Telemetry data for all cars
 let telemetryUpdateTime = 1500; // Set time in ms for interval to update telemetry sheet
 let latestLeaderboardData = []; // Leaderboard info for all cars
-let leaderboardUpdateTime = 5000; // Set time in ms for interval to update leaderboard sheet
-let driverInfoUpdateTime = 5000; // Set time in ms for interval to update driver info sheet
+let leaderboardUpdateTime = 2000; // Set time in ms for interval to update leaderboard sheet
+let driverInfoUpdateTime = 2000; // Set time in ms for interval to update driver info sheet
 let latestLapData = []; // Store lap times and info for all cars
 let lastDriverInfoUpdate; // Used to store last driver update info to calculate if splits are better or worse to make them red or green
 let carData = {};
