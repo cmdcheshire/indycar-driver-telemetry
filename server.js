@@ -845,7 +845,7 @@ async function periodicUpdateDriverInfoSheet() {
   if (isOnline && latestLeaderboardData.length > 0 && latestTargetTelemetryData.length > 0 && latestLapData.length > 0) {
     try {
       console.log("periodicUpdateTelemetrySheet - Updating sheet"); //add
-      await updateLeaderboardSheet(latestLeaderboardData, latestTargetTelemetryData, latestLapData); //send the data.
+      await updateDriveInfoSheet(latestLeaderboardData, latestTargetTelemetryData, latestLapData); //send the data.
     }
     catch (e) {
       console.error("Error in sending data to sheet", e);
@@ -1121,16 +1121,17 @@ async function main() {
         if (onlineStatus) {
           targetCarNumber = await readTargetCarNumber(); // Read target car number
           console.log(`Target car number: ${targetCarNumber}`);
+          /* Disabling Telemetry Sheet Update =========================================================================================================
           if (!telemetryUpdateInterval) { // Check the telemetry update interval variable
             telemetryUpdateInterval = setInterval(periodicUpdateTelemetrySheet, telemetryUpdateTime); // Update Telemetry sheet
             console.log('Telemetry update interval started at ' + telemetryUpdateTime + 'ms');
-          }
+          } */
           if (!leaderboardUpdateInterval) {
             leaderboardUpdateInterval = setInterval(periodicUpdateLeaderboardSheet, leaderboardUpdateTime) // Update Leaderboard sheet
             console.log('Leaderboard update interval started at ' + leaderboardUpdateTime + 'ms');
           }
           if (!driverInfoUpdateInterval) {
-            leaderboardUpdateInterval = setInterval(periodicUpdateLeaderboardSheet, leaderboardUpdateTime) // Update Leaderboard sheet
+            leaderboardUpdateInterval = setInterval(periodicUpdateDriverInfoSheet, driverInfoUpdateTime) // Update DriverInfo sheet
             console.log('Driver Info update interval started at ' + driverInfoUpdateTime + 'ms');
           }
         } else {
