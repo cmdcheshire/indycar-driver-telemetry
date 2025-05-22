@@ -1258,32 +1258,31 @@ async function main() {
                   console.log(newLapDataObject);
                   latestLapData.push(newLapDataObject);
                 }
-              };
-            } else if (carStatusStartIndex !== -1) {
+              } else if (carStatusStartIndex !== -1) {
+                let thisCarNumber = result.$.Car;
+                console.log("Checking for existing car status data")
 
-              let thisCarNumber = result.$.Car;
-              console.log("Checking for existing car status data")
+                let carStatusDataIndex = carStatusData.findIndex(item => item.carNumber === thisCarNumber);
+                
+                if (carStatusDataIndex !== -1) {
 
-              let carStatusDataIndex = carStatusData.findIndex(item => item.carNumber === thisCarNumber);
-              
-              if (carStatusDataIndex !== -1) {
+                  let newCarStatusObject = {
+                    carNumber:result.$.Car,
+                    carStatus:result.$.Status,
+                  };
 
-                let newCarStatusObject = {
-                  carNumber:result.$.Car,
-                  carStatus:result.$.Status,
-                };
+                  carStatusData[carStatusDataIndex] = newCarStatusObject;
+                  console.log(latestLapData[completedLapCarIndex]);
 
-                carStatusData[carStatusDataIndex] = newCarStatusObject;
-                console.log(latestLapData[completedLapCarIndex]);
-
-              } else {
-                console.log('This driver was not found in the reference database...adding')
-                let newCarStatusObject = {
-                  carNumber:result.$.Car,
-                  carStatus:result.$.Status,
-                };
-                console.log(newLapDataObject);
-                latestLapData.push(carStatusData);
+                } else {
+                  console.log('This driver was not found in the reference database...adding')
+                  let newCarStatusObject = {
+                    carNumber:result.$.Car,
+                    carStatus:result.$.Status,
+                  };
+                  console.log(newLapDataObject);
+                  latestLapData.push(carStatusData);
+                }
               }
             } catch (error) {
               console.error('Error processing XML message:', error, 'Message:', message);
