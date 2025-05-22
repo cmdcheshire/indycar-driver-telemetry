@@ -289,6 +289,43 @@ function getOrdinal(n) {
 }
 
 /**
+ * Converts a time string from "SS.000" format to "M:SS.000" format.
+ *
+ * @param {string} timeString The input time string in "SS.000" format (e.g., "75.123", "5.000", "0.5").
+ * @returns {string} The formatted time string in "M:SS.000" format (e.g., "1:15.123", "0:05.000", "0:00.500"),
+ * or the original string if the input format is invalid.
+ */
+ function convertSecondsToMinutesSeconds(timeString) {
+  // --- Input Validation ---
+  // Check if the input is a string and matches a basic numeric format
+  // (e.g., "123", "123.4", "123.456"). It allows for 0 to 3 decimal places.
+  if (typeof timeString !== 'string' || !/^\d+(\.\d{0,3})?$/.test(timeString)) {
+      console.warn(`Invalid input format for time conversion: "${timeString}". Expected 'SS.000' or 'SS'. Returning original string.`);
+      return timeString; // Return the original string for invalid input
+  }
+
+  // --- Parsing the Input String ---
+  const parts = timeString.split('.');
+  const totalSecondsInteger = parseInt(parts[0], 10); // Get the whole seconds part as an integer
+
+  // Get the milliseconds part, ensuring it's always 3 digits.
+  // If no milliseconds are provided (e.g., "60"), default to "000".
+  // If fewer than 3 digits (e.g., "123.4"), pad with zeros ("400").
+  const milliseconds = parts[1] ? parts[1].padEnd(3, '0').substring(0, 3) : '000';
+
+  // --- Calculation ---
+  const minutes = Math.floor(totalSecondsInteger / 60); // Calculate whole minutes
+  const remainingSeconds = totalSecondsInteger % 60;   // Calculate remaining whole seconds
+
+  // --- Formatting Output ---
+  // Pad the remaining seconds with a leading zero if it's a single digit (e.g., 5 becomes "05")
+  const formattedSeconds = String(remainingSeconds).padStart(2, '0');
+
+  // Combine minutes, formatted seconds, and milliseconds
+  return `${minutes}:${formattedSeconds}.${milliseconds}`;
+}
+
+/**
  * Function to update the Google Sheet with the telemetry data for the target car.
  */
 async function updateTelemetrySheet(telemetryData) {
@@ -502,7 +539,7 @@ async function updateTelemetrySheet(telemetryData) {
         thisDriverReferenceData.teamLogo + ' ', // Column H is team logo (added space for formatting)
         thisDriverReferenceData.manufacturerLogo, // Column I is manufacturer logo (assuming this exists in referenceData.drivers)
         thisDriverLapData.lastLapNumber, // Column J is last lap number
-        thisDriverLapData.lastLapTime, // Column K is last lap time (not lapNumber as previously)
+        convertSecondsToMinutesSeconds(thisDriverLapData.lastLapTime), // Column K is last lap time (not lapNumber as previously)
         stringToRoundedWholeString(thisDriverTelemetryData.speed), // Column L is speed
         'tbd', // Column M is average speed
         driverAheadReferenceData ? driverAheadReferenceData.lastName : '-', // Column N is driver ahead last name
@@ -818,7 +855,7 @@ async function updateTelemetrySheet(telemetryData) {
           'tire compound', // Column 13 is tire compound, not built yet
           thisCarHighlight, // Column 14 is the link to the highlight graphic URL if this is the target car
           thisCarLapData.lapNumber, // Column 15 is laps completed
-          thisCarLapData.lastLapTime, // Column 16 is last lap time
+          convertSecondsToMinutesSeconds(thisCarLapData.lastLapTime), // Column 16 is last lap time
         ]]
       }
 
@@ -1132,9 +1169,9 @@ async function main() {
                   let lapDelta;
 
                   if (parseFloat(lastLapTime) > parseFloat(thisLapTime)) {
-                    lapDelta = '-' + (parseFloat(lastLapTime) - parseFloat(thisLapTime)).toString;
+                    lapDelta = '-' + (parseFloat(lastLapTime) - parseFloat(thisLapTime)).toString();
                   } else if (parseFloat(lastLapTime) < parseFloat(thisLapTime)) {
-                    lapDelta = '+' + (parseFloat(thisLapTime) - parseFloat(lastLapTime)).toString;
+                    lapDelta = '+' + (parseFloat(thisLapTime) - parseFloat(lastLapTime)).toString();
                   } else {
                     lapDelta = '0.000';
                   };
