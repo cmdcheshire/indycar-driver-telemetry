@@ -493,7 +493,7 @@ async function updateTelemetrySheet(telemetryData) {
       majorDimension: 'ROWS',
       values: [[
         thisDriverLeaderboardData.Car, // Column A is car number
-        thisDriverLeaderboardData.Rank, // Column B is rank number
+        'P' + thisDriverLeaderboardData.Rank, // Column B is rank number
         getOrdinal(thisDriverLeaderboardData.Rank), // Column C is rank ordinal (e.g. 1st = st, 2nd = nd)
         thisDriverReferenceData.firstName, // Column D is first name
         thisDriverReferenceData.lastName, // Column E is last name
