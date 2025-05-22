@@ -814,9 +814,18 @@ async function updateTelemetrySheet(telemetryData) {
       let thisDriverReferenceData = referenceData.drivers[thisCarNumber];
       //console.log("This car reference data: " + thisDriverReferenceData);
 
-      // Handler for lapped car data
+      // Find index of telemetry data for this car
+      let thisCarTelemetryData = telemetryData[telemetryData.findIndex(item => item.carNumber === thisCarNumber)];
+      // Find index of the lap data for this car
+      let thisCarLapData = lapData[lapData.findIndex(item => item.carNumber === thisCarNumber)];
+
+      // Handler for car data
       let thisCarTimeBehind;
       let thisCarIntervalSplit;
+      let thisCarSpeed;
+      let thisCarLastLapSpeed;
+      let thisCarLastLapTime;
+
       let carAheadInPit;
       //console.log("This car laps behind " + leaderboardData[i].Laps_Behind);
       if (leaderboardData[i].Laps_Behind !== "0" && leaderboardData[i].Laps_Behind !== "1") {
@@ -838,6 +847,22 @@ async function updateTelemetrySheet(telemetryData) {
         thisCarHighlight = referenceData.leaderboardImages['Highlight'];
       } else {
         thisCarHighlight = '';
+      }
+
+      // Handler for target car DNF indicator, otherwise assign data
+      let thisCarDNF;
+      let thisCarDNFImg;
+
+      if (carStatusData[thisCarStatusIndex].carStatus === 'DNF') {
+        thisCarDNF = true;
+        thisCarDNFImg = referenceData.leaderboardImages['DNF'];
+        thisCarTimeBehind = 'DNF';
+      } else {
+        thisCarDNF = false;
+        thisCarDNFImg = '';
+        thisCarSpeed = thisCarTelemetryData.speed;
+        thisCarLastLapSpeed = '000';
+        thisCarLastLapTime = convertSecondsToMinutesSeconds(thisCarLapData.lastLapTime);
       }
 
       //Finds interval split and handles if car ahead is in the pit lane
@@ -862,8 +887,8 @@ async function updateTelemetrySheet(telemetryData) {
       console.log(thisCarStatusIndex);
       let thisCarStatusCoverImg = '';
 
-      if (carStatusData[thisCarStatusIndex].carStatus === 'DNF') {
-        thisCarIntervalSplit = 'OUT';
+      if (thisCarDNF) {
+        thisCarIntervalSplit = 'DNF';
         thisCarStatusCoverImg = referenceData.leaderboardImages['DNF'];
       } else if (i !== 0 && carAheadInPit === false && thisCarIntervalSplit === undefined && thisCarDeltaData > 0) {
         thisCarIntervalSplit = '+' + stringToRoundedDecimalString(leaderboardData[i].Time_Behind - leaderboardData[i-1].Time_Behind);
@@ -875,13 +900,10 @@ async function updateTelemetrySheet(telemetryData) {
         thisCarIntervalSplit = stringToRoundedDecimalString(leaderboardData[i].Time_Behind);
       }
 
-      // Find index of telemetry data for this car
-      let thisCarTelemetryData = telemetryData[telemetryData.findIndex(item => item.carNumber === thisCarNumber)];
-      // Find index of the lap data for this car
-      let thisCarLapData = lapData[lapData.findIndex(item => item.carNumber === thisCarNumber)];
+      
 
       let thisLineObject = {
-        range: LEADERBOARD_SHEET_NAME + '!A' + (i+2) + ':' + 'P' + (i+2),
+        range: LEADERBOARD_SHEET_NAME + '!A' + (i+2) + ':' + 'Q' + (i+2),
         majorDimension: 'ROWS',
         values: [[
           leaderboardData[i].Rank, // Column 1 is Rank
@@ -895,11 +917,12 @@ async function updateTelemetrySheet(telemetryData) {
           'total time', // Column 9 is Total Time, not built yet
           thisCarTimeBehind, // Column 10 is Leader Split
           thisCarIntervalSplit, // Column 10 is Interval Split
-          thisCarTelemetryData.speed, // Column 12 is last known speed
+          thisCarSpeed, // Column 12 is last known speed
           'tire compound', // Column 13 is tire compound, not built yet
           thisCarHighlight, // Column 14 is the link to the highlight graphic URL if this is the target car
           thisCarLapData.lapNumber, // Column 15 is laps completed
-          convertSecondsToMinutesSeconds(thisCarLapData.lastLapTime), // Column 16 is last lap time
+          thisCarLastLapTime, // Column 16 is last lap time
+          thisCarDNFImg, // Column 16 is DNF URL for handling greyed out overlay
         ]]
       }
 
