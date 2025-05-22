@@ -36,7 +36,7 @@ let latestTargetTelemetryData = {}; // Telemetry data for car selected in google
 let latestFullTelemetryData = []; // Telemetry data for all cars
 let telemetryUpdateTime = 1500; // Set time in ms for interval to update telemetry sheet
 let latestLeaderboardData = []; // Leaderboard info for all cars
-let leaderboardUpdateTime = 3000; // Set time in ms for interval to update leaderboard sheet
+let leaderboardUpdateTime = 5000; // Set time in ms for interval to update leaderboard sheet
 let driverInfoUpdateTime = 5000; // Set time in ms for interval to update driver info sheet
 let latestLapData = []; // Store lap times and info for all cars
 let lastDriverInfoUpdate; // Used to store last driver update info to calculate if splits are better or worse to make them red or green
@@ -1186,14 +1186,14 @@ async function main() {
             console.log('Telemetry update interval stopped.');
           }
           if (leaderboardUpdateInterval) {
-            clearInterval(telemetryUpdateInterval);
+            clearInterval(leaderboardUpdateInterval);
             leaderboardUpdateInterval = null;
             latestLeaderboardData = {};
             latestLapData = {};
             console.log('Leaderboard update interval stopped.');
           }
           if (driverInfoUpdateInterval) {
-            clearInterval(telemetryUpdateInterval);
+            clearInterval(driverInfoUpdateInterval);
             driverInfoUpdateInterval = null;
             console.log('Driver Info update interval stopped.');
           }
@@ -1203,7 +1203,7 @@ async function main() {
       } catch (error) {
         console.error("Error in main interval:", error);
       }
-    }, 5000); // Check every 5 seconds
+    }, 10000); // Check every 5 seconds
   } catch (error) {
     console.error('Application failed to start:', error);
     //  Handle the error appropriately (e.g., exit, try to reconnect, send an alert).
