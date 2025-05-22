@@ -806,7 +806,6 @@ async function updateTelemetrySheet(telemetryData) {
       let thisCarTimeBehind;
       let thisCarIntervalSplit;
       let carAheadInPit;
-      let thisCarDeltaData = leaderboardData[i].Time_Behind - leaderboardData[i-1].Time_Behind;
       //console.log("This car laps behind " + leaderboardData[i].Laps_Behind);
       if (leaderboardData[i].Laps_Behind !== "0" && leaderboardData[i].Laps_Behind !== "1") {
         //console.log("This car is lapped multiple times, changing time behind to laps.")
@@ -830,6 +829,11 @@ async function updateTelemetrySheet(telemetryData) {
       }
 
       //Finds interval split and handles if car ahead is in the pit lane
+      if (leaderboardData[i-1].Time_Behind) {
+        let thisCarDeltaData = leaderboardData[i].Time_Behind - leaderboardData[i-1].Time_Behind;
+      } else {
+        thisCarDeltaData = '0.000';
+      }
 
       if (leaderboardData[i-1].Time_Behind - leaderboardData[i-2].Time_Behind < 0 ) {
         carAheadInPit = true;
