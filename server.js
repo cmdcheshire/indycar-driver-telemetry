@@ -599,7 +599,7 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
     console.log(driverAheadSplit);
     console.log('last driver info update');
     console.log(lastDriverInfoUpdate);
-    if (lastDriverInfoUpdate !== undefined) {
+    if (lastDriverInfoUpdate[2] !== undefined) {
       if ((parseInt(lastDriverInfoUpdate[2].values[0][0]) && parseInt(driverAheadSplit) < parseInt(lastDriverInfoUpdate[2].values[0][0])) || (parseInt(lastDriverInfoUpdate[2].values[0][1]) && parseInt(driverAheadSplit) < parseInt(lastDriverInfoUpdate[2].values[0][1])) || (parseInt(lastDriverInfoUpdate[2].values[0][2]) && parseInt(driverAheadSplit) < parseInt(lastDriverInfoUpdate[2].values[0][2]))) {
         driverAheadSplitData = {
           range: DRIVERINFO_SHEET_NAME + '!R2:R4',
