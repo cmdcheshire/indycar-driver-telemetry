@@ -842,7 +842,7 @@ async function periodicUpdateLeaderboardSheet() {
 
 async function periodicUpdateDriverInfoSheet() {
   console.log("periodicUpdateDriverInfoSheet called"); //add
-  if (isOnline && latestLeaderboardData.length > 0 && latestTargetTelemetryData.length > 0 && latestLapData.length > 0) {
+  if (isOnline && latestLeaderboardData.length > 0 && Object.keys(latestTargetTelemetryData).length > 0 && latestLapData.length > 0) {
     try {
       console.log("periodicUpdateTelemetrySheet - Updating sheet"); //add
       await updateDriverInfoSheet(latestLeaderboardData, latestTargetTelemetryData, latestLapData); //send the data.
@@ -852,7 +852,7 @@ async function periodicUpdateDriverInfoSheet() {
     }
   }
   else {
-    console.log("Not updating Driver info sheet. isOnline: ", isOnline, " leaderboard data available: ", latestLeaderboardData.length > 0, " telemetry data available: ", latestTargetTelemetryData.length > 0, " lap data available: ", latestLapData.length > 0);
+    console.log("Not updating Driver info sheet. isOnline: ", isOnline, " leaderboard data available: ", latestLeaderboardData.length > 0, " telemetry data available: ", Object.keys(latestTargetTelemetryData).length > 0, " lap data available: ", latestLapData.length > 0);
   }
 }
 
