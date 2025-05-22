@@ -835,7 +835,7 @@ async function updateTelemetrySheet(telemetryData) {
         thisCarDeltaData = '0.000';
       }
 
-      if (i < 2) {
+      if (i > 2) {
         if (leaderboardData[i-1].Time_Behind - leaderboardData[i-2].Time_Behind < 0 ) {
         carAheadInPit = true;
         } else {
