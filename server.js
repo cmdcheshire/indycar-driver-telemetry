@@ -860,7 +860,7 @@ async function updateTelemetrySheet(telemetryData) {
       let thisCarStatusIndex = carStatusData.indexOf(item => item.carNumber === thisCarNumber);
       let thisCarStatusCoverImg = '';
 
-      if (carStatus[thisCarStatusIndex].carStatus === 'DNF') {
+      if (carStatusData[thisCarStatusIndex].carStatus === 'DNF') {
         thisCarIntervalSplit = 'OUT';
         thisCarStatusCoverImg = referenceData.leaderboardImages['DNF'];
       } else if (i !== 0 && carAheadInPit === false && thisCarIntervalSplit === undefined && thisCarDeltaData > 0) {
