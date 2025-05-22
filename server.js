@@ -820,7 +820,7 @@ async function periodicUpdateTelemetrySheet() {
     }
   }
   else {
-    console.log("Not updating sheet. isOnline: ", isOnline, " data available: ", Object.keys(latestTargetTelemetryData).length > 0);
+    console.log("Not updating telemetry sheet. isOnline: ", isOnline, " data available: ", Object.keys(latestTargetTelemetryData).length > 0);
   }
 }
 
@@ -836,7 +836,7 @@ async function periodicUpdateLeaderboardSheet() {
     }
   }
   else {
-    console.log("Not updating sheet. isOnline: ", isOnline, " data available: ", latestLeaderboardData.length > 0);
+    console.log("Not updating leaderboard sheet. isOnline: ", isOnline, " data available: ", latestLeaderboardData.length > 0);
   }
 }
 
@@ -845,14 +845,14 @@ async function periodicUpdateDriverInfoSheet() {
   if (isOnline && latestLeaderboardData.length > 0 && latestTargetTelemetryData.length > 0 && latestLapData.length > 0) {
     try {
       console.log("periodicUpdateTelemetrySheet - Updating sheet"); //add
-      await updateDriveInfoSheet(latestLeaderboardData, latestTargetTelemetryData, latestLapData); //send the data.
+      await updateDriverInfoSheet(latestLeaderboardData, latestTargetTelemetryData, latestLapData); //send the data.
     }
     catch (e) {
       console.error("Error in sending data to sheet", e);
     }
   }
   else {
-    console.log("Not updating sheet. isOnline: ", isOnline, " data available: ", latestLeaderboardData.length > 0);
+    console.log("Not updating Driver info sheet. isOnline: ", isOnline, " data available: ", latestLeaderboardData.length > 0);
   }
 }
 
