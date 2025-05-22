@@ -495,6 +495,8 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
 
     // Build lap time delta object
     let lapDeltaData;
+    console.log('last lap delta');
+    console.log(thisDriverLapData.lastLapDelta);
     if (thisDriverLapData.lastLapDelta.includes('-')) {
       lapDeltaData = {
         range: DRIVERINFO_SHEET_NAME + '!Q2:Q4',
@@ -538,7 +540,7 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
     console.log(lastDriverInfoUpdate);
     if (lastDriverInfoUpdate !== undefined) {
       console.log('last driver ahead split ', parseFloat(lastDriverInfoUpdate[2].values[0][0]), ' is greater than this split? ', parseFloat(driverAheadSplit) < parseFloat(lastDriverInfoUpdate[2].values[0][0]));
-      if ((parseFloat(lastDriverInfoUpdate[2].values[0][0]) && parseFloat(driverAheadSplit) < parseFloat(lastDriverInfoUpdate[2].values[0][0])) || (parseFloat(lastDriverInfoUpdate[2].values[0][1]) && parseFloat(driverAheadSplit) < parseFloat(lastDriverInfoUpdate[2].values[0][1])) || (parseFloat(lastDriverInfoUpdate[2].values[0][2]) && parseFloat(driverAheadSplit) < parseFloat(lastDriverInfoUpdate[2].values[0][2]))) {
+      if ((parseFloat(lastDriverInfoUpdate[2].values[0][0]) && parseFloat(driverAheadSplit) <= parseFloat(lastDriverInfoUpdate[2].values[0][0])) || (parseFloat(lastDriverInfoUpdate[2].values[0][1]) && parseFloat(driverAheadSplit) <= parseFloat(lastDriverInfoUpdate[2].values[0][1])) || (parseFloat(lastDriverInfoUpdate[2].values[0][2]) && parseFloat(driverAheadSplit) <= parseFloat(lastDriverInfoUpdate[2].values[0][2]))) {
         driverAheadSplitData = {
           range: DRIVERINFO_SHEET_NAME + '!R2:R4',
           majorDimension: 'COLUMNS',
@@ -549,7 +551,7 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
           ]]
         };
         console.log('Driver ahead split got smaller.')
-      } else if ((parseFloat(lastDriverInfoUpdate[2].values[0][0]) && parseFloat(driverAheadSplit) > parseFloat(lastDriverInfoUpdate[2].values[0][0])) || (parseFloat(lastDriverInfoUpdate[2].values[0][1]) && parseFloat(driverAheadSplit) > parseFloat(lastDriverInfoUpdate[2].values[0][1])) || (parseFloat(lastDriverInfoUpdate[2].values[0][2]) && parseFloat(driverAheadSplit) > parseFloat(lastDriverInfoUpdate[2].values[0][2]))) {
+      } else if ((parseFloat(lastDriverInfoUpdate[2].values[0][0]) && parseFloat(driverAheadSplit) >= parseFloat(lastDriverInfoUpdate[2].values[0][0])) || (parseFloat(lastDriverInfoUpdate[2].values[0][1]) && parseFloat(driverAheadSplit) >= parseFloat(lastDriverInfoUpdate[2].values[0][1])) || (parseFloat(lastDriverInfoUpdate[2].values[0][2]) && parseFloat(driverAheadSplit) >= parseFloat(lastDriverInfoUpdate[2].values[0][2]))) {
         driverAheadSplitData = {
           range: DRIVERINFO_SHEET_NAME + '!R2:R4',
           majorDimension: 'COLUMNS',
@@ -595,7 +597,7 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
     console.log(lastDriverInfoUpdate);
     if (lastDriverInfoUpdate !== undefined) {
       console.log('last driver behind split ', parseFloat(lastDriverInfoUpdate[3].values[0][0]), ' is greater than this split? ', parseFloat(driverBehindSplit) < parseFloat(lastDriverInfoUpdate[3].values[0][0]));
-      if ((parseFloat(lastDriverInfoUpdate[3].values[0][0]) && parseFloat(driverBehindSplit) < parseFloat(lastDriverInfoUpdate[3].values[0][0])) || (parseFloat(lastDriverInfoUpdate[3].values[0][1]) && parseFloat(driverBehindSplit) < parseFloat(lastDriverInfoUpdate[3].values[0][1])) || (parseFloat(lastDriverInfoUpdate[3].values[0][2]) && parseFloat(driverBehindSplit) < parseFloat(lastDriverInfoUpdate[3].values[0][2]))) {
+      if ((parseFloat(lastDriverInfoUpdate[3].values[0][0]) && parseFloat(driverBehindSplit) <= parseFloat(lastDriverInfoUpdate[3].values[0][0])) || (parseFloat(lastDriverInfoUpdate[3].values[0][1]) && parseFloat(driverBehindSplit) <= parseFloat(lastDriverInfoUpdate[3].values[0][1])) || (parseFloat(lastDriverInfoUpdate[3].values[0][2]) && parseFloat(driverBehindSplit) <= parseFloat(lastDriverInfoUpdate[3].values[0][2]))) {
         driverBehindSplitData = {
           range: DRIVERINFO_SHEET_NAME + '!S2:S4',
           majorDimension: 'COLUMNS',
@@ -606,7 +608,7 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
           ]]
         };
         console.log('Driver behind split got smaller.')
-      } else if ((parseFloat(lastDriverInfoUpdate[3].values[0][0]) && parseFloat(driverBehindSplit) > parseFloat(lastDriverInfoUpdate[3].values[0][0])) || (parseFloat(lastDriverInfoUpdate[3].values[0][1]) && parseFloat(driverBehindSplit) > parseFloat(lastDriverInfoUpdate[3].values[0][1])) || (parseFloat(lastDriverInfoUpdate[3].values[0][2]) && parseFloat(driverBehindSplit) > parseFloat(lastDriverInfoUpdate[3].values[0][2]))) {
+      } else if ((parseFloat(lastDriverInfoUpdate[3].values[0][0]) && parseFloat(driverBehindSplit) >= parseFloat(lastDriverInfoUpdate[3].values[0][0])) || (parseFloat(lastDriverInfoUpdate[3].values[0][1]) && parseFloat(driverBehindSplit) >= parseFloat(lastDriverInfoUpdate[3].values[0][1])) || (parseFloat(lastDriverInfoUpdate[3].values[0][2]) && parseFloat(driverBehindSplit) >= parseFloat(lastDriverInfoUpdate[3].values[0][2]))) {
         driverBehindSplitData = {
           range: DRIVERINFO_SHEET_NAME + '!S2:S4',
           majorDimension: 'COLUMNS',
@@ -1047,12 +1049,12 @@ async function main() {
                   let thisLapTime = result.$.Lap_Time;
                   let lapDelta;
 
-                  if (lastLapTime > thisLapTime) {
-                    lapDelta = '-' + (lastLapTime - thisLapTime);
-                  } else if (lastLapTime < thisLapTime) {
-                    lapDelta = '+' + (thisLapTime - lastLapTime);
+                  if (parseFloat(lastLapTime) > parseFloat(thisLapTime)) {
+                    lapDelta = '-' + (parseFloat(lastLapTime) - parseFloat(thisLapTime)).toString;
+                  } else if (parseFloat(lastLapTime) < parseFloat(thisLapTime)) {
+                    lapDelta = '+' + (parseFloat(thisLapTime) - parseFloat(lastLapTime)).toString;
                   } else {
-                    lapDelta = ' ';
+                    lapDelta = '0.000';
                   };
 
                   let newLapDataObject = {
