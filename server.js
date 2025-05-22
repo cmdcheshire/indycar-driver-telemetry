@@ -858,7 +858,7 @@ async function updateTelemetrySheet(telemetryData) {
         carAheadInPit = false; // This is a band aid that can't detect if the first car pits
       };
 
-      let thisCarStatusIndex = carStatusData.indexOf(item => item.carNumber === thisCarNumber);
+      let thisCarStatusIndex = carStatusData.findIndex(item => item.carNumber === thisCarNumber);
       console.log(thisCarStatusIndex);
       let thisCarStatusCoverImg = '';
 
