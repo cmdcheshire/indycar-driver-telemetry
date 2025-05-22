@@ -35,9 +35,11 @@ let isOnline = false;
 let latestTargetTelemetryData = {}; // Telemetry data for car selected in google sheet
 let latestFullTelemetryData = []; // Telemetry data for all cars
 let telemetryUpdateTime = 1500; // Set time in ms for interval to update telemetry sheet
-let latestLeaderboardData = [];
+let latestLeaderboardData = []; // Leaderboard info for all cars
 let leaderboardUpdateTime = 2000; // Set time in ms for interval to update leaderboard sheet
+let driverInfoUpdateTime = 2000; // Set time in ms for interval to update driver info sheet
 let latestLapData = []; // Store lap times and info for all cars
+let lastDriverInfoUpdate; // Used to store last driver update info to calculate if splits are better or worse to make them red or green
 let carData = {};
 
 /**
@@ -221,7 +223,7 @@ async function readReferenceData() {
         totalTime:'-',
         lapsBehindLeader:'-',
         timeBehindLeader:'-',
-        lastLapDelta:'-',
+        lastLapDelta:' ',
       };
       //console.log(newLapDataObject);
       latestLapData.push(newLapDataObject);
@@ -320,7 +322,7 @@ async function updateTelemetrySheet(telemetryData) {
       majorDimension: 'ROWS',
       values: [[
         telemetryData.carNumber, // Column A is car number
-        telemetryData.rank, // Column B is rank number
+        'P' + telemetryData.rank, // Column B is rank number (this has a P in front, e.g. 'P17' to indicate 17th)
         getOrdinal(telemetryData.rank), // Column C is rank ordinal (e.g. 1st = st, 2nd = nd)
         referenceData.drivers[telemetryData.carNumber].firstName, // Column D is first name
         referenceData.drivers[telemetryData.carNumber].lastName, // Column E is last name
@@ -443,6 +445,188 @@ async function updateTelemetrySheet(telemetryData) {
     console.log('Telemetry data updated in Google Sheet:', response.data);
   } catch (error) {
     console.error('Error updating Google Sheet with telemetry data:', error);
+  }
+}
+
+/**
+ * Function to update driver info data.
+ * 
+ */
+async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
+  try {
+    console.log('Updating driver info data in Google Sheet...');
+
+    // Check if the sheet exists
+    let spreadsheetInfo;
+    try {
+      spreadsheetInfo = await sheets_TelemetryAccount.spreadsheets.get({
+        spreadsheetId: SPREADSHEET_ID,
+      });
+      const sheetExists = spreadsheetInfo.data.sheets.some(sheet => sheet.properties.title === DRIVERINFO_SHEET_NAME);
+
+      if (sheetExists) {
+        console.log('Leaderboard sheet '+ DRIVERINFO_SHEET_NAME + ' exists. Using...');
+      }
+
+      if (!sheetExists) {
+        console.log(`Sheet "${DRIVERINFO_SHEET_NAME}" does not exist. Creating it...`);
+        await sheets_TelemetryAccount.spreadsheets.batchUpdate({
+          spreadsheetId: SPREADSHEET_ID,
+          resource: {
+            requests: [{
+              addSheet: {
+                properties: {
+                  title: DRIVERINFO_SHEET_NAME,
+                },
+              },
+            }],
+          },
+        });
+        console.log(`Sheet "${DRIVERINFO_SHEET_NAME}" created.`);
+      }
+
+    } catch (error) {
+      console.error('Error checking or creating sheet:', error);
+      return; // Stop if there's an error checking/creating the sheet
+    };
+
+    // Define specific data in human-readable way
+    let thisDriverReferenceData = referenceData.drivers[targetCarNumber];
+    let driverInfoLapDataIndex = lapData.findIndex(item => item.carNumber === targetCarNumber);
+    let thisDriverLapData = lapData[driverInfoLapDataIndex];
+    let thisDriverLeaderboardDataIndex = leaderboardData.findIndex(item => item.Car === targetCarNumber);
+    let thisDriverLeaderboardData = leaderboardData[thisDriverLeaderboardDataIndex];
+    let thisDriverTelemetryData = telemetryData;
+
+    // Find info about near drivers
+    let driverAheadLeaderboardDataIndex = leaderboardData.findIndex(item => item.Rank === (thisDriverLeaderboardData.Rank - 1));
+    let driverAheadLeaderboardData = leaderboardData[driverAheadLeaderboardDataIndex];
+    let driverAheadReferenceData = referenceData.drivers[driverAheadLeaderboardData.Car];
+    let driverBehindLeaderboardDataIndex = leaderboardData.findIndex(item => item.Rank === (thisDriverLeaderboardData.Rank + 1));
+    let driverBehindLeaderboardData = leaderboardData[driverBehindLeaderboardDataIndex];
+    let driverBehindReferenceData = referenceData.drivers[driverBehindLeaderboardData.Car];
+    
+    // Build object to push to Google sheet
+    let gsheetDriverInfoUpdateData = [];
+    let singleDataPoints = {
+      range: DRIVERINFO_SHEET_NAME + '!A2:O2',
+      majorDimension: 'ROWS',
+      values: [[
+        thisDriverLeaderboardData.Car, // Column A is car number
+        thisDriverLeaderboardData.Rank, // Column B is rank number
+        getOrdinal(thisDriverLeaderboardData.Rank), // Column C is rank ordinal (e.g. 1st = st, 2nd = nd)
+        thisDriverReferenceData.firstName, // Column D is first name
+        thisDriverReferenceData.lastName, // Column E is last name
+        thisDriverReferenceData.firstName + ' ' + referenceData.drivers[telemetryData.carNumber].lastName, // Column F is display name (in this case full name)
+        thisDriverReferenceData.headshot, // Column G is headshot URL (find in the tagboard graphic library and update in the google sheet 'Database')
+        thisDriverReferenceData.teamLogo + ' ', // Column H is team logo
+        thisDriverReferenceData.manufacturerLogo, // Column I is manufacturer logo
+        thisDriverLapData.lapNumber, // Column J is lap number
+        thisDriverLapData.lapNumber, // Column K is last lap time
+        thisDriverTelemetryData.speed, // Column L is speed
+        'tbd', // Column M is average speed
+        driverAheadReferenceData.lastName, // Column N is driver ahead last name 
+        driverBehindReferenceData.lastName, // Column M is driver behind last name        
+      ]]
+    };
+
+    gsheetDriverInfoUpdateData.push(singleDataPoints);
+
+    // Build lap time delta object
+    let lapDeltaData;
+    if (thisDriverLapData.lastLapDelta.contains('-')) {
+      lapDeltaData = {
+        range: DRIVERINFO_SHEET_NAME + '!Q2:Q4',
+        majorDimension: 'COLUMNS',
+        values: [[
+          '',
+          thisDriverLapData.lastLapDelta, // this puts makes the delta text GREEN because the lap time got BETTER
+          '',
+        ]]
+      };
+    } else if (thisDriverLapData.lastLapDelta.contains('+')) {
+      lapDeltaData = {
+        range: DRIVERINFO_SHEET_NAME + '!Q2:Q4',
+        majorDimension: 'COLUMNS',
+        values: [[
+          '',
+          '', 
+          thisDriverLapData.lastLapDelta, // this puts makes the delta text RED because the lap time got WORSE
+        ]]
+      };
+    } else {
+      lapDeltaData = {
+        range: DRIVERINFO_SHEET_NAME + '!Q2:Q4',
+        majorDimension: 'COLUMNS',
+        values: [[
+          thisDriverLapData.lastLapDelta, // this puts makes the delta text WHITE to handle all other scenarios
+          '', 
+          '', 
+        ]]
+      };
+    }
+
+    gsheetDriverInfoUpdateData.push(lapDeltaData);
+
+    //Build the driver ahead split object
+    let driverAheadSplitData;
+    let driverAheadSplit = thisDriverLeaderboardData.Time_Behind - driverAheadLeaderboardData.Time_Behind;
+    if ((parseInt(lastDriverInfoUpdate[2].values[0][0]) && parseInt(driverAheadSplit) < parseInt(lastDriverInfoUpdate[2].values[0][0])) || (parseInt(lastDriverInfoUpdate[2].values[0][1]) && parseInt(driverAheadSplit) < parseInt(lastDriverInfoUpdate[2].values[0][1])) || (parseInt(lastDriverInfoUpdate[2].values[0][2]) && parseInt(driverAheadSplit) < parseInt(lastDriverInfoUpdate[2].values[0][2]))) {
+      driverAheadSplitData = {
+        range: DRIVERINFO_SHEET_NAME + '!R2:R4',
+        majorDimension: 'COLUMNS',
+        values: [[
+          '',
+          '+' + driverAheadSplit, // this puts makes the delta text GREEN because the split got SMALLER
+          '', 
+        ]]
+      };
+      console.log('Driver ahead split got smaller.')
+    } else if ((parseInt(lastDriverInfoUpdate[2].values[0][0]) && parseInt(driverAheadSplit) > parseInt(lastDriverInfoUpdate[2].values[0][0])) || (parseInt(lastDriverInfoUpdate[2].values[0][1]) && parseInt(driverAheadSplit) > parseInt(lastDriverInfoUpdate[2].values[0][1])) || (parseInt(lastDriverInfoUpdate[2].values[0][2]) && parseInt(driverAheadSplit) > parseInt(lastDriverInfoUpdate[2].values[0][2]))) {
+      driverAheadSplitData = {
+        range: DRIVERINFO_SHEET_NAME + '!R2:R4',
+        majorDimension: 'COLUMNS',
+        values: [[
+          '',
+          '', 
+          '+' + driverAheadSplit, // this puts makes the delta text RED because the split got BIGGER
+        ]]
+      };
+      console.log('Driver ahead split got larger.')
+    } else {
+      driverAheadSplitData = {
+        range: DRIVERINFO_SHEET_NAME + '!R2:R4',
+        majorDimension: 'COLUMNS',
+        values: [[
+          '+' + driverAheadSplit, // this puts makes the delta text WHITE to handle all other situations
+          '', 
+          '', 
+        ]]
+      };
+    }
+
+    gsheetDriverInfoUpdateData.push(driverAheadSplitData);
+
+    /// STILL NEED TO BUILD DRIVER BEHIND SPLIT UPDATE DATA.
+
+    // Send the data to the correct cells in the google sheet.
+    const response = await sheets_TelemetryAccount.spreadsheets.values.batchUpdate({
+      spreadsheetId: SPREADSHEET_ID,
+      valueInputOption: 'RAW',
+      resource: { // The 'resource' object is necessary for batchUpdate
+        data: gsheetDriverInfoUpdateData,
+      }
+    });
+
+    lastDriverInfoUpdate = gsheetDriverUpdateData;
+
+    console.log('Driver info data updated in Google Sheet: ', response.data.totalUpdatedRows + ' rows');
+
+  } catch (error) {
+    console.error('Error: ', error);
+    return;
+  };
+
   }
 }
 
@@ -642,10 +826,26 @@ async function periodicUpdateTelemetrySheet() {
 
 async function periodicUpdateLeaderboardSheet() {
   console.log("periodicUpdateLeaderboardSheet called"); //add
-  if (isOnline && latestLeaderboardData.length > 0) {
+  if (isOnline && latestLeaderboardData.length > 0 && latestTelemetryData.length > 0 && latestLapData.length > 0) {
     try {
       console.log("periodicUpdateTelemetrySheet - Updating sheet"); //add
       await updateLeaderboardSheet(latestLeaderboardData, latestFullTelemetryData, latestLapData); //send the data.
+    }
+    catch (e) {
+      console.error("Error in sending data to sheet", e);
+    }
+  }
+  else {
+    console.log("Not updating sheet. isOnline: ", isOnline, " data available: ", latestLeaderboardData.length > 0);
+  }
+}
+
+async function periodicUpdateDriverInfoSheet() {
+  console.log("periodicUpdateLeaderboardSheet called"); //add
+  if (isOnline && latestLeaderboardData.length > 0 && latestTelemetryData.length > 0 && latestLapData.length > 0) {
+    try {
+      console.log("periodicUpdateTelemetrySheet - Updating sheet"); //add
+      await updateLeaderboardSheet(latestLeaderboardData, latestTargetTelemetryData, latestLapData); //send the data.
     }
     catch (e) {
       console.error("Error in sending data to sheet", e);
@@ -841,7 +1041,20 @@ async function main() {
                 let completedLapCarIndex = latestLapData.findIndex(item => item.carNumber === thisCarNumber);
                 
                 if (completedLapCarIndex !== -1) {
+
                   console.log('Updating lap ' + result.$.Lap_Number + ' data for car ' + thisCarNumber + '...');
+                  let lastLapTime = latestLapData[completedLapCarIndex].lastLapTime;
+                  let thisLapTime = result.$.Lap_Time;
+                  let lapDelta;
+
+                  if (lastLapTime > thisLapTime) {
+                    lapDelta = '-' + (lastLapTime - thisLapTime);
+                  } else if (lastLapTime < thisLapTime) {
+                    lapDelta = '+' + (thisLapTime - lastLapTime);
+                  } else {
+                    lapDelta = ' ';
+                  };
+
                   let newLapDataObject = {
                     carNumber:result.$.Car,
                     fastestLap:result.$.Fastest_Lap,
@@ -850,10 +1063,12 @@ async function main() {
                     totalTime:result.$.Time,
                     lapsBehindLeader:result.$.Laps_Behind_Leader,
                     timeBehindLeader:result.$.Time_Behind_Leader,
-                    lastLapDelta:'-',
+                    lastLapDelta:lapDelta,
                   };
+
                   latestLapData[completedLapCarIndex] = newLapDataObject;
                   console.log(latestLapData[completedLapCarIndex]);
+
                 } else {
                   console.log('This driver was not found in the reference database...adding')
                   let newLapDataObject = {
@@ -864,7 +1079,7 @@ async function main() {
                     totalTime:result.$.Time,
                     lapsBehindLeader:result.$.Laps_Behind_Leader,
                     timeBehindLeader:result.$.Time_Behind_Leader,
-                    lastLapDelta:'-',
+                    lastLapDelta:' ',
                   };
                   console.log(newLapDataObject);
                   latestLapData.push(newLapDataObject);
@@ -897,6 +1112,7 @@ async function main() {
 
     let telemetryUpdateInterval; // Separate variable for the telemetry update interval
     let leaderboardUpdateInterval;
+    let driverInfoUpdateInterval;
 
     // Main loop: Check online status, read target car, and process data
     setInterval(async () => { // Changed to setInterval without assigning to onlineCheckInterval
@@ -913,6 +1129,10 @@ async function main() {
             leaderboardUpdateInterval = setInterval(periodicUpdateLeaderboardSheet, leaderboardUpdateTime) // Update Leaderboard sheet
             console.log('Leaderboard update interval started at ' + leaderboardUpdateTime + 'ms');
           }
+          if (!driverInfoUpdateInterval) {
+            leaderboardUpdateInterval = setInterval(periodicUpdateLeaderboardSheet, leaderboardUpdateTime) // Update Leaderboard sheet
+            console.log('Driver Info update interval started at ' + driverInfoUpdateTime + 'ms');
+          }
         } else {
           // Clear the interval if offline
           if (telemetryUpdateInterval) {
@@ -922,6 +1142,19 @@ async function main() {
             latestFullTelemetryData = {};
             console.log('Telemetry update interval stopped.');
           }
+          if (leaderboardUpdateInterval) {
+            clearInterval(telemetryUpdateInterval);
+            leaderboardUpdateInterval = null;
+            latestLeaderboardData = {};
+            latestLapData = {};
+            console.log('Leaderboard update interval stopped.');
+          }
+          if (driverInfoUpdateInterval) {
+            clearInterval(telemetryUpdateInterval);
+            driverInfoUpdateInterval = null;
+            console.log('Driver Info update interval stopped.');
+          }
+
           console.log('Offline: Not updating sheet.');
         }
       } catch (error) {
