@@ -830,7 +830,7 @@ async function updateTelemetrySheet(telemetryData) {
       if (i !== 0 && thisCarIntervalSplit === undefined) {
         thisCarIntervalSplit = '+' + stringToRoundedDecimalString(leaderboardData[i].Time_Behind - leaderboardData[i-1].Time_Behind);
       } else if (i <= 0 && thisCarIntervalSplit === undefined) {
-        thisCarIntervalSplit = 'IN PIT');
+        thisCarIntervalSplit = 'IN PIT';
       } else if (thisCarIntervalSplit === undefined) {
         thisCarIntervalSplit = stringToRoundedDecimalString(leaderboardData[i].Time_Behind);
       }
