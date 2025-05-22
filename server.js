@@ -811,13 +811,17 @@ async function main() {
                 
                 if (completedLapCarIndex !== -1) {
                   console.log('Updating lap ' + result.$.Lap_Number + ' data for car ' + thisCarNumber + '...');
-                  latestLapData[completedLapCarIndex].carNumber = result.$.Car;
-                  latestLapData[completedLapCarIndex].fastestLap = result.$.Fastest_Lap;
-                  latestLapData[completedLapCarIndex].lastLapNumber = result.$.Lap_Number;
-                  latestLapData[completedLapCarIndex].lastLapTime = result.$.Lap_Time;
-                  latestLapData[completedLapCarIndex].totalTime = result.$.Time;
-                  latestLapData[completedLapCarIndex].lapsBehindLeader = result.$.Laps_Behind_Leader;
-                  latestLapData[completedLapCarIndex].timeBehindLeader = result.$.Time_Behind_Leader;
+                  let newLapDataObject = {
+                    carNumber:result.$.Car,
+                    fastestLap:result.$.Fastest_Lap,
+                    lastLapNumber:result.$.Lap_Number,
+                    lastLapTime:result.$.Lap_Time,
+                    totalTime:result.$.Time,
+                    lapsBehindLeader:result.$.Laps_Behind_Leader,
+                    timeBehindLeader:result.$.Time_Behind_Leader,
+                    lastLapDelta:'-',
+                  };
+                  latestLapData[completedLapCarIndex] = newLapDataObject;
                   console.log(latestLapData[completedLapCarIndex]);
                 } else {
                   console.log('This driver was not found in the reference database...')
