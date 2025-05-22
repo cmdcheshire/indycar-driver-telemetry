@@ -595,38 +595,42 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
     //Build the driver ahead split object
     let driverAheadSplitData;
     let driverAheadSplit = thisDriverLeaderboardData.Time_Behind - driverAheadLeaderboardData.Time_Behind;
-    if ((parseInt(lastDriverInfoUpdate[2].values[0][0]) && parseInt(driverAheadSplit) < parseInt(lastDriverInfoUpdate[2].values[0][0])) || (parseInt(lastDriverInfoUpdate[2].values[0][1]) && parseInt(driverAheadSplit) < parseInt(lastDriverInfoUpdate[2].values[0][1])) || (parseInt(lastDriverInfoUpdate[2].values[0][2]) && parseInt(driverAheadSplit) < parseInt(lastDriverInfoUpdate[2].values[0][2]))) {
-      driverAheadSplitData = {
-        range: DRIVERINFO_SHEET_NAME + '!R2:R4',
-        majorDimension: 'COLUMNS',
-        values: [[
-          '',
-          '+' + driverAheadSplit, // this puts makes the delta text GREEN because the split got SMALLER
-          '', 
-        ]]
-      };
-      console.log('Driver ahead split got smaller.')
-    } else if ((parseInt(lastDriverInfoUpdate[2].values[0][0]) && parseInt(driverAheadSplit) > parseInt(lastDriverInfoUpdate[2].values[0][0])) || (parseInt(lastDriverInfoUpdate[2].values[0][1]) && parseInt(driverAheadSplit) > parseInt(lastDriverInfoUpdate[2].values[0][1])) || (parseInt(lastDriverInfoUpdate[2].values[0][2]) && parseInt(driverAheadSplit) > parseInt(lastDriverInfoUpdate[2].values[0][2]))) {
-      driverAheadSplitData = {
-        range: DRIVERINFO_SHEET_NAME + '!R2:R4',
-        majorDimension: 'COLUMNS',
-        values: [[
-          '',
-          '', 
-          '+' + driverAheadSplit, // this puts makes the delta text RED because the split got BIGGER
-        ]]
-      };
-      console.log('Driver ahead split got larger.')
-    } else {
-      driverAheadSplitData = {
-        range: DRIVERINFO_SHEET_NAME + '!R2:R4',
-        majorDimension: 'COLUMNS',
-        values: [[
-          '+' + driverAheadSplit, // this puts makes the delta text WHITE to handle all other situations
-          '', 
-          '', 
-        ]]
-      };
+    console.log('driver ahead split');
+    console.log(driverAheadSplit);
+    if (lastDriverInfoUpdate !== undefined) {
+      if ((parseInt(lastDriverInfoUpdate[2].values[0][0]) && parseInt(driverAheadSplit) < parseInt(lastDriverInfoUpdate[2].values[0][0])) || (parseInt(lastDriverInfoUpdate[2].values[0][1]) && parseInt(driverAheadSplit) < parseInt(lastDriverInfoUpdate[2].values[0][1])) || (parseInt(lastDriverInfoUpdate[2].values[0][2]) && parseInt(driverAheadSplit) < parseInt(lastDriverInfoUpdate[2].values[0][2]))) {
+        driverAheadSplitData = {
+          range: DRIVERINFO_SHEET_NAME + '!R2:R4',
+          majorDimension: 'COLUMNS',
+          values: [[
+            '',
+            '+' + driverAheadSplit, // this puts makes the delta text GREEN because the split got SMALLER
+            '', 
+          ]]
+        };
+        console.log('Driver ahead split got smaller.')
+      } else if ((parseInt(lastDriverInfoUpdate[2].values[0][0]) && parseInt(driverAheadSplit) > parseInt(lastDriverInfoUpdate[2].values[0][0])) || (parseInt(lastDriverInfoUpdate[2].values[0][1]) && parseInt(driverAheadSplit) > parseInt(lastDriverInfoUpdate[2].values[0][1])) || (parseInt(lastDriverInfoUpdate[2].values[0][2]) && parseInt(driverAheadSplit) > parseInt(lastDriverInfoUpdate[2].values[0][2]))) {
+        driverAheadSplitData = {
+          range: DRIVERINFO_SHEET_NAME + '!R2:R4',
+          majorDimension: 'COLUMNS',
+          values: [[
+            '',
+            '', 
+            '+' + driverAheadSplit, // this puts makes the delta text RED because the split got BIGGER
+          ]]
+        };
+        console.log('Driver ahead split got larger.')
+      } else {
+        driverAheadSplitData = {
+          range: DRIVERINFO_SHEET_NAME + '!R2:R4',
+          majorDimension: 'COLUMNS',
+          values: [[
+            '+' + driverAheadSplit, // this puts makes the delta text WHITE to handle all other situations
+            '', 
+            '', 
+          ]]
+        };
+      }
     }
 
     gsheetDriverInfoUpdateData.push(driverAheadSplitData);
