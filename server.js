@@ -40,7 +40,7 @@ let leaderboardUpdateTime = 2000; // Set time in ms for interval to update leade
 let driverInfoUpdateTime = 2000; // Set time in ms for interval to update driver info sheet
 let latestLapData = []; // Store lap times and info for all cars
 let lastDriverInfoUpdate; // Used to store last driver update info to calculate if splits are better or worse to make them red or green
-let carData = {};
+let carStatusData = [];
 
 // Global Variables for storing split time information and metadata
 let prevLapDeltaValue = null; // Stores the numeric value of the last lap delta
@@ -162,7 +162,7 @@ async function readReferenceData() {
       `${DATABASE_SHEET_NAME}!A2:H50`, // Driver data
       `${DATABASE_SHEET_NAME}!A52:B54`, // Tire image URLs
       `${DATABASE_SHEET_NAME}!A57:B60`, // Indicator image URLs
-      `${DATABASE_SHEET_NAME}!A62:B63`, // Leaderboard image URLs
+      `${DATABASE_SHEET_NAME}!A63:B64`, // Leaderboard image URLs
     ];
 
     // Loop through the ranges and fetch the data for each
@@ -207,7 +207,7 @@ async function readReferenceData() {
             const indicatorImageUrl = row[1];
             referenceData.indicatorImages[indicatorType] = indicatorImageUrl;
           }
-        } else if (range === `${DATABASE_SHEET_NAME}!A62:B63`) {
+        } else if (range === `${DATABASE_SHEET_NAME}!A63:B64`) {
           // Process leaderboard image URLs
           for (let i = 0; i < values.length; i++) {
             const row = values[i];
@@ -237,6 +237,18 @@ async function readReferenceData() {
       };
       //console.log(newLapDataObject);
       latestLapData.push(newLapDataObject);
+    };
+
+    // Setup structure of car status data
+    let driverKeys = Object.keys(referenceData.drivers);
+    console.log(driverKeys);
+    for (i = 0; i < driverKeys.length; i++) {
+      let newCarStatusDataObject = {
+        carNumber:driverKeys[i],
+        carStatus:'-',
+      };
+      //console.log(newLapDataObject);
+      carStatusData.push(newCarStatusDataObject);
     };
     //console.log(latestLapData);
 
@@ -846,7 +858,13 @@ async function updateTelemetrySheet(telemetryData) {
         carAheadInPit = false; // This is a band aid that can't detect if the first car pits
       };
 
-      if (i !== 0 && carAheadInPit === false && thisCarIntervalSplit === undefined && thisCarDeltaData > 0) {
+      let thisCarStatusIndex = carStatusData.indexOf(item => item.carNumber === thisCarNumber);
+      let thisCarStatusCoverImg = '';
+
+      if (carStatus[thisCarStatusIndex].carStatus === 'DNF') {
+        thisCarIntervalSplit = 'OUT';
+        thisCarStatusCoverImg = referenceData.leaderboardImages['DNF'];
+      } else if (i !== 0 && carAheadInPit === false && thisCarIntervalSplit === undefined && thisCarDeltaData > 0) {
         thisCarIntervalSplit = '+' + stringToRoundedDecimalString(leaderboardData[i].Time_Behind - leaderboardData[i-1].Time_Behind);
       } else if (i !== 0 && carAheadInPit === true && thisCarIntervalSplit === undefined) { // Car ahead is in Pit, look two cars ahead for gap
         thisCarIntervalSplit = '+' + stringToRoundedDecimalString(leaderboardData[i].Time_Behind - leaderboardData[i-2].Time_Behind);
@@ -1041,6 +1059,8 @@ async function main() {
       const unofficialLeaderboardEnd = '</Unofficial_Leaderboard>';
       const completedLapStart = '<Completed_Lap';
       const completedLapEnd = '/>';
+      const carStatusStart = '<Car_Status';
+      const carStatusEnd = '/>';
 
       let message = null;
 
@@ -1052,6 +1072,7 @@ async function main() {
         let unofficialLeaderboardStartIndex = buffer.indexOf(unofficialLeaderboardStart);
         //console.log("leaderboard data start index... " + unofficialLeaderboardStartIndex);
         let completedLapStartIndex = buffer.indexOf(completedLapStart);
+        let carStatusStartIndex = buffer.indexOf(carStatusStart);
 
         if (telemetryStartIndex !== -1) {
           let telemetryEndIndex = buffer.indexOf(telemetryEnd, telemetryStartIndex);
@@ -1083,6 +1104,14 @@ async function main() {
           if (completedLapEndIndex !== -1) {
             message = buffer.substring(completedLapStartIndex, completedLapEndIndex + completedLapEnd.length);
             buffer = buffer.substring(completedLapEndIndex + completedLapEnd.length);
+          } else {
+            break; // Incomplete completed lap message, wait for more data
+          }
+        } else if (carStatusStartIndex !== -1) {
+          let carStatusEndIndex = buffer.indexOf(carStatusEnd, carStatusStartIndex);
+          if (carStatusEndIndex !== -1) {
+            message = buffer.substring(carStatusStartIndex, carStatusEndIndex + carStatusEnd.length);
+            buffer = buffer.substring(carStatusEndIndex + carStatusEnd.length);
           } else {
             break; // Incomplete completed lap message, wait for more data
           }
@@ -1231,6 +1260,32 @@ async function main() {
                   latestLapData.push(newLapDataObject);
                 }
               };
+            } else if (carStatusStartIndex !== -1) {
+
+              let thisCarNumber = result.$.Car;
+              console.log("Checking for existing car status data")
+
+              let carStatusDataIndex = carStatusData.findIndex(item => item.carNumber === thisCarNumber);
+              
+              if (carStatusDataIndex !== -1) {
+
+                let newCarStatusObject = {
+                  carNumber:result.$.Car,
+                  carStatus:result.$.Status,
+                };
+
+                carStatusData[carStatusDataIndex] = newCarStatusObject;
+                console.log(latestLapData[completedLapCarIndex]);
+
+              } else {
+                console.log('This driver was not found in the reference database...adding')
+                let newCarStatusObject = {
+                  carNumber:result.$.Car,
+                  carStatus:result.$.Status,
+                };
+                console.log(newLapDataObject);
+                latestLapData.push(carStatusData);
+              }
             } catch (error) {
               console.error('Error processing XML message:', error, 'Message:', message);
             }
