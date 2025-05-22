@@ -228,7 +228,7 @@ async function readReferenceData() {
       let newLapDataObject = {
         carNumber:driverKeys[i],
         fastestLap:'-',
-        lastLapNumber:'-',
+        lastLapNumber:'0',
         lastLapTime:'-',
         totalTime:'-',
         lapsBehindLeader:'-',
