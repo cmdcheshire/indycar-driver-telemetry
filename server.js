@@ -627,8 +627,8 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
     return;
   };
 
-  }
 }
+
 
 /**
  * Function to update leaderboard data.
