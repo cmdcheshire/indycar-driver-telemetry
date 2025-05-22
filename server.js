@@ -807,7 +807,7 @@ async function main() {
                 let thisCarNumber = result.$.Car;
                 console.log("Checking for existing lap data")
                 console.log(latestLapData);
-                let completedLapCarIndex = latestLapData.find(item => item.carNumber === thisCarNumber);
+                let completedLapCarIndex = latestLapData.findIndex(item => item.carNumber === thisCarNumber);
                 
                 if (completedLapCarIndex !== -1) {
                   console.log('Updating lap ' + result.$.Lap_Number + ' data for car ' + thisCarNumber + '...');
