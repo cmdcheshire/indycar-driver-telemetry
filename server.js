@@ -36,8 +36,8 @@ let latestTargetTelemetryData = {}; // Telemetry data for car selected in google
 let latestFullTelemetryData = []; // Telemetry data for all cars
 let telemetryUpdateTime = 1500; // Set time in ms for interval to update telemetry sheet
 let latestLeaderboardData = []; // Leaderboard info for all cars
-let leaderboardUpdateTime = 2000; // Set time in ms for interval to update leaderboard sheet
-let driverInfoUpdateTime = 2000; // Set time in ms for interval to update driver info sheet
+let leaderboardUpdateTime = 3000; // Set time in ms for interval to update leaderboard sheet
+let driverInfoUpdateTime = 3000; // Set time in ms for interval to update driver info sheet
 let latestLapData = []; // Store lap times and info for all cars
 let lastDriverInfoUpdate; // Used to store last driver update info to calculate if splits are better or worse to make them red or green
 let carData = {};
@@ -644,12 +644,67 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
           '', 
         ]]
       };
-      console.log('last driver info update:', lastDriverInfoUpdate, ' not updating splits');
+      console.log('last driver ahead info update:', lastDriverInfoUpdate, ' not updating splits');
     }
 
     gsheetDriverInfoUpdateData.push(driverAheadSplitData);
 
-    /// STILL NEED TO BUILD DRIVER BEHIND SPLIT UPDATE DATA.
+    //Build the driver behind split object
+    let driverBehindSplitData;
+    let driverBehindSplit = stringToRoundedDecimalString(driverBehindLeaderboardData.Time_Behind - thisDriverLeaderboardData.Time_Behind);
+    console.log('driver behind split');
+    console.log(driverBehindSplit);
+    console.log('last driver info update');
+    console.log(lastDriverInfoUpdate);
+    if (lastDriverInfoUpdate !== undefined) {
+      console.log('last driver behind split ', parseFloat(lastDriverInfoUpdate[3].values[0][0]), ' is greater than this split? ', parseFloat(driverBehindSplit) < parseFloat(lastDriverInfoUpdate[3].values[0][0]));
+      if ((parseFloat(lastDriverInfoUpdate[3].values[0][0]) && parseFloat(driverBehindSplit) < parseFloat(lastDriverInfoUpdate[3].values[0][0])) || (parseFloat(lastDriverInfoUpdate[3].values[0][1]) && parseFloat(driverBehindSplit) < parseFloat(lastDriverInfoUpdate[3].values[0][1])) || (parseFloat(lastDriverInfoUpdate[3].values[0][2]) && parseFloat(driverBehindSplit) < parseFloat(lastDriverInfoUpdate[3].values[0][2]))) {
+        driverBehindSplitData = {
+          range: DRIVERINFO_SHEET_NAME + '!S2:S4',
+          majorDimension: 'COLUMNS',
+          values: [[
+            '',
+            '+' + driverBehindSplit, // this makes the delta text GREEN because the split got SMALLER
+            '', 
+          ]]
+        };
+        console.log('Driver behind split got smaller.')
+      } else if ((parseFloat(lastDriverInfoUpdate[3].values[0][0]) && parseFloat(driverBehindSplit) > parseFloat(lastDriverInfoUpdate[3].values[0][0])) || (parseFloat(lastDriverInfoUpdate[3].values[0][1]) && parseFloat(driverBehindSplit) > parseFloat(lastDriverInfoUpdate[3].values[0][1])) || (parseFloat(lastDriverInfoUpdate[3].values[0][2]) && parseFloat(driverBehindSplit) > parseFloat(lastDriverInfoUpdate[3].values[0][2]))) {
+        driverBehindSplitData = {
+          range: DRIVERINFO_SHEET_NAME + '!S2:S4',
+          majorDimension: 'COLUMNS',
+          values: [[
+            '',
+            '', 
+            '+' + driverBehindSplit, // this makes the delta text RED because the split got BIGGER
+          ]]
+        };
+        console.log('Driver behind split got larger.')
+      } else {
+        driverBehindSplitData = {
+          range: DRIVERINFO_SHEET_NAME + '!S2:S4',
+          majorDimension: 'COLUMNS',
+          values: [[
+            '+' + driverBehindSplit, // this makes the delta text WHITE to handle all other situations
+            '', 
+            '', 
+          ]]
+        };
+      }
+    } else {
+      driverBehindSplitData = {
+        range: DRIVERINFO_SHEET_NAME + '!S2:S4',
+        majorDimension: 'COLUMNS',
+        values: [[
+          '', // this puts makes the delta text WHITE to handle all other situations
+          '', 
+          '', 
+        ]]
+      };
+      console.log('last driver behind info update:', lastDriverInfoUpdate, ' not updating splits');
+    }
+
+    gsheetDriverInfoUpdateData.push(driverBehindSplitData);
 
     // Send the data to the correct cells in the google sheet.
     const response = await sheets_TelemetryAccount.spreadsheets.values.batchUpdate({
