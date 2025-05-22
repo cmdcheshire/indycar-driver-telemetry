@@ -599,7 +599,7 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
     console.log(driverAheadSplit);
     console.log('last driver info update');
     console.log(lastDriverInfoUpdate);
-    if (lastDriverInfoUpdate[2] !== undefined) {
+    if (lastDriverInfoUpdate !== undefined) {
       if ((parseInt(lastDriverInfoUpdate[2].values[0][0]) && parseInt(driverAheadSplit) < parseInt(lastDriverInfoUpdate[2].values[0][0])) || (parseInt(lastDriverInfoUpdate[2].values[0][1]) && parseInt(driverAheadSplit) < parseInt(lastDriverInfoUpdate[2].values[0][1])) || (parseInt(lastDriverInfoUpdate[2].values[0][2]) && parseInt(driverAheadSplit) < parseInt(lastDriverInfoUpdate[2].values[0][2]))) {
         driverAheadSplitData = {
           range: DRIVERINFO_SHEET_NAME + '!R2:R4',
@@ -634,6 +634,15 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
         };
       }
     } else {
+      driverAheadSplitData = {
+        range: DRIVERINFO_SHEET_NAME + '!R2:R4',
+        majorDimension: 'COLUMNS',
+        values: [[
+          '', // this puts makes the delta text WHITE to handle all other situations
+          '', 
+          '', 
+        ]]
+      };
       console.log('last driver info update:', lastDriverInfoUpdate, ' not updating splits');
     }
 
