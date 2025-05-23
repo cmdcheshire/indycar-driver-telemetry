@@ -1002,7 +1002,7 @@ async function updateTelemetrySheet(telemetryData) {
     if (dnfValues && dnfValues.length > 0) {
       for (i = 0; i < manualDNFOverride.length; i++) {
         for (z = 0; z < dnfValues.length; z++) {
-          let thisCarDNFIndex = manualDNFOverride.findIndex(dnfValues[0][z].trim());
+          let thisCarDNFIndex = manualDNFOverride.findIndex(dnfValues[0][z]);
           if (thisCarDNFIndex !== -1) {
             manualDNFOverride[thisCarDNFIndex].DNF = true;
             console.log(manualDNFOverride[thisCarDNFIndex].carNumber + " is on manual DNF override");
