@@ -280,6 +280,12 @@ async function readReferenceData() {
 
     };
 
+    console.log(latestLapData);
+    console.log(carStatusData);
+    console.log(fastestLapData);
+    console.log(averageSpeedData);
+    console.log(manualDNFOverride);
+
     // Setup structure of manual DNF override object
     for (i = 0; i < driverKeys.length; i++) {
       
