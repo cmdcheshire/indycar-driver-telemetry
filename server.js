@@ -44,6 +44,7 @@ let driverInfoUpdateTime = 2000; // Set time in ms for interval to update driver
 let latestLapData = []; // Store lap times and info for all cars
 let lastDriverInfoUpdate; // Used to store last driver update info to calculate if splits are better or worse to make them red or green
 let carStatusData = [];
+let manualDNFOverride = [];
 
 // Global Variables for storing split time information and metadata
 let prevLapDeltaValue = null; // Stores the numeric value of the last lap delta
@@ -254,6 +255,16 @@ async function readReferenceData() {
     };
     console.log('Initial car status data:');
     console.log(carStatusData);
+
+    // Setup structure of manual DNF override object
+    for (i = 0; i < driverKeys.length; i++) {
+      let newDNFOverrideObject = {
+        carNumber:driverKeys[i],
+        DNF:false,
+      };
+      manualDNFOverride.push(newDNFOverrideObject)
+    };
+    
 
     console.log('Reference data read from Google Sheet:', referenceData);
   } catch (error) {
@@ -872,6 +883,12 @@ async function updateTelemetrySheet(telemetryData) {
         thisCarLastLapTime = convertSecondsToMinutesSeconds(thisCarLapData.lastLapTime);
       }
 
+      //Setup manual DNF override
+      let thisCarDNFIndex = manualDNFOverride.findIndex(item => item.carNumber === thisCarNumber);
+      if (manualDNFOverride[thisCarDNFIndex].DNF === true) {
+        thisCarDNF = true;
+      }
+
       //Finds interval split and handles if car ahead is in the pit lane
       let thisCarDeltaData;
       if (i === 0) {
@@ -958,44 +975,71 @@ async function updateTelemetrySheet(telemetryData) {
 /**
  * Function to check the online checkbox and update the heartbeat cell.
  */
-async function checkOnlineStatusAndUpdateHeartbeat() {
+ async function checkOnlineStatusAndUpdateHeartbeat() {
   try {
     console.log('Checking online status and updating heartbeat...');
-    const response = await sheets_LeaderboardAccount.spreadsheets.values.get({
+
+    // Use a batchGet to fetch both ranges in a single API call
+    const batchResponse = await sheets_LeaderboardAccount.spreadsheets.values.batchGet({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${CONTROLLER_SHEET_NAME}!${TELEMETRY_ONLINE_CHECKBOX_CELL}`,
+      ranges: [
+        `${CONTROLLER_SHEET_NAME}!${TELEMETRY_ONLINE_CHECKBOX_CELL}`,
+        `${CONTROLLER_SHEET_NAME}!A13:A23`, // Range for manual DNF car numbers
+      ],
     });
 
-    const values = response.data.values;
-    isOnline = values && values.length > 0 && values[0].length > 0 && values[0][0] === 'TRUE'; // Check if the checkbox is TRUE
+    const valueRanges = batchResponse.data.valueRanges;
+
+    // Process the online status checkbox
+    const onlineStatusValues = valueRanges[0].values;
+    isOnline = onlineStatusValues && onlineStatusValues.length > 0 && onlineStatusValues[0].length > 0 && onlineStatusValues[0][0] === 'TRUE';
     console.log(`Online status from sheet: ${isOnline}`);
 
+    // Process manual DNF overrides
+    const dnfValues = valueRanges[1].values;
+
+    if (dnfValues && dnfValues.length > 0) {
+      for (i = 0; i < manualDNFOverride.length; i++) {
+        for (z = 0; z < dnfValues.length; z++) {
+          let thisCarDNFIndex = manualDNFOverride.findIndex(dnfValues[z].trim());
+          if (thisCarDNFIndex !== -1) {
+            manualDNFOverride[thisCarDNFIndex].DNF = true;
+            console.log(manualDNFOverride[thisCarDNFIndex].carNumber + " is on manual DNF override");
+          } else {
+            manualDNFOverride[thisCarDNFIndex].DNF = false;
+          };
+        };
+      };
+    };
+
+    console.log('Manual DNF Overrides:', manualDNFOverride);
+    // You can now use the manualDNFOverride array elsewhere in your code.
+
     if (isOnline) {
-      console.log('Online checkbox is TRUE.  Updating heartbeat.');
+      console.log('Online checkbox is TRUE. Updating heartbeat.');
       // Update the heartbeat cell (e.g., set it to the current timestamp)
       try {
         await sheets_LeaderboardAccount.spreadsheets.values.update({
           spreadsheetId: SPREADSHEET_ID,
-          range: `${CONTROLLER_SHEET_NAME}!A2`, // Example:  Update cell A2 with the heartbeat
+          range: `${CONTROLLER_SHEET_NAME}!A2`, // Example: Update cell A2 with the heartbeat
           valueInputOption: 'RAW',
           resource: {
             values: [[new Date().toISOString()]],
           },
         });
-      }
-      catch (e) {
+      } catch (e) {
         console.error("Error updating heartbeat: ", e);
       }
       return true;
     } else {
-      console.log('Online checkbox is FALSE.  Not processing data.');
+      console.log('Online checkbox is FALSE. Not processing data.');
       return false;
     }
+
   } catch (error) {
-    console.error('Error checking online status:', error);
+    console.error('Error checking online status or fetching DNF overrides:', error);
     return false; // Assume offline in case of error to prevent further processing
   }
-  
 }
 
 /**
