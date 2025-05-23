@@ -601,7 +601,7 @@ async function updateTelemetrySheet(telemetryData) {
         thisDriverReferenceData.headshot, // Column G is headshot URL (find in the tagboard graphic library and update in the google sheet 'Database')
         thisDriverReferenceData.teamLogo + ' ', // Column H is team logo (added space for formatting)
         thisDriverReferenceData.manufacturerLogo, // Column I is manufacturer logo (assuming this exists in referenceData.drivers)
-        (parseInt(thisDriverLapData.lastLapNumber) + 1).toString(), // Column J is last lap number
+        lapsCompleted, // Column J is last lap number
         convertSecondsToMinutesSeconds(thisDriverLapData.lastLapTime), // Column K is last lap time (not lapNumber as previously)
         stringToRoundedWholeString(thisDriverTelemetryData.speed), // Column L is speed
         stringToRoundedDecimalString(thisDriverAverageSpeedData.lastLapAverage), // Column M is average speed
