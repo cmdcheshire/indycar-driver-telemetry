@@ -1009,7 +1009,7 @@ async function updateTelemetrySheet(telemetryData) {
             manualDNFOverride[thisCarDNFIndex].DNF = true;
             console.log(manualDNFOverride[thisCarDNFIndex].carNumber + " is on manual DNF override");
           } else {
-            manualDNFOverride[thisCarDNFIndex].DNF = false;
+            // Maybe need to set to false? or this may work being handled in the leaderboard update function.
           };
         };
       };
