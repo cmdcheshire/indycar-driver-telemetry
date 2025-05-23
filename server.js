@@ -1062,7 +1062,7 @@ async function main() {
     await readReferenceData(); //read reference data
     targetCarNumber = await readTargetCarNumber(TARGET_CAR_SHEET_NAME, TARGET_CAR_CELL);
     targetCar2Number = await readTargetCarNumber(TARGET_CAR_SHEET_NAME, TARGET_CAR_2_CELL);
-    targetCar2Number = await readTargetCarNumber(TARGET_CAR_SHEET_NAME, TARGET_CAR_3_CELL);
+    targetCar3Number = await readTargetCarNumber(TARGET_CAR_SHEET_NAME, TARGET_CAR_3_CELL);
     console.log(`Target car number: ${targetCarNumber} car 2: ${targetCar2Number} car 3: ${targetCar3Number}`); // Log the target car number
     
     client = net.connect({ host: TCP_HOST, port: TCP_PORT }, () => {
