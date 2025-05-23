@@ -269,7 +269,7 @@ async function readReferenceData() {
         lastLapAverage:'-',
         currentLapSpeeds:[],
       };
-      averageSpeedData.push(newFastestLapDataObject);
+      averageSpeedData.push(newAverageSpeedDataObject);
 
       // DNF Override Data
       let newDNFOverrideObject = {
