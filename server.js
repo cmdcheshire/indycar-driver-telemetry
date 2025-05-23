@@ -1341,27 +1341,27 @@ async function main() {
                 console.log("Checking for existing lap data")
                 //console.log(latestLapData);
                 let completedLapCarIndex = latestLapData.findIndex(item => item.carNumber === thisCarNumber);
+
+                // Update last lap average speed and reset current lap speed array
+                let averageSpeedIndex = averageSpeedData.findIndex(item => item.carNumber === thisCarNumber);
+                let newAverageSpeed;
+                if (averageSpeedIndex !== -1) {
+                  let averageSpeedSum = 0;
+                  for (i = 0; i < averageSpeedData[averageSpeedIndex].currentLapSpeeds.length; i++) {
+                    averageSpeedSum = averageSpeedSum + averageSpeedData[averageSpeedIndex].currentLapSpeeds[i];
+                  };
+                  newAverageSpeed = averageSpeedSum / averageSpeedData[averageSpeedIndex].currentLapSpeeds.length;
+
+                  averageSpeedData[averageSpeedIndex] = {
+                    carNumber:thisCarNumber,
+                    averageSpeedLapNumber:result.$.Lap_Number,
+                    lastLapAverage:newAverageSpeed,
+                    currentLapSpeeds:[],
+                  };
+                  console.log('Last lap average speed ',newAverageSpeed,'for car ',thisCarNumber);
+                };
                 
                 if (completedLapCarIndex !== -1) {
-
-                  // Update last lap average speed and reset current lap speed array
-                  let averageSpeedIndex = averageSpeedData.findIndex(item => item.carNumber === thisCarNumber);
-                  let newAverageSpeed;
-                  if (averageSpeedIndex !== -1) {
-                    let averageSpeedSum = 0;
-                    for (i = 0; i < averageSpeedData[averageSpeedIndex].currentLapSpeeds.length; i++) {
-                      averageSpeedSum = averageSpeedSum + averageSpeedData[averageSpeedIndex].currentLapSpeeds[i];
-                    };
-                    newAverageSpeed = averageSpeedSum / averageSpeedData[averageSpeedIndex].currentLapSpeeds.length;
-
-                    averageSpeedData[averageSpeedIndex] = {
-                      carNumber:thisCarNumber,
-                      averageSpeedLapNumber:result.$.Lap_Number,
-                      lastLapAverage:newAverageSpeed,
-                      currentLapSpeeds:[],
-                    };
-                    console.log('Last lap average speed ',newAverageSpeed,'for car ',thisCarNumber);
-                  };
 
                   console.log('Updating lap ' + result.$.Lap_Number + ' data for car ' + thisCarNumber + '...');
                   let lastLapTime = latestLapData[completedLapCarIndex].lastLapTime;
@@ -1406,27 +1406,6 @@ async function main() {
                   console.log(newLapDataObject);
                   latestLapData.push(newLapDataObject);
                 };
-
-                // Update last lap average speed and reset current lap speed array
-                let averageSpeedIndex = averageSpeedData.findIndex(item => item.carNumber === thisCarNumber);
-                if (averageSpeedIndex !== -1) {
-                  
-                  let averageSpeedSum = 0;
-                  let newAverageSpeed;
-                  for (i = 0; i < averageSpeedData[averageSpeedIndex].currentLapSpeeds.length; i++) {
-                    averageSpeedSum = averageSpeedSum + averageSpeedData[averageSpeedIndex].currentLapSpeeds[i];
-                  };
-                  newAverageSpeed = averageSpeedSum / averageSpeedData[averageSpeedIndex].currentLapSpeeds.length;
-
-                  averageSpeedData[averageSpeedIndex] = {
-                    carNumber:thisCarNumber,
-                    averageSpeedLapNumber:result.$.Lap_Number,
-                    lastLapAverage:newAverageSpeed,
-                    currentLapSpeeds:[],
-                  };
-                  console.log('Last lap average speed ',newAverageSpeed,'for car ',thisCarNumber);
-                  console.log(averageSpeedData);
-                }
 
               } else if (carStatusStartIndex !== -1) {
                 let thisCarNumber = result.$.Car;
