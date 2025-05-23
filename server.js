@@ -47,6 +47,8 @@ let carStatusData = [];
 let manualDNFOverride = [];
 let fastestLapData = [];
 let averageSpeedData = [];
+let lapsCompleted = 0;
+let flagColor;
 
 // Global Variables for storing split time information and metadata
 let prevLapDeltaValue = null; // Stores the numeric value of the last lap delta
@@ -1168,6 +1170,8 @@ async function main() {
       const completedLapEnd = '/>';
       const carStatusStart = '<Car_Status';
       const carStatusEnd = '/>';
+      const flagStart = '<Flag';
+      const flagEnd = '/>';
 
       let message = null;
 
@@ -1180,6 +1184,7 @@ async function main() {
         //console.log("leaderboard data start index... " + unofficialLeaderboardStartIndex);
         let completedLapStartIndex = buffer.indexOf(completedLapStart);
         let carStatusStartIndex = buffer.indexOf(carStatusStart);
+        let flagStartIndex = buffer.indexOf(flagStart);
 
         if (telemetryStartIndex !== -1) {
           let telemetryEndIndex = buffer.indexOf(telemetryEnd, telemetryStartIndex);
@@ -1219,6 +1224,12 @@ async function main() {
           if (carStatusEndIndex !== -1) {
             message = buffer.substring(carStatusStartIndex, carStatusEndIndex + carStatusEnd.length);
             buffer = buffer.substring(carStatusEndIndex + carStatusEnd.length);
+          } else if (flagStartIndex !== -1) {
+            let flagEndIndex = buffer.indexOf(carStatusEnd, carStatusStartIndex);
+            if (flagEndIndex !== -1) {
+              message = buffer.substring(flagStartIndex, flagEndIndex + flagEnd.length);
+              buffer = buffer.substring(flagEndIndex + flagEnd.length);
+            };
           } else {
             break; // Incomplete completed lap message, wait for more data
           }
@@ -1422,7 +1433,13 @@ async function main() {
                   console.log(newLapDataObject);
                   latestLapData.push(carStatusData);
                 }
-              }
+              } else if (flagStartIndex !== -1) {
+                if (result.$.Laps_Completed > lapsCompleted) {
+                  console.log("Lap ", result.$.Laps_Completed," completed. status: ", result.$.Status);
+                  lapsCompleted = result.$.Laps_Completed;
+                };
+                flagColor = result.$.Status;
+              };
             } catch (error) {
               console.error('Error processing XML message:', error, 'Message:', message);
             }
