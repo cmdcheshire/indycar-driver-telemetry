@@ -1393,7 +1393,9 @@ async function main() {
       try {
         const onlineStatus = await checkOnlineStatusAndUpdateHeartbeat(); // Await the result
         if (onlineStatus) {
-          targetCarNumber = await readTargetCarNumber(); // Read target car number
+          targetCarNumber = await readTargetCarNumber(TARGET_CAR_SHEET_NAME, TARGET_CAR_CELL);
+          targetCar2Number = await readTargetCarNumber(TARGET_CAR_SHEET_NAME, TARGET_CAR_2_CELL);
+          targetCar3Number = await readTargetCarNumber(TARGET_CAR_SHEET_NAME, TARGET_CAR_3_CELL);
           console.log(`Target car number: ${targetCarNumber}`);
           /* Disabling Telemetry Sheet Update =========================================================================================================
           if (!telemetryUpdateInterval) { // Check the telemetry update interval variable
