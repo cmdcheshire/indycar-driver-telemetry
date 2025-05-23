@@ -887,6 +887,8 @@ async function updateTelemetrySheet(telemetryData) {
       let thisCarDNFIndex = manualDNFOverride.findIndex(item => item.carNumber === thisCarNumber);
       if (manualDNFOverride[thisCarDNFIndex].DNF === true) {
         thisCarDNF = true;
+        thisCarDNFImg = referenceData.leaderboardImages['DNF'];
+        thisCarTimeBehind = 'DNF';
       }
 
       //Finds interval split and handles if car ahead is in the pit lane
