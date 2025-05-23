@@ -135,12 +135,12 @@ async function readTargetCarNumber(targetCarSheetName, targetCarCellNumber) {
     const values = response.data.values;
     if (values && values.length > 0 && values[0].length > 0) {
       let thisTargetCarNumber = values[0][0];
-      console.log(`Target car number: ${targetCarNumber}`);
+      console.log(`Target car number: ${thisTargetCarNumber}`);
       return thisTargetCarNumber;
     } else {
       console.warn('Target car number not found in the Google Sheet.');
       return null; // Don't throw, return null, and handle it in main
-    }
+    } 
   } catch (error) {
     console.error('Error reading target car number:', error);
     return null; // Don't throw, return null and handle in main
