@@ -998,6 +998,9 @@ async function updateTelemetrySheet(telemetryData) {
     console.log(`Online status from sheet: ${isOnline}`);
 
     // Process manual DNF overrides
+    for (i = 0; i < manualDNFOverride.length; i++) {
+      manualDNFOverride[i].DNF = false; // Reset DNFs if car number is no longer overridden in google sheets
+    }
     const dnfValues = valueRanges[1].values;
     console.log(dnfValues);
     if (dnfValues && dnfValues.length > 0) {
