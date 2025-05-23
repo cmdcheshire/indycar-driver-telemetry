@@ -903,7 +903,7 @@ async function updateTelemetrySheet(telemetryData) {
       let thisCarDNFImg;
 
       let thisCarStatusIndex = carStatusData.findIndex(item => item.carNumber === thisCarNumber);
-      console.log(thisCarStatusIndex);
+      //console.log(thisCarStatusIndex);
       let thisCarStatusCoverImg = '';
 
       if (carStatusData[thisCarStatusIndex].carStatus === 'DNF') {
@@ -1037,7 +1037,7 @@ async function updateTelemetrySheet(telemetryData) {
       manualDNFOverride[i].DNF = false; // Reset DNFs if car number is no longer overridden in google sheets
     }
     const dnfValues = valueRanges[1].values;
-    console.log(dnfValues);
+    //console.log(dnfValues);
     if (dnfValues && dnfValues.length > 0) {
       for (i = 0; i < dnfValues.length; i++) {
         let thisCarNumber = dnfValues[i][0];
@@ -1391,7 +1391,7 @@ async function main() {
                   };
 
                   latestLapData[completedLapCarIndex] = newLapDataObject;
-                  console.log(latestLapData);
+                  //console.log(latestLapData);
 
                 } else {
                   console.log('This driver was not found in the reference database...adding')
