@@ -1001,16 +1001,16 @@ async function updateTelemetrySheet(telemetryData) {
     const dnfValues = valueRanges[1].values;
     //console.log(dnfValues);
 
-    if (dnfValues && dnfValues.length > 0) {
+    if (dnfValues && dnfValues[0].length > 0) {
       for (i = 0; i < manualDNFOverride.length; i++) {
-        for (z = 0; z < dnfValues.length; z++) {
+        for (z = 0; z < dnfValues[0].length; z++) {
+          console.log("this car is number ",item.carNumber);
           let thisCarDNFIndex = manualDNFOverride.findIndex(item => item.carNumber === dnfValues[0][z]);
+          console.log(thisCarDNFIndex)
           if (thisCarDNFIndex !== -1) {
             manualDNFOverride[thisCarDNFIndex].DNF = true;
             console.log(manualDNFOverride[thisCarDNFIndex].carNumber + " is on manual DNF override");
-          } else {
-            // Maybe need to set to false? or this may work being handled in the leaderboard update function.
-          };
+          }
         };
       };
     };
