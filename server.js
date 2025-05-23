@@ -1358,7 +1358,9 @@ async function main() {
                     lastLapAverage:newAverageSpeed,
                     currentLapSpeeds:[],
                   };
+                  console.log(averageSpeedData[averageSpeedIndex])
                   console.log('Last lap average speed ',newAverageSpeed,'for car ',thisCarNumber);
+                  
                 };
                 
                 if (completedLapCarIndex !== -1) {
