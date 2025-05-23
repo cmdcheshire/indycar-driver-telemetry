@@ -16,6 +16,8 @@ const CONTROLLER_SHEET_NAME = 'Live Data Controller'; // Sheet for the controlle
 const IP_ADDRESS_PORT_RANGE = 'E8:E9';
 const TELEMETRY_ONLINE_CHECKBOX_CELL = 'B4'; // Cell containing the online checkbox
 const TARGET_CAR_CELL = 'B5';    // Cell containing the target car
+const TARGET_CAR_2_CELL = 'B6';
+const TARGET_CAR_3_CELL = 'B7';
 
 // Global Variables
 let TCP_HOST = 'localhost';
@@ -26,11 +28,12 @@ let googleAuthClient;
 let sheets_TelemetryAccount;  // Store the telemetry update sheets object
 let sheets_LeaderboardAccount; // Store the leaderboard update sheets object
 let targetCarNumber;
+let targetCar2Number;
+let targetCar3Number;
 let referenceData = {}; // Store reference data from the sheet
 const MAX_RPM = 12000;
 const MAX_THROTTLE = 100;
 const MAX_BRAKE = 100;
-let onlineCheckInterval; // To store the interval ID
 let isOnline = false;
 let latestTargetTelemetryData = {}; // Telemetry data for car selected in google sheet
 let latestFullTelemetryData = []; // Telemetry data for all cars
@@ -121,19 +124,19 @@ async function readIpInformation() {
 /**
  * Function to read the target car number from the Google Sheet.
  */
-async function readTargetCarNumber() {
+async function readTargetCarNumber(targetCarSheetName, targetCarCellNumber) {
   try {
     console.log('Reading target car number from Google Sheet...');
     const response = await sheets_LeaderboardAccount.spreadsheets.values.get({ // Use the 'sheets' object
       spreadsheetId: SPREADSHEET_ID,
-      range: `${TARGET_CAR_SHEET_NAME}!${TARGET_CAR_CELL}`,
+      range: targetCarSheetName + '!' + targetCarCellNumber,
     });
 
     const values = response.data.values;
     if (values && values.length > 0 && values[0].length > 0) {
-      targetCarNumber = values[0][0];
+      let thisTargetCarNumber = values[0][0];
       console.log(`Target car number: ${targetCarNumber}`);
-      return targetCarNumber;
+      return thisTargetCarNumber;
     } else {
       console.warn('Target car number not found in the Google Sheet.');
       return null; // Don't throw, return null, and handle it in main
@@ -1057,8 +1060,10 @@ async function main() {
     await authenticateTelemetryAccount(); // Authenticate Telemetry update account with Google Sheets API
     await readIpInformation();
     await readReferenceData(); //read reference data
-    targetCarNumber = await readTargetCarNumber();
-    //console.log(`Target car number: ${targetCarNumber}`); // Log the target car number
+    targetCarNumber = await readTargetCarNumber(TARGET_CAR_SHEET_NAME, TARGET_CAR_CELL);
+    targetCar2Number = await readTargetCarNumber(TARGET_CAR_SHEET_NAME, TARGET_CAR_2_CELL);
+    targetCar2Number = await readTargetCarNumber(TARGET_CAR_SHEET_NAME, TARGET_CAR_3_CELL);
+    console.log(`Target car number: ${targetCarNumber} car 2: ${targetCar2Number} car 3: ${targetCar3Number}`); // Log the target car number
     
     client = net.connect({ host: TCP_HOST, port: TCP_PORT }, () => {
       console.log(`Connected to ${TCP_HOST}:${TCP_PORT}`); // Log connection
