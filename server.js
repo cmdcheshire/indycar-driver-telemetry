@@ -1277,7 +1277,9 @@ async function main() {
                 for (i = 0; i < latestFullTelemetryData.length; i++) {
                   let thisCarNumber = latestFullTelemetryData[i].carNumber;
                   let averageSpeedIndex = averageSpeedData.findIndex(item => item.carNumber === thisCarNumber);
-                  averageSpeedData[averageSpeedIndex].currentLapSpeeds.push(latestFullTelemetryData[i].speed);
+                  if (averageSpeedIndex !== -1){
+                    averageSpeedData[averageSpeedIndex].currentLapSpeeds.push(latestFullTelemetryData[i].speed);
+                  };
                 };
 
                 //console.log("Latest full telemetry data...");
