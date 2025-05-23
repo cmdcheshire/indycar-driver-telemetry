@@ -1437,14 +1437,11 @@ async function main() {
                   latestLapData.push(carStatusData);
                 }
               } else if (flagStartIndex !== -1) {
-                console.log(result);
-                if (result.$.Laps_Completed > lapsCompleted) {
-                  console.log("Lap ", result.$.Laps_Completed," completed. status: ", result.$.Status);
-                  lapsCompleted = result.$.Laps_Completed;
-                };
+                //console.log(result);
+                lapsCompleted = result.$.Laps_Completed;
                 flagColor = result.$.Status;
                 console.log(flagColor);
-                timeElapsed = result.$.Time_Elapsed;
+                timeElapsed = result.$.Elapsed_Time;
                 console.log(timeElapsed);
               };
             } catch (error) {
