@@ -1439,6 +1439,7 @@ async function main() {
               } else if (flagStartIndex !== -1) {
                 //console.log(result);
                 lapsCompleted = result.$.Laps_Completed;
+                console.log(lapsCompleted);
                 flagColor = result.$.Status;
                 console.log(flagColor);
                 timeElapsed = result.$.Elapsed_Time;
