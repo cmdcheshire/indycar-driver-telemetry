@@ -997,6 +997,7 @@ async function updateTelemetrySheet(telemetryData) {
 
     // Process manual DNF overrides
     const dnfValues = valueRanges[1].values;
+    console.log(dnfValues);
 
     if (dnfValues && dnfValues.length > 0) {
       for (i = 0; i < manualDNFOverride.length; i++) {
