@@ -541,7 +541,7 @@ async function updateTelemetrySheet(telemetryData) {
         return; // Exit if no reference data for the target car
     }
 
-    let driverInfoLapDataIndex = lapData.findIndex(item => (item.carNumber === targetCarNumber);
+    let driverInfoLapDataIndex = lapData.findIndex(item => (item.carNumber === targetCarNumber));
     let thisDriverLapData = lapData[driverInfoLapDataIndex];
     // Handle case where lap data might not exist yet for target car
     if (!thisDriverLapData) {
