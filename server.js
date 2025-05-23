@@ -16,7 +16,7 @@ const CONTROLLER_SHEET_NAME = 'Live Data Controller'; // Sheet for the controlle
 const IP_ADDRESS_PORT_RANGE = 'E8:E9';
 const TELEMETRY_ONLINE_CHECKBOX_CELL = 'B4'; // Cell containing the online checkbox
 const TARGET_CAR_CELL = 'B5';    // Cell containing the target car
-const TARGET_CAR_2_CELL = 'B6';
+const TARGET_CAR_2_CELL = 'B6'; 
 const TARGET_CAR_3_CELL = 'B7';
 
 // Global Variables
@@ -45,6 +45,8 @@ let latestLapData = []; // Store lap times and info for all cars
 let lastDriverInfoUpdate; // Used to store last driver update info to calculate if splits are better or worse to make them red or green
 let carStatusData = [];
 let manualDNFOverride = [];
+let fastestLapData = [];
+let averageSpeedData = [];
 
 // Global Variables for storing split time information and metadata
 let prevLapDeltaValue = null; // Stores the numeric value of the last lap delta
@@ -225,10 +227,12 @@ async function readReferenceData() {
       }
     }
 
-    // Setup structure of lap time data
+    // Setup structure of per driver data
     let driverKeys = Object.keys(referenceData.drivers);
     //console.log(driverKeys);
     for (i = 0; i < driverKeys.length; i++) {
+
+      // Lap data
       let newLapDataObject = {
         carNumber:driverKeys[i],
         fastestLap:'-',
@@ -241,28 +245,44 @@ async function readReferenceData() {
       };
       //console.log(newLapDataObject);
       latestLapData.push(newLapDataObject);
-    };
 
-    // Setup structure of car status data
-    //console.log(driverKeys);
-    for (i = 0; i < driverKeys.length; i++) {
+      // Car status data
       let newCarStatusDataObject = {
         carNumber:driverKeys[i],
         carStatus:'-',
       };
       //console.log(newLapDataObject);
       carStatusData.push(newCarStatusDataObject);
-    };
-    console.log('Initial car status data:');
-    console.log(carStatusData);
 
-    // Setup structure of manual DNF override object
-    for (i = 0; i < driverKeys.length; i++) {
+      // Fastest lap data
+      let newFastestLapDataObject = {
+        carNumber:driverKeys[i],
+        fastestLapNumber:'-',
+        fastestLapTime:'-',
+      };
+      fastestLapData.push(newFastestLapDataObject);
+
+      // Average speed data
+      let newAverageSpeedDataObject = {
+        carNumber:driverKeys[i],
+        averageSpeedLapNumber:'-',
+        lastLapAverage:'-',
+        currentLapSpeeds:[],
+      };
+      averageSpeedData.push(newFastestLapDataObject);
+
+      // DNF Override Data
       let newDNFOverrideObject = {
         carNumber:driverKeys[i],
         DNF:false,
       };
       manualDNFOverride.push(newDNFOverrideObject)
+
+    };
+
+    // Setup structure of manual DNF override object
+    for (i = 0; i < driverKeys.length; i++) {
+      
     };
     
 
@@ -1253,6 +1273,13 @@ async function main() {
                   latestFullTelemetryData.push(thisCarTelemetryData);
                 };
 
+                // Add speeds to current average speed data array
+                for (i = 0; i < latestFullTelemetryData.length; i++) {
+                  let thisCarNumber = latestFullTelemetryData[i].carNumber;
+                  let averageSpeedIndex = averageSpeedData.findIndex(item => item.carNumber === thisCarNumber);
+                  averageSpeedData[averageSpeedIndex].currentLapSpeeds.push(latestFullTelemetryData[i].speed);
+                };
+
                 //console.log("Latest full telemetry data...");
                 //console.log(latestFullTelemetryData); 
 
@@ -1332,7 +1359,29 @@ async function main() {
                   };
                   console.log(newLapDataObject);
                   latestLapData.push(newLapDataObject);
+                };
+
+                // Update last lap average speed and reset current lap speed array
+                let averageSpeedIndex = averageSpeedData.findIndex(item => item.carNumber === thisCarNumber);
+                if (averageSpeedIndex !== -1) {
+                  
+                  let averageSpeedSum = 0;
+                  let newAverageSpeed;
+                  for (i = 0; i < averageSpeedData[averageSpeedIndex].currentLapSpeeds.length; i++) {
+                    averageSpeedSum = averageSpeedSum + averageSpeedData[averageSpeedIndex].currentLapSpeeds[i];
+                  };
+                  newAverageSpeed = averageSpeedSum / averageSpeedData[averageSpeedIndex].currentLapSpeeds.length;
+
+                  averageSpeedData[averageSpeedIndex] = {
+                    carNumber:thisCarNumber,
+                    averageSpeedLapNumber:result.$.Lap_Number,
+                    lastLapAverage:newAverageSpeed,
+                    currentLapSpeeds:[],
+                  };
+                  console.log('Last lap average speed ',newAverageSpeed,'for car ',thisCarnumber);
+                  
                 }
+
               } else if (carStatusStartIndex !== -1) {
                 let thisCarNumber = result.$.Car;
                 console.log("Checking for existing car status data")
