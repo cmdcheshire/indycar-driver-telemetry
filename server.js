@@ -1437,6 +1437,7 @@ async function main() {
                   latestLapData.push(carStatusData);
                 }
               } else if (flagStartIndex !== -1) {
+                console.log(result);
                 if (result.$.Laps_Completed > lapsCompleted) {
                   console.log("Lap ", result.$.Laps_Completed," completed. status: ", result.$.Status);
                   lapsCompleted = result.$.Laps_Completed;
