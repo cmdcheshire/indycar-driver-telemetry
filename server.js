@@ -558,6 +558,13 @@ async function updateTelemetrySheet(telemetryData) {
     let thisDriverTelemetryData = telemetryData;
     // Telemetry data is usually for the *selected* car, so it should exist if connection is good.
 
+    let thisDriverAverageSpeedIndex = averageSpeedData.findIndex(item => item.carNumber === targetCarNumber);
+    let thisDriverAverageSpeedData = averageSpeedData[thisDriverAverageSpeedIndex];
+    if (!thisDriverAverageSpeedData) {
+      console.warn(`Average Speed data not found for target car number: ${targetCarNumber}. Skipping driver info update.`);
+      return;
+  }
+
     // Find info about near drivers
     let driverAheadLeaderboardData = null;
     let driverAheadReferenceData = null;
@@ -595,7 +602,7 @@ async function updateTelemetrySheet(telemetryData) {
         (parseInt(thisDriverLapData.lastLapNumber) + 1).toString(), // Column J is last lap number
         convertSecondsToMinutesSeconds(thisDriverLapData.lastLapTime), // Column K is last lap time (not lapNumber as previously)
         stringToRoundedWholeString(thisDriverTelemetryData.speed), // Column L is speed
-        'tbd', // Column M is average speed
+        stringToRoundedDecimalString(thisDriverAverageSpeedData.lastLapAverage), // Column M is average speed
         driverAheadReferenceData ? driverAheadReferenceData.lastName : '-', // Column N is driver ahead last name
         driverBehindReferenceData ? driverBehindReferenceData.lastName : '-', // Column O is driver behind last name
       ]]
