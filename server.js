@@ -49,6 +49,7 @@ let fastestLapData = [];
 let averageSpeedData = [];
 let lapsCompleted = 0;
 let flagColor;
+let timeElapsed;
 
 // Global Variables for storing split time information and metadata
 let prevLapDeltaValue = null; // Stores the numeric value of the last lap delta
@@ -1441,6 +1442,9 @@ async function main() {
                   lapsCompleted = result.$.Laps_Completed;
                 };
                 flagColor = result.$.Status;
+                console.log(flagColor);
+                timeElapsed = result.$.Time_Elapsed;
+                console.log(timeElapsed);
               };
             } catch (error) {
               console.error('Error processing XML message:', error, 'Message:', message);
