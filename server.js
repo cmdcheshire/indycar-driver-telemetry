@@ -1224,15 +1224,15 @@ async function main() {
           if (carStatusEndIndex !== -1) {
             message = buffer.substring(carStatusStartIndex, carStatusEndIndex + carStatusEnd.length);
             buffer = buffer.substring(carStatusEndIndex + carStatusEnd.length);
-          } else if (flagStartIndex !== -1) {
-            let flagEndIndex = buffer.indexOf(carStatusEnd, carStatusStartIndex);
-            if (flagEndIndex !== -1) {
-              message = buffer.substring(flagStartIndex, flagEndIndex + flagEnd.length);
-              buffer = buffer.substring(flagEndIndex + flagEnd.length);
-            };
           } else {
             break; // Incomplete completed lap message, wait for more data
           }
+        } else if (flagStartIndex !== -1) {
+          let flagEndIndex = buffer.indexOf(carStatusEnd, carStatusStartIndex);
+          if (flagEndIndex !== -1) {
+            message = buffer.substring(flagStartIndex, flagEndIndex + flagEnd.length);
+            buffer = buffer.substring(flagEndIndex + flagEnd.length);
+          };
         } else {
           break; // No recognizable start tag found, exit loop
         }
