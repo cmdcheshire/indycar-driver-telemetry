@@ -541,7 +541,7 @@ async function updateTelemetrySheet(telemetryData) {
         return; // Exit if no reference data for the target car
     }
 
-    let driverInfoLapDataIndex = lapData.findIndex(item => item.carNumber === targetCarNumber);
+    let driverInfoLapDataIndex = lapData.findIndex(item => (item.carNumber === targetCarNumber);
     let thisDriverLapData = lapData[driverInfoLapDataIndex];
     // Handle case where lap data might not exist yet for target car
     if (!thisDriverLapData) {
@@ -1391,7 +1391,7 @@ async function main() {
                   };
 
                   latestLapData[completedLapCarIndex] = newLapDataObject;
-                  console.log(latestLapData[completedLapCarIndex]);
+                  console.log(latestLapData);
 
                 } else {
                   console.log('This driver was not found in the reference database...adding')
@@ -1404,6 +1404,7 @@ async function main() {
                     lapsBehindLeader:result.$.Laps_Behind_Leader,
                     timeBehindLeader:result.$.Time_Behind_Leader,
                     lastLapDelta:' ',
+                    averageSpeed:'-',
                   };
                   console.log(newLapDataObject);
                   latestLapData.push(newLapDataObject);
