@@ -621,7 +621,7 @@ function getDriverInfoForUpdate (driverInfoCarNumber, startingRow, leaderboardDa
       thisDriverReferenceData.headshot, // Column G is headshot URL (find in the tagboard graphic library and update in the google sheet 'Database')
       thisDriverReferenceData.teamLogo + ' ', // Column H is team logo (added space for formatting)
       convertSecondsToMinutesSeconds(thisDriverAllLapTimesData.fastestLapTime), // Column I is fastest lap time
-      thisDriverLapData.lastLapNumber + 1, // Column J is last lap number
+      parseInt(thisDriverLapData.lastLapNumber) + 1, // Column J is last lap number
       convertSecondsToMinutesSeconds(thisDriverLapData.lastLapTime), // Column K is last lap time (not lapNumber as previously)
       stringToRoundedWholeString(thisDriverTelemetryData.speed), // Column L is speed
       stringToRoundedDecimalString(thisDriverAverageSpeedData.lastLapAverage), // Column M is average speed
