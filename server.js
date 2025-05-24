@@ -808,7 +808,7 @@ function getDriverInfoForUpdate (driverInfoCarNumber, startingRow, leaderboardDa
           driverBehindSplitData = {
               range: DRIVERINFO_SHEET_NAME + '!S'+startingRow+':S'+parseInt((parseInt(startingRow)+2)),
               majorDimension: 'COLUMNS',
-              values: [['', '', displayValue]] // Red
+              values: [['', '', '+' + displayValue]] // Red
           };
           thisCarState.prevDriverBehindSplitColorState = 'red';
           console.log(`Car ${driverInfoCarNumber}: Driver behind split: Got LARGER (Red).`);
