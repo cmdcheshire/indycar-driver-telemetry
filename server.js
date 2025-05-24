@@ -1423,7 +1423,7 @@ async function main() {
 
                   latestLapData[completedLapCarIndex] = newLapDataObject;
 
-                  let lapTimeDataIndex = allLapTimesData.findIndex(item => item.carNumber === result$.Car);
+                  let lapTimeDataIndex = allLapTimesData.findIndex(item => item.carNumber === result.$.Car);
                   allLapTimesData[lapTimeDataIndex].lapTimes.push({ lapNumber:result.$.Lap_Number, lapTime:result.$.Lap_Time});
                   allLapTimesData[lapTimeDataIndex].fastestLapNumber = result.$.Fastest_Lap;
                   let fastestLapTimeIndex = allLapTimesData[lapTimeDataIndex].lapTimes.findIndex(item => item.lapNumber === result.$.Fastest_Lap);
