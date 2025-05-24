@@ -1171,7 +1171,7 @@ async function main() {
       const completedLapEnd = '/>';
       const carStatusStart = '<Car_Status';
       const carStatusEnd = '/>';
-      const flagStart = '<Flag Car="';
+      const flagStart = '<Flag Elapsed_Time="';
       const flagEnd = '/>';
 
       let message = null;
