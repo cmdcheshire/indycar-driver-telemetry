@@ -45,7 +45,7 @@ let latestLapData = []; // Store lap times and info for all cars
 let carStates = {};
 let carStatusData = [];
 let manualDNFOverride = [];
-let fastestLapData = [];
+let allLapTimesData = [];
 let averageSpeedData = [];
 let lapsCompleted = 0;
 let flagColor;
@@ -239,6 +239,18 @@ async function readReferenceData() {
       //console.log(newLapDataObject);
       latestLapData.push(newLapDataObject);
 
+      // All lap times data
+      let newLapTimesObject = {
+        carNumber:driverKeys[i],
+        fastestLapNumber:'0',
+        fastestLapTime:'0:00.000',
+        lapTimes: [{
+          lapNumber:0,
+          lapTime:'-',
+        }],
+      };
+      allLapTimesData.push(newLapTimesObject);
+
       // Car status data
       let newCarStatusDataObject = {
         carNumber:driverKeys[i],
@@ -246,14 +258,6 @@ async function readReferenceData() {
       };
       //console.log(newLapDataObject);
       carStatusData.push(newCarStatusDataObject);
-
-      // Fastest lap data
-      let newFastestLapDataObject = {
-        carNumber:driverKeys[i],
-        fastestLapNumber:'-',
-        fastestLapTime:'-',
-      };
-      fastestLapData.push(newFastestLapDataObject);
 
       // Average speed data
       let newAverageSpeedDataObject = {
@@ -275,7 +279,7 @@ async function readReferenceData() {
 
     console.log(latestLapData);
     console.log(carStatusData);
-    console.log(fastestLapData);
+    console.log(allLapTimesData);
     console.log(averageSpeedData);
     console.log(manualDNFOverride);
 
@@ -1418,6 +1422,27 @@ async function main() {
                   };
 
                   latestLapData[completedLapCarIndex] = newLapDataObject;
+
+                  let lapTimeDataIndex = allLapTimesData.findIndex(item => item.carNumber === result$.Car);
+                  allLapTimesData[lapTimeDataIndex].lapTimes.push({ lapNumber:result.$.Lap_Number, lapTime:result.$.Lap_Time});
+                  allLapTimesData[lapTimeDataIndex].fastestLapNumber = result.$.Fastest_Lap;
+                  let fastestLapTimeIndex = allLapTimesData[lapTimeDataIndex].lapTimes.findIndex(item => item.lapNumber === result.$.Fastest_Lap);
+                  if (fastestLapTimeIndex !== -1 && allLapTimesData[lapTimeDataIndex].lapTimes[fastestLapTimeIndex]) {
+                    allLapTimesData[lapTimeDataIndex].fastestLapTime = allLapTimesData[lapTimeDataIndex].lapTimes[fastestLapTimeIndex];
+                    console.log(`car ${result.$.Car} new fastest lap of ${allLapTimesData[lapTimeDataIndex].fastestLap}`);
+                  };
+                  console.log(allLapTimesData[lapTimeDataIndex]);
+                  
+                  let newLapTimesObject = {
+                    carNumber:driverKeys[i],
+                    fastestLapNumber:'0',
+                    fastestLapTime:'0:00.000',
+                    lapTimes: [{
+                      lapNumber:0,
+                      lapTime:'-',
+                    }],
+                  };
+                  
                   //console.log(latestLapData);
 
                 } else {
