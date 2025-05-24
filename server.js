@@ -1420,7 +1420,6 @@ async function main() {
                     lastLapDelta:stringToRoundedDecimalString(lapDelta),
                     averageSpeed:newAverageSpeed,
                   };
-
                   latestLapData[completedLapCarIndex] = newLapDataObject;
 
                   let lapTimeDataIndex = allLapTimesData.findIndex(item => item.carNumber === result.$.Car);
@@ -1432,18 +1431,7 @@ async function main() {
                     console.log(`car ${result.$.Car} new fastest lap of ${allLapTimesData[lapTimeDataIndex].fastestLap}`);
                   };
                   console.log(allLapTimesData[lapTimeDataIndex]);
-                  
-                  let newLapTimesObject = {
-                    carNumber:driverKeys[i],
-                    fastestLapNumber:'0',
-                    fastestLapTime:'0:00.000',
-                    lapTimes: [{
-                      lapNumber:0,
-                      lapTime:'-',
-                    }],
-                  };
-                  
-                  //console.log(latestLapData);
+
 
                 } else {
                   console.log('This driver was not found in the reference database...adding')
