@@ -161,7 +161,7 @@ async function readReferenceData() {
       `${DATABASE_SHEET_NAME}!A2:H50`, // Driver data
       `${DATABASE_SHEET_NAME}!A52:B54`, // Tire image URLs
       `${DATABASE_SHEET_NAME}!A57:B60`, // Indicator image URLs
-      `${DATABASE_SHEET_NAME}!A63:B64`, // Leaderboard image URLs
+      `${DATABASE_SHEET_NAME}!A63:B67`, // Leaderboard image URLs
     ];
 
     // Loop through the ranges and fetch the data for each
