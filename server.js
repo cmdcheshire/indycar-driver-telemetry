@@ -637,10 +637,10 @@ function getDriverInfoForUpdate (driverInfoCarNumber, startingRow, leaderboardDa
   const currentLapDelta = parseFloat(thisDriverLapData.lastLapDelta); // Convert to number for comparison
 
   // Define displayValue here so it can be used consistently
-  let displayValue = '';
+  let deltaDisplayValue = '';
   if (!isNaN(currentLapDelta) && thisDriverLapData.lastLapDelta.trim() !== '' && !thisDriverLapData.lastLapDelta.includes('NaN')) {
       // Ensure it's always positive for display and prefixed with '+'
-      displayValue = '+' + Math.abs(currentLapDelta).toFixed(3); // Using toFixed(3) for consistent decimal places
+      deltaDisplayValue = '+' + Math.abs(currentLapDelta).toFixed(3); // Using toFixed(3) for consistent decimal places
   }
 
   if (isNaN(currentLapDelta) || thisDriverLapData.lastLapDelta.trim() === '' || thisDriverLapData.lastLapData.includes('NaN')) {
@@ -657,7 +657,7 @@ function getDriverInfoForUpdate (driverInfoCarNumber, startingRow, leaderboardDa
       lapDeltaData = {
           range: DRIVERINFO_SHEET_NAME + '!Q'+startingRow+':Q'+parseInt((parseInt(startingRow)+2)),
           majorDimension: 'COLUMNS',
-          values: [['', displayValue, '']] // Green, using the positive displayValue
+          values: [['', deltaDisplayValue, '']] // Green, using the positive displayValue
       };
       thisCarState.prevLapDeltaColorState = 'green';
       thisCarState.prevLapDeltaValue = currentLapDelta;
@@ -666,7 +666,7 @@ function getDriverInfoForUpdate (driverInfoCarNumber, startingRow, leaderboardDa
       lapDeltaData = {
           range: DRIVERINFO_SHEET_NAME + '!Q'+startingRow+':Q'+parseInt((parseInt(startingRow)+2)),
           majorDimension: 'COLUMNS',
-          values: [['', '', displayValue]] // Red, using the positive displayValue
+          values: [['', '', deltaDisplayValue]] // Red, using the positive displayValue
       };
       thisCarState.prevLapDeltaColorState = 'red';
       thisCarState.prevLapDeltaValue = currentLapDelta;
@@ -675,7 +675,7 @@ function getDriverInfoForUpdate (driverInfoCarNumber, startingRow, leaderboardDa
       lapDeltaData = {
           range: DRIVERINFO_SHEET_NAME + '!Q'+startingRow+':Q'+parseInt((parseInt(startingRow)+2)),
           majorDimension: 'COLUMNS',
-          values: [[displayValue, '', '']] // White, using the positive displayValue
+          values: [[deltaDisplayValue, '', '']] // White, using the positive displayValue
       };
       thisCarState.prevLapDeltaColorState = 'white';
       thisCarState.prevLapDeltaValue = currentLapDelta;
