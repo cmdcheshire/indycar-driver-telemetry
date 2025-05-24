@@ -582,7 +582,7 @@ function getDriverInfoForUpdate (driverInfoCarNumber, startingRow, leaderboardDa
   }
 
   let thisDriverAllLapTimesIndex = allLapTimesData.findIndex(item => item.carNumber === driverInfoCarNumber);
-  let thisDriverAllLapTimesData = allLapTimesData[thisDriverAllLapTimesDataIndex];
+  let thisDriverAllLapTimesData = allLapTimesData[thisDriverAllLapTimesIndex];
   if (!thisDriverAllLapTimesData) {
     console.warn(`Lap Time data not found for target car number: ${driverInfoCarNumber}. Skipping driver info update.`);
     return [];
