@@ -527,7 +527,7 @@ async function updateTelemetrySheet(telemetryData) {
 
 ================================= NOT IN USE / DEPRECATED (KEPT FOR REFERENCE) =================================== */
 
-function getDriverInfoForUpdate (driverInfoCarNumber, startingRow) {
+function getDriverInfoForUpdate (driverInfoCarNumber, startingRow, leaderboardData, telemetryData, lapData) {
 
   let driverInfoForUpdateBuffer = [];
 
@@ -840,15 +840,15 @@ function getDriverInfoForUpdate (driverInfoCarNumber, startingRow) {
 
     console.log('Updating driver info data in Google Sheet...');
 
-    let car1Data = getDriverInfoForUpdate(targetCarNumber, 2); // Number is starting row of data on google sheet
+    let car1Data = getDriverInfoForUpdate(targetCarNumber, 2, leaderboardData, telemetryData, lapData); // Number is starting row of data on google sheet
     for (i = 0; i < car1Data.length; i++) {
       gsheetDriverInfoUpdateData.push(car1Data[i]);
     }
-    let car2Data = getDriverInfoForUpdate(targetCar2Number, 12); // Number is starting row of data on google sheet
+    let car2Data = getDriverInfoForUpdate(targetCar2Number, 12, leaderboardData, telemetryData, lapData); // Number is starting row of data on google sheet
     for (i = 0; i < car2Data.length; i++) {
       gsheetDriverInfoUpdateData.push(car1Data[i]);
     }
-    let car3Data = getDriverInfoForUpdate(targetCar3Number, 22); // Number is starting row of data on google sheet
+    let car3Data = getDriverInfoForUpdate(targetCar3Number, 22, leaderboardData, telemetryData, lapData); // Number is starting row of data on google sheet
     for (i = 0; i < car3Data.length; i++) {
       gsheetDriverInfoUpdateData.push(car1Data[i]);
     }
