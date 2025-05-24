@@ -946,7 +946,7 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
         thisCarHighlight = referenceData.leaderboardImages['Highlight_Orange'];
       } else if (thisCarNumber === targetCar2Number) {
         thisCarHighlight = referenceData.leaderboardImages['Highlight_Yellow']
-      } else if (thisCarNumber === targetCar2Number) {
+      } else if (thisCarNumber === targetCar3Number) {
         thisCarHighlight = referenceData.leaderboardImages['Highlight_Red']
       } else {
         thisCarHighlight = '';
