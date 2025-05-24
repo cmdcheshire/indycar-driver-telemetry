@@ -581,6 +581,13 @@ function getDriverInfoForUpdate (driverInfoCarNumber, startingRow, leaderboardDa
     return [];
   }
 
+  let thisDriverAllLapTimesIndex = allLapTimesData.findIndex(item => item.carNumber === driverInfoCarNumber);
+  let thisDriverAllLapTimesData = allLapTimesData[thisDriverAllLapTimesDataIndex];
+  if (!thisDriverAllLapTimesData) {
+    console.warn(`Lap Time data not found for target car number: ${driverInfoCarNumber}. Skipping driver info update.`);
+    return [];
+  }
+
   // Find info about near drivers
   let driverAheadLeaderboardData = null;
   let driverAheadReferenceData = null;
@@ -613,7 +620,7 @@ function getDriverInfoForUpdate (driverInfoCarNumber, startingRow, leaderboardDa
       thisDriverReferenceData.firstName + ' ' + thisDriverReferenceData.lastName, // Column F is display name (in this case full name)
       thisDriverReferenceData.headshot, // Column G is headshot URL (find in the tagboard graphic library and update in the google sheet 'Database')
       thisDriverReferenceData.teamLogo + ' ', // Column H is team logo (added space for formatting)
-      thisDriverReferenceData.manufacturerLogo, // Column I is manufacturer logo (assuming this exists in referenceData.drivers)
+      convertSecondsToMinutesSeconds(thisDriverAllLapTimesData.fastestLapTime), // Column I is fastest lap time
       lapsCompleted, // Column J is last lap number
       convertSecondsToMinutesSeconds(thisDriverLapData.lastLapTime), // Column K is last lap time (not lapNumber as previously)
       stringToRoundedWholeString(thisDriverTelemetryData.speed), // Column L is speed
@@ -1428,7 +1435,7 @@ async function main() {
                   let fastestLapTimeIndex = allLapTimesData[lapTimeDataIndex].lapTimes.findIndex(item => item.lapNumber === result.$.Fastest_Lap);
                   if (fastestLapTimeIndex !== -1 && allLapTimesData[lapTimeDataIndex].lapTimes[fastestLapTimeIndex].lapTime) {
                     allLapTimesData[lapTimeDataIndex].fastestLapTime = allLapTimesData[lapTimeDataIndex].lapTimes[fastestLapTimeIndex].lapTime;
-                    console.log(`car ${result.$.Car} new fastest lap of ${allLapTimesData[lapTimeDataIndex].fastestLap}`);
+                    console.log(`car ${result.$.Car} new fastest lap of ${allLapTimesData[lapTimeDataIndex].fastestLapTime}`);
                   };
                   console.log(allLapTimesData[lapTimeDataIndex]);
 
