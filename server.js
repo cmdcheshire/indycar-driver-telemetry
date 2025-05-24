@@ -643,7 +643,7 @@ function getDriverInfoForUpdate (driverInfoCarNumber, startingRow, leaderboardDa
       deltaDisplayValue = '+' + Math.abs(currentLapDelta).toFixed(3); // Using toFixed(3) for consistent decimal places
   }
 
-  if (isNaN(currentLapDelta) || thisDriverLapData.lastLapDelta.trim() === '' || thisDriverLapData.lastLapData.includes('NaN')) {
+  if (isNaN(currentLapDelta) || thisDriverLapData.lastLapDelta.trim() === '' || thisDriverLapData.lastLapDelta.includes('NaN')) {
       // If delta is invalid, empty, or NaN, reset to white
       lapDeltaData = {
           range: DRIVERINFO_SHEET_NAME + '!Q'+startingRow+':Q'+parseInt((parseInt(startingRow)+2)),
