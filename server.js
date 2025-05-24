@@ -206,7 +206,7 @@ async function readReferenceData() {
             const indicatorImageUrl = row[1];
             referenceData.indicatorImages[indicatorType] = indicatorImageUrl;
           }
-        } else if (range === `${DATABASE_SHEET_NAME}!A63:B64`) {
+        } else if (range === `${DATABASE_SHEET_NAME}!A63:B67`) {
           // Process leaderboard image URLs
           for (let i = 0; i < values.length; i++) {
             const row = values[i];
@@ -943,7 +943,11 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
       // Handler for target car highlight
       let thisCarHighlight;
       if (thisCarNumber === targetCarNumber) {
-        thisCarHighlight = referenceData.leaderboardImages['Highlight'];
+        thisCarHighlight = referenceData.leaderboardImages['Highlight_Orange'];
+      } else if (thisCarNumber === targetCar2Number) {
+        thisCarHighlight = referenceData.leaderboardImages['Highlight_Yellow']
+      } else if (thisCarNumber === targetCar2Number) {
+        thisCarHighlight = referenceData.leaderboardImages['Highlight_Red']
       } else {
         thisCarHighlight = '';
       }
