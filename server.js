@@ -636,11 +636,16 @@ function getDriverInfoForUpdate (driverInfoCarNumber, startingRow, leaderboardDa
   let lapDeltaData;
   const currentLapDelta = parseFloat(thisDriverLapData.lastLapDelta); // Convert to number for comparison
 
-  // Define displayValue here so it can be used consistently
+  // Define deltaDisplayValue here so it can be used consistently
   let deltaDisplayValue = '';
   if (!isNaN(currentLapDelta) && thisDriverLapData.lastLapDelta.trim() !== '' && !thisDriverLapData.lastLapDelta.includes('NaN')) {
-      // Ensure it's always positive for display and prefixed with '+'
-      deltaDisplayValue = '+' + Math.abs(currentLapDelta).toFixed(3); // Using toFixed(3) for consistent decimal places
+      // If the delta is positive (slower lap), add a '+' sign
+      if (currentLapDelta > 0) {
+          deltaDisplayValue = '+' + currentLapDelta.toFixed(3);
+      } else {
+          // If the delta is negative (faster lap) or zero, just use its value
+          deltaDisplayValue = currentLapDelta.toFixed(3);
+      }
   }
 
   if (isNaN(currentLapDelta) || thisDriverLapData.lastLapDelta.trim() === '' || thisDriverLapData.lastLapDelta.includes('NaN')) {
@@ -653,29 +658,29 @@ function getDriverInfoForUpdate (driverInfoCarNumber, startingRow, leaderboardDa
       thisCarState.prevLapDeltaColorState = 'white';
       thisCarState.prevLapDeltaValue = null;
       console.log(`Car ${driverInfoCarNumber}: Lap delta is invalid or empty. Resetting to white.`);
-  } else if (currentLapDelta < 0) { // Better (Green)
+  } else if (currentLapDelta < 0) { // Green: Negative delta means a better (faster) lap
       lapDeltaData = {
           range: DRIVERINFO_SHEET_NAME + '!Q'+startingRow+':Q'+parseInt((parseInt(startingRow)+2)),
           majorDimension: 'COLUMNS',
-          values: [['', deltaDisplayValue, '']] // Green, using the positive displayValue
+          values: [['', deltaDisplayValue, '']] // Green column, now displays actual sign
       };
       thisCarState.prevLapDeltaColorState = 'green';
       thisCarState.prevLapDeltaValue = currentLapDelta;
       console.log(`Car ${driverInfoCarNumber}: Lap delta is BETTER (Green).`);
-  } else if (currentLapDelta > 0) { // Worse (Red)
+  } else if (currentLapDelta > 0) { // Red: Positive delta means a worse (slower) lap
       lapDeltaData = {
           range: DRIVERINFO_SHEET_NAME + '!Q'+startingRow+':Q'+parseInt((parseInt(startingRow)+2)),
           majorDimension: 'COLUMNS',
-          values: [['', '', deltaDisplayValue]] // Red, using the positive displayValue
+          values: [['', '', deltaDisplayValue]] // Red column, now displays actual sign
       };
       thisCarState.prevLapDeltaColorState = 'red';
       thisCarState.prevLapDeltaValue = currentLapDelta;
       console.log(`Car ${driverInfoCarNumber}: Lap delta is WORSE (Red).`);
-  } else { // Neutral / Zero
+  } else { // White: Neutral or zero delta
       lapDeltaData = {
           range: DRIVERINFO_SHEET_NAME + '!Q'+startingRow+':Q'+parseInt((parseInt(startingRow)+2)),
           majorDimension: 'COLUMNS',
-          values: [[deltaDisplayValue, '', '']] // White, using the positive displayValue
+          values: [[deltaDisplayValue, '', '']] // White column, now displays actual sign
       };
       thisCarState.prevLapDeltaColorState = 'white';
       thisCarState.prevLapDeltaValue = currentLapDelta;
