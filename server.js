@@ -1448,6 +1448,9 @@ async function main() {
                   let fastestLapTimeIndex = allLapTimesData[lapTimeDataIndex].lapTimes.findIndex(item => item.lapNumber === result.$.Fastest_Lap);
                   if (result.$.Fastest_Lap === result.$.Lap_Number) {
                     allLapTimesData[lapTimeDataIndex].fastestLapTime = result.$.Lap_Time;
+                  } else if (fastestLapTimeIndex !== -1 && allLapTimesData[lapTimeDataIndex].lapTimes[fastestLapTimeIndex].lapTime > result.$.LapTime) {
+                    console.log(`official fastest lap not updated, but this is new fastest lap`);
+                    allLapTimesData[lapTimeDataIndex].fastestLapTime = result.$.Lap_Time;
                   } else if (fastestLapTimeIndex !== -1 && allLapTimesData[lapTimeDataIndex].lapTimes[fastestLapTimeIndex].lapTime) {
                     allLapTimesData[lapTimeDataIndex].fastestLapTime = allLapTimesData[lapTimeDataIndex].lapTimes[fastestLapTimeIndex].lapTime;
                     console.log(`car ${result.$.Car} new fastest lap of ${allLapTimesData[lapTimeDataIndex].fastestLapTime}`);
