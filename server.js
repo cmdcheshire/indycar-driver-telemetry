@@ -636,7 +636,14 @@ function getDriverInfoForUpdate (driverInfoCarNumber, startingRow, leaderboardDa
   let lapDeltaData;
   const currentLapDelta = parseFloat(thisDriverLapData.lastLapDelta); // Convert to number for comparison
 
-  if (isNaN(currentLapDelta) || thisDriverLapData.lastLapDelta.trim() === '' || thisDriverLapData.lastLapDelta.includes('NaN')) {
+  // Define displayValue here so it can be used consistently
+  let displayValue = '';
+  if (!isNaN(currentLapDelta) && thisDriverLapData.lastLapDelta.trim() !== '' && !thisDriverLapData.lastLapDelta.includes('NaN')) {
+      // Ensure it's always positive for display and prefixed with '+'
+      displayValue = '+' + Math.abs(currentLapDelta).toFixed(3); // Using toFixed(3) for consistent decimal places
+  }
+
+  if (isNaN(currentLapDelta) || thisDriverLapData.lastLapDelta.trim() === '' || thisDriverLapData.lastLapData.includes('NaN')) {
       // If delta is invalid, empty, or NaN, reset to white
       lapDeltaData = {
           range: DRIVERINFO_SHEET_NAME + '!Q'+startingRow+':Q'+parseInt((parseInt(startingRow)+2)),
@@ -650,7 +657,7 @@ function getDriverInfoForUpdate (driverInfoCarNumber, startingRow, leaderboardDa
       lapDeltaData = {
           range: DRIVERINFO_SHEET_NAME + '!Q'+startingRow+':Q'+parseInt((parseInt(startingRow)+2)),
           majorDimension: 'COLUMNS',
-          values: [['', thisDriverLapData.lastLapDelta, '']] // Green
+          values: [['', displayValue, '']] // Green, using the positive displayValue
       };
       thisCarState.prevLapDeltaColorState = 'green';
       thisCarState.prevLapDeltaValue = currentLapDelta;
@@ -659,7 +666,7 @@ function getDriverInfoForUpdate (driverInfoCarNumber, startingRow, leaderboardDa
       lapDeltaData = {
           range: DRIVERINFO_SHEET_NAME + '!Q'+startingRow+':Q'+parseInt((parseInt(startingRow)+2)),
           majorDimension: 'COLUMNS',
-          values: [['', '', thisDriverLapData.lastLapDelta]] // Red
+          values: [['', '', displayValue]] // Red, using the positive displayValue
       };
       thisCarState.prevLapDeltaColorState = 'red';
       thisCarState.prevLapDeltaValue = currentLapDelta;
@@ -668,13 +675,14 @@ function getDriverInfoForUpdate (driverInfoCarNumber, startingRow, leaderboardDa
       lapDeltaData = {
           range: DRIVERINFO_SHEET_NAME + '!Q'+startingRow+':Q'+parseInt((parseInt(startingRow)+2)),
           majorDimension: 'COLUMNS',
-          values: [[thisDriverLapData.lastLapDelta, '', '']] // White
+          values: [[displayValue, '', '']] // White, using the positive displayValue
       };
       thisCarState.prevLapDeltaColorState = 'white';
       thisCarState.prevLapDeltaValue = currentLapDelta;
       console.log(`Car ${driverInfoCarNumber}: Lap delta is NEUTRAL (White).`);
   }
   driverInfoForUpdateBuffer.push(lapDeltaData);
+
 
 
   // --- Driver Ahead Split Logic ---
@@ -808,7 +816,7 @@ function getDriverInfoForUpdate (driverInfoCarNumber, startingRow, leaderboardDa
           driverBehindSplitData = {
               range: DRIVERINFO_SHEET_NAME + '!S'+startingRow+':S'+parseInt((parseInt(startingRow)+2)),
               majorDimension: 'COLUMNS',
-              values: [['', '', '+' + displayValue]] // Red
+              values: [['', '', displayValue]] // Red
           };
           thisCarState.prevDriverBehindSplitColorState = 'red';
           console.log(`Car ${driverInfoCarNumber}: Driver behind split: Got LARGER (Red).`);
