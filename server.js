@@ -46,6 +46,7 @@ let driverInfoUpdateTime = 2000; // Set time in ms for interval to update driver
 let latestLapData = []; // Store lap times and info for all cars
 let carStates = {};
 let carStatusData = [];
+let pitStatusData = [];
 let manualDNFOverride = [];
 let allLapTimesData = [];
 let averageSpeedData = [];
@@ -268,6 +269,15 @@ async function readReferenceData() {
       };
       //console.log(newLapDataObject);
       carStatusData.push(newCarStatusDataObject);
+
+      // Pit lane data
+      let newPitStatusDataObject = {
+        carNumber:driverKeys[i],
+        pitStatus: false,
+        pitStops: 0,
+      };
+      //console.log(newLapDataObject);
+      pitStatusData.push(newPitStatusDataObject);
 
       // Average speed data
       let newAverageSpeedDataObject = {
@@ -920,13 +930,18 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
     let gsheetLeaderboardUpdateData = [];
     for (i = 0; i < leaderboardData.length; i++) { // Loop through latest leaderboard and use reference data to find driver info
       let thisCarNumber = leaderboardData[i].Car;
-      let thisDriverReferenceData = referenceData.drivers[thisCarNumber];
-      //console.log("This car reference data: " + thisDriverReferenceData);
+      let carAheadNumber;
+      if (i > 0) {
+        carAheadNumber = leaderboardData[i-1].Car;
+      };
 
+      let thisDriverReferenceData = referenceData.drivers[thisCarNumber];
       // Find index of telemetry data for this car
       let thisCarTelemetryData = telemetryData[telemetryData.findIndex(item => item.carNumber === thisCarNumber)];
       // Find index of the lap data for this car
       let thisCarLapData = lapData[lapData.findIndex(item => item.carNumber === thisCarNumber)];
+      // find index of the pit status data for this car
+      let thisCarPitStatusData = pitStatusData[pitStatusData.findIndex(item => item.carNumber === thisCarNumber)];
 
       // Handler for car data
       let thisCarTimeBehind;
@@ -936,6 +951,7 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
       let thisCarLastLapTime;
 
       let carAheadInPit;
+
       //console.log("This car laps behind " + leaderboardData[i].Laps_Behind);
       if (leaderboardData[i].Laps_Behind !== "0" && leaderboardData[i].Laps_Behind !== "1") {
         //console.log("This car is lapped multiple times, changing time behind to laps.")
@@ -987,7 +1003,6 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
       if (manualDNFOverride[thisCarDNFIndex].DNF === true) {
         thisCarDNF = true;
         thisCarDNFImg = referenceData.leaderboardImages['DNF'];
-        thisCarTimeBehind = 'DNF';
       }
 
       //Finds interval split and handles if car ahead is in the pit lane
@@ -1000,24 +1015,21 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
         thisCarDelta = '-';
       };
 
-      if (i > 2) {
-        if (leaderboardData[i-1].Time_Behind - leaderboardData[i-2].Time_Behind < 0 ) {
-        carAheadInPit = true;
-        } else {
-        carAheadInPit = false;
-        }
-      } else {
-        carAheadInPit = false; // This is a band aid that can't detect if the first car pits
-      };
+      let carAheadInPit = pitStatusData[pitStatusData.findIndex(item => item.carNumber === carAheadNumber)].pitStatus;
 
       if (thisCarDNF) {
         thisCarIntervalSplit = 'DNF';
+        thisCarTimeBehind = 'DNF';
+        thisCarSpeed = 'DNF';
+        thisCarLastLapTime = 'DNF';
         thisCarStatusCoverImg = referenceData.leaderboardImages['DNF'];
+      } else if (parseFloat(thisCarDeltaData) < 0 ) {
+        thisCarIntervalSplit = '-'; // Bad time behind data, displaying no data for now
       } else if (i !== 0 && carAheadInPit === false && thisCarIntervalSplit === undefined && thisCarDeltaData > 0) {
         thisCarIntervalSplit = '+' + stringToRoundedDecimalString(leaderboardData[i].Time_Behind - leaderboardData[i-1].Time_Behind);
       } else if (i !== 0 && carAheadInPit === true && thisCarIntervalSplit === undefined) { // Car ahead is in Pit, skip split time for now
         thisCarIntervalSplit = '-';
-      } else if (thisCarDeltaData < 0 && thisCarIntervalSplit === undefined) {
+      } else if (thisCarPitStatusData.pitStatus && thisCarIntervalSplit === undefined) {
         thisCarIntervalSplit = 'IN PIT';
       } else if (thisCarIntervalSplit === undefined) { // This car is the leader, enter time behind (usually 0)
         thisCarIntervalSplit = stringToRoundedDecimalString(leaderboardData[i].Time_Behind);
@@ -1375,7 +1387,32 @@ async function main() {
                 //console.log(latestFullTelemetryData); 
 
               } else if (pitStartIndex !== -1) {
-                //processPitSummaryMessage(result.Pit_Summary);
+                if (result.$.Pit_Lane_Entry_Time !== '' && result.$.Pit_Lane_Exit_Time === '') {
+
+                  // Car has entered pit lane and has not left yet.
+                  let pitStatusDataIndex = pitStatusData.findIndex(item => item.carNumber == result.$.Car);
+
+                  let newPitStatusDataObject = {
+                    carNumber: result.$.Pit_Number,
+                    pitStatus: true,
+                    pitStops: result.$.Pit_Number,
+                  };
+
+                  pitStatusData[pitStatusDataIndex] = newPitStatusDataObject;
+
+                } else if (result.$.Pit_Lane_Entry_Time !== '' && result.$.Pit_Lane_Exit_Time !== '') {
+                   // Car has left the pit lane
+                  let pitStatusDataIndex = pitStatusData.findIndex(item => item.carNumber == result.$.Car);
+
+                  let newPitStatusDataObject = {
+                    carNumber: result.$.Pit_Number,
+                    pitStatus: true,
+                    pitStops: result.$.Pit_Number,
+                  };
+
+                  pitStatusData[pitStatusDataIndex] = newPitStatusDataObject;
+                  
+                };
               } else if (unofficialLeaderboardStartIndex !== -1) {
                 //process Unofficial Leaderboard message
                 const allCarDataIsArray = Array.isArray(result.Position)
