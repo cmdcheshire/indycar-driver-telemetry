@@ -1403,10 +1403,10 @@ async function main() {
                   if (i === 0) {
                     // Do nothing, can't check first driver
                   } else if (parseFloat(updatedUnofficialLeaderboardData[i].Time_Behind) > parseFloat(updatedUnofficialLeaderboardData[i-1].Time_Behind)) {
-                    console.log("This car time behind ", updatedUnofficialLeaderboardData[i].TimeBehind, " last car time behind ", updatedUnofficialLeaderboardData[i-1].Time_Behind);
+                    console.log("This car time behind ", updatedUnofficialLeaderboardData[i].Time_Behind, " last car time behind ", updatedUnofficialLeaderboardData[i-1].Time_Behind);
                     console.log("Time behind for position ", i+1, " is greater than car ahead");
                   } else {
-                    console.log("This car time behind ", updatedUnofficialLeaderboardData[i].TimeBehind, " last car time behind ", updatedUnofficialLeaderboardData[i-1].Time_Behind);
+                    console.log("This car time behind ", updatedUnofficialLeaderboardData[i].Time_Behind, " last car time behind ", updatedUnofficialLeaderboardData[i-1].Time_Behind);
                     console.log("Time behind for position ", i+1, " is smaller than car ahead, using previous data until fixed");
                     console.log(updatedUnofficialLeaderboardData[i]);
                     let oldLeaderboardDataIndex = latestLeaderboardData.findIndex(item => item.Car === updatedUnofficialLeaderboardData[i].Car);
