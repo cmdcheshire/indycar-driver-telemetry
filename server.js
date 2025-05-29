@@ -1408,7 +1408,7 @@ async function main() {
                   let pitStatusDataIndex = pitStatusData.findIndex(item => item.carNumber == result.$.Car);
 
                   let newPitStatusDataObject = {
-                    carNumber: result.$.Pit_Number,
+                    carNumber: result.$.Car_Number,
                     pitStatus: true,
                     pitStops: result.$.Pit_Number,
                   };
