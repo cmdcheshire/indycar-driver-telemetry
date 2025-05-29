@@ -616,7 +616,7 @@ function getDriverInfoForUpdate (driverInfoCarNumber, startingRow, leaderboardDa
     driverAheadLeaderboardData = leaderboardData[thisDriverLeaderboardDataIndex - 1];
     driverAheadReferenceData = referenceData.drivers[driverAheadLeaderboardData.Car];
   } else {
-      console.log(`No driver ahead of car ${driverInfoCarNumber} (currently P1).`);
+      //console.log(`No driver ahead of car ${driverInfoCarNumber} (currently P1).`);
   }
 
   let driverBehindLeaderboardData = null;
@@ -625,7 +625,7 @@ function getDriverInfoForUpdate (driverInfoCarNumber, startingRow, leaderboardDa
     driverBehindLeaderboardData = leaderboardData[thisDriverLeaderboardDataIndex + 1];
     driverBehindReferenceData = referenceData.drivers[driverBehindLeaderboardData.Car];
   } else {
-      console.log(`No driver behind car ${driverInfoCarNumber} (currently last place).`);
+      //console.log(`No driver behind car ${driverInfoCarNumber} (currently last place).`);
   }
 
   // Build object to push to Google sheet
@@ -678,7 +678,7 @@ function getDriverInfoForUpdate (driverInfoCarNumber, startingRow, leaderboardDa
       };
       thisCarState.prevLapDeltaColorState = 'white';
       thisCarState.prevLapDeltaValue = null;
-      console.log(`Car ${driverInfoCarNumber}: Lap delta is invalid or empty. Resetting to white.`);
+      //console.log(`Car ${driverInfoCarNumber}: Lap delta is invalid or empty. Resetting to white.`);
   } else if (currentLapDelta < 0) { // Green: Negative delta means a better (faster) lap
       lapDeltaData = {
           range: DRIVERINFO_SHEET_NAME + '!Q'+startingRow+':Q'+parseInt((parseInt(startingRow)+2)),
@@ -687,7 +687,7 @@ function getDriverInfoForUpdate (driverInfoCarNumber, startingRow, leaderboardDa
       };
       thisCarState.prevLapDeltaColorState = 'green';
       thisCarState.prevLapDeltaValue = currentLapDelta;
-      console.log(`Car ${driverInfoCarNumber}: Lap delta is BETTER (Green).`);
+      //console.log(`Car ${driverInfoCarNumber}: Lap delta is BETTER (Green).`);
   } else if (currentLapDelta > 0) { // Red: Positive delta means a worse (slower) lap
       lapDeltaData = {
           range: DRIVERINFO_SHEET_NAME + '!Q'+startingRow+':Q'+parseInt((parseInt(startingRow)+2)),
@@ -696,7 +696,7 @@ function getDriverInfoForUpdate (driverInfoCarNumber, startingRow, leaderboardDa
       };
       thisCarState.prevLapDeltaColorState = 'red';
       thisCarState.prevLapDeltaValue = currentLapDelta;
-      console.log(`Car ${driverInfoCarNumber}: Lap delta is WORSE (Red).`);
+      //console.log(`Car ${driverInfoCarNumber}: Lap delta is WORSE (Red).`);
   } else { // White: Neutral or zero delta
       lapDeltaData = {
           range: DRIVERINFO_SHEET_NAME + '!Q'+startingRow+':Q'+parseInt((parseInt(startingRow)+2)),
@@ -705,7 +705,7 @@ function getDriverInfoForUpdate (driverInfoCarNumber, startingRow, leaderboardDa
       };
       thisCarState.prevLapDeltaColorState = 'white';
       thisCarState.prevLapDeltaValue = currentLapDelta;
-      console.log(`Car ${driverInfoCarNumber}: Lap delta is NEUTRAL (White).`);
+      //console.log(`Car ${driverInfoCarNumber}: Lap delta is NEUTRAL (White).`);
   }
   driverInfoForUpdateBuffer.push(lapDeltaData);
 
@@ -730,7 +730,7 @@ function getDriverInfoForUpdate (driverInfoCarNumber, startingRow, leaderboardDa
       };
       thisCarState.prevDriverAheadSplitColorState = 'white';
       thisCarState.prevDriverAheadSplitValue = null;
-      console.log(`Car ${driverInfoCarNumber}: Driver ahead split is invalid, zero, or no driver ahead. Resetting to white.`);
+      //console.log(`Car ${driverInfoCarNumber}: Driver ahead split is invalid, zero, or no driver ahead. Resetting to white.`);
   } else {
       // Check current state and apply sticky logic
       let displayValue = '+' + currentDriverAheadSplit.toFixed(3); // Always display as positive with +
@@ -743,7 +743,7 @@ function getDriverInfoForUpdate (driverInfoCarNumber, startingRow, leaderboardDa
               values: [[displayValue, '', '']] // Default to white
           };
           thisCarState.prevDriverAheadSplitColorState = 'white'; // Start as white
-          console.log(`Car ${driverInfoCarNumber}: Driver ahead split: Initializing to White.`);
+          //console.log(`Car ${driverInfoCarNumber}: Driver ahead split: Initializing to White.`);
       } else if (currentDriverAheadSplit < thisCarState.prevDriverAheadSplitValue) {
           // Split decreased (better)
           driverAheadSplitData = {
@@ -752,7 +752,7 @@ function getDriverInfoForUpdate (driverInfoCarNumber, startingRow, leaderboardDa
               values: [['', displayValue, '']] // Green
           };
           thisCarState.prevDriverAheadSplitColorState = 'green';
-          console.log(`Car ${driverInfoCarNumber}: Driver ahead split: Got SMALLER (Green).`);
+          //console.log(`Car ${driverInfoCarNumber}: Driver ahead split: Got SMALLER (Green).`);
       } else if (currentDriverAheadSplit > thisCarState.prevDriverAheadSplitValue) {
           // Split increased (worse)
           driverAheadSplitData = {
@@ -761,7 +761,7 @@ function getDriverInfoForUpdate (driverInfoCarNumber, startingRow, leaderboardDa
               values: [['', '', displayValue]] // Red
           };
           thisCarState.prevDriverAheadSplitColorState = 'red';
-          console.log(`Car ${driverInfoCarNumber}: Driver ahead split: Got LARGER (Red).`);
+          //console.log(`Car ${driverInfoCarNumber}: Driver ahead split: Got LARGER (Red).`);
       } else {
           // Value stayed the same, or slight fluctuation without crossing a threshold.
           // Stick to the previous color.
@@ -771,14 +771,14 @@ function getDriverInfoForUpdate (driverInfoCarNumber, startingRow, leaderboardDa
                   majorDimension: 'COLUMNS',
                   values: [['', displayValue, '']] // Stick to Green
               };
-              console.log(`Car ${driverInfoCarNumber}: Driver ahead split: Sticking to GREEN.`);
+              //console.log(`Car ${driverInfoCarNumber}: Driver ahead split: Sticking to GREEN.`);
           } else if (thisCarState.prevDriverAheadSplitColorState === 'red') {
               driverAheadSplitData = {
                   range: DRIVERINFO_SHEET_NAME + '!R'+startingRow+':R'+parseInt((parseInt(startingRow)+2)),
                   majorDimension: 'COLUMNS',
                   values: [['', '', displayValue]] // Stick to Red
               };
-              console.log(`Car ${driverInfoCarNumber}: Driver ahead split: Sticking to RED.`);
+              //console.log(`Car ${driverInfoCarNumber}: Driver ahead split: Sticking to RED.`);
           } else {
               // Was white, or no significant change to trigger color change
               driverAheadSplitData = {
@@ -787,7 +787,7 @@ function getDriverInfoForUpdate (driverInfoCarNumber, startingRow, leaderboardDa
                   values: [[displayValue, '', '']] // Stick to White
               };
               thisCarState.prevDriverAheadSplitColorState = 'white'; // Explicitly keep as white
-              console.log(`Car ${driverInfoCarNumber}: Driver ahead split: Sticking to WHITE.`);
+              //console.log(`Car ${driverInfoCarNumber}: Driver ahead split: Sticking to WHITE.`);
           }
       }
   }
@@ -814,7 +814,7 @@ function getDriverInfoForUpdate (driverInfoCarNumber, startingRow, leaderboardDa
       };
       thisCarState.prevDriverBehindSplitColorState = 'white';
       thisCarState.prevDriverBehindSplitValue = null;
-      console.log(`Car ${driverInfoCarNumber}: Driver behind split is invalid, zero, or no driver behind. Resetting to white.`);
+      //console.log(`Car ${driverInfoCarNumber}: Driver behind split is invalid, zero, or no driver behind. Resetting to white.`);
   } else {
       // Check current state and apply sticky logic
       let displayValue = '+' + currentDriverBehindSplit.toFixed(3); // Always display as positive with +
@@ -827,7 +827,7 @@ function getDriverInfoForUpdate (driverInfoCarNumber, startingRow, leaderboardDa
               values: [[displayValue, '', '']] // Default to white
           };
           thisCarState.prevDriverBehindSplitColorState = 'white'; // Start as white
-          console.log(`Car ${driverInfoCarNumber}: Driver behind split: Initializing to White.`);
+          //console.log(`Car ${driverInfoCarNumber}: Driver behind split: Initializing to White.`);
       } else if (currentDriverBehindSplit < thisCarState.prevDriverBehindSplitValue) {
           // Split decreased (better)
           driverBehindSplitData = {
@@ -836,7 +836,7 @@ function getDriverInfoForUpdate (driverInfoCarNumber, startingRow, leaderboardDa
               values: [['', displayValue, '']] // Green
           };
           thisCarState.prevDriverBehindSplitColorState = 'green';
-          console.log(`Car ${driverInfoCarNumber}: Driver behind split: Got SMALLER (Green).`);
+          //console.log(`Car ${driverInfoCarNumber}: Driver behind split: Got SMALLER (Green).`);
       } else if (currentDriverBehindSplit > thisCarState.prevDriverBehindSplitValue) {
           // Split increased (worse)
           driverBehindSplitData = {
@@ -845,7 +845,7 @@ function getDriverInfoForUpdate (driverInfoCarNumber, startingRow, leaderboardDa
               values: [['', '', displayValue]] // Red
           };
           thisCarState.prevDriverBehindSplitColorState = 'red';
-          console.log(`Car ${driverInfoCarNumber}: Driver behind split: Got LARGER (Red).`);
+          //console.log(`Car ${driverInfoCarNumber}: Driver behind split: Got LARGER (Red).`);
       } else {
           // Value stayed the same, or slight fluctuation without crossing a threshold.
           // Stick to the previous color.
@@ -855,14 +855,14 @@ function getDriverInfoForUpdate (driverInfoCarNumber, startingRow, leaderboardDa
                   majorDimension: 'COLUMNS',
                   values: [['', displayValue, '']] // Stick to Green
               };
-              console.log(`Car ${driverInfoCarNumber}: Driver behind split: Sticking to GREEN.`);
+              //console.log(`Car ${driverInfoCarNumber}: Driver behind split: Sticking to GREEN.`);
           } else if (thisCarState.prevDriverBehindSplitColorState === 'red') {
               driverBehindSplitData = {
                   range: DRIVERINFO_SHEET_NAME + '!S'+startingRow+':S'+parseInt((parseInt(startingRow)+2)),
                   majorDimension: 'COLUMNS',
                   values: [['', '', displayValue]] // Stick to Red
               };
-              console.log(`Car ${driverInfoCarNumber}: Driver behind split: Sticking to RED.`);
+              //console.log(`Car ${driverInfoCarNumber}: Driver behind split: Sticking to RED.`);
           } else {
               // Was white, or no significant change to trigger color change
               driverBehindSplitData = {
@@ -871,7 +871,7 @@ function getDriverInfoForUpdate (driverInfoCarNumber, startingRow, leaderboardDa
                   values: [[displayValue, '', '']] // Stick to White
               };
               thisCarState.prevDriverBehindSplitColorState = 'white'; // Explicitly keep as white
-              console.log(`Car ${driverInfoCarNumber}: Driver behind split: Sticking to WHITE.`);
+              //console.log(`Car ${driverInfoCarNumber}: Driver behind split: Sticking to WHITE.`);
           }
       }
   }
@@ -1122,7 +1122,7 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
       };
     };
 
-    console.log('Manual DNF Overrides:', manualDNFOverride);
+    //console.log('Manual DNF Overrides:', manualDNFOverride);
     // You can now use the manualDNFOverride array elsewhere in your code.
 
     if (isOnline) {
@@ -1156,10 +1156,10 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
  * Function to periodically update the Google Sheet with data.
  */
 async function periodicUpdateTelemetrySheet() {
-  console.log("periodicUpdateTelemetrySheet called"); //add
+  //console.log("periodicUpdateTelemetrySheet called"); //add
   if (isOnline && Object.keys(latestTargetTelemetryData).length > 0) {
     try {
-      console.log("periodicUpdateTelemetrySheet - Updating sheet"); //add
+      //console.log("periodicUpdateTelemetrySheet - Updating sheet"); //add
       await updateTelemetrySheet(latestTargetTelemetryData); //send the  data.
     }
     catch (e) {
@@ -1172,10 +1172,10 @@ async function periodicUpdateTelemetrySheet() {
 }
 
 async function periodicUpdateLeaderboardSheet() {
-  console.log("periodicUpdateLeaderboardSheet called"); //add
+  //console.log("periodicUpdateLeaderboardSheet called"); //add
   if (isOnline && latestLeaderboardData.length > 0 && latestFullTelemetryData.length > 0 && latestLapData.length > 0) {
     try {
-      console.log("periodicUpdateLeaderboardSheet - Updating sheet"); //add
+      //console.log("periodicUpdateLeaderboardSheet - Updating sheet"); //add
       await updateLeaderboardSheet(latestLeaderboardData, latestFullTelemetryData, latestLapData); //send the data.
     }
     catch (e) {
@@ -1188,10 +1188,10 @@ async function periodicUpdateLeaderboardSheet() {
 }
 
 async function periodicUpdateDriverInfoSheet() {
-  console.log("periodicUpdateDriverInfoSheet called"); //add
+  //console.log("periodicUpdateDriverInfoSheet called"); //add
   if (isOnline /*&& latestLeaderboardData.length > 0*/ && Object.keys(latestFullTelemetryData).length > 0 && latestLapData.length > 0) {
     try {
-      console.log("periodicUpdateDriverInfoSheet - Updating sheet"); //add
+      //console.log("periodicUpdateDriverInfoSheet - Updating sheet"); //add
       await updateDriverInfoSheet(latestLeaderboardData, latestFullTelemetryData, latestLapData); //send the data.
     }
     catch (e) {
@@ -1420,7 +1420,7 @@ async function main() {
               } else if (unofficialLeaderboardStartIndex !== -1) {
                 //process Unofficial Leaderboard message
                 const allCarDataIsArray = Array.isArray(result.Position)
-                console.log("unofficial leaderboard is array?... " + allCarDataIsArray);
+                //console.log("unofficial leaderboard is array?... " + allCarDataIsArray);
                 //console.log("Structure of result:", JSON.stringify(result, null, 2));
                 let updatedUnofficialLeaderboardData = [];
                 for (i = 0; i < result.Position.length; i++) {
@@ -1447,26 +1447,26 @@ async function main() {
                     //console.log("Car is lapped, not calculating time behind number");
                   } else if (parseFloat(updatedUnofficialLeaderboardData[i].Time_Behind) > parseFloat(updatedUnofficialLeaderboardData[i-1].Time_Behind)) {
                     //console.log("This car time behind ", updatedUnofficialLeaderboardData[i].Time_Behind, " last car time behind ", updatedUnofficialLeaderboardData[i-1].Time_Behind);
-                    console.log("Time behind for position ", i+1, " is greater than car ahead");
+                    //console.log("Time behind for position ", i+1, " is greater than car ahead");
                   } else {
                     //console.log("This car time behind ", updatedUnofficialLeaderboardData[i].Time_Behind, " last car time behind ", updatedUnofficialLeaderboardData[i-1].Time_Behind);
-                    console.log("Time behind for position ", i+1, " is smaller than car ahead, using previous data until fixed");
+                    //console.log("Time behind for position ", i+1, " is smaller than car ahead, using previous data until fixed");
                     //console.log(updatedUnofficialLeaderboardData[i]);
                     let oldLeaderboardDataIndex = latestLeaderboardData.findIndex(item => item.Car === updatedUnofficialLeaderboardData[i].Car);
                     //console.log(oldLeaderboardDataIndex);
                     //console.log(latestLeaderboardData);
                     if (oldLeaderboardDataIndex !== -1) {
                       updatedUnofficialLeaderboardData[i] = latestLeaderboardData[oldLeaderboardDataIndex];
-                      console.log("Old data inserted for car in position ", i+1);
+                      //console.log("Old data inserted for car in position ", i+1);
                     } else {
-                      console.log("Cannot find old data, skipping message");
+                      //console.log("Cannot find old data, skipping message");
                       throw new BadDataError ("Time behind data is bad or misordered, skipping leaderboard message.")
                     }   
                   };
                 };
 
                 latestLeaderboardData = updatedUnofficialLeaderboardData;
-                console.log("latest leaderboard data updated locally.")
+                //console.log("latest leaderboard data updated locally.")
 
               } else if (completedLapStartIndex !== -1) {
                 //console.log('Completed lap data found...')
@@ -1493,7 +1493,7 @@ async function main() {
                     currentLapSpeeds:[],
                   };
                   console.log(averageSpeedData[averageSpeedIndex])
-                  console.log('Last lap average speed ',newAverageSpeed,'for car ',thisCarNumber);
+                  //console.log('Last lap average speed ',newAverageSpeed,'for car ',thisCarNumber);
                   
                 };
                 
