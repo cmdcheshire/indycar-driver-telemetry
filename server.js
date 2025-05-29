@@ -1405,12 +1405,16 @@ async function main() {
                   } else if (parseFloat(updatedUnofficialLeaderboardData[i].Time_Behind) > parseFloat(updatedUnofficialLeaderboardData[i-1].Time_Behind)) {
                     console.log("Time behind for position ", i+1, " is greater than car ahead");
                   } else {
-                    throw new BadDataError ("Time behind data is bad or misordered, skipping leaderboard message.")
+                    console.log("Time behind for position ", i+1, " is smaller than car ahead, using previous data until fixed");
+                    let oldLeaderboardDataIndex = latestLeaderboardData.findIndex(item => item.Car === updatedUnofficialLeaderboardData[i].Car);
+                    updatedUnofficialLeaderboardData[i] = latestLeaderboardData[oldLeaderboardDataIndex];
+                    //throw new BadDataError ("Time behind data is bad or misordered, skipping leaderboard message.")
                   };
                 };
 
                 latestLeaderboardData = updatedUnofficialLeaderboardData;
                 console.log("latest leaderboard data updated locally.")
+
               } else if (completedLapStartIndex !== -1) {
                 //console.log('Completed lap data found...')
                 //console.log(result);
