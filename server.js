@@ -932,8 +932,10 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
     for (i = 0; i < leaderboardData.length; i++) { // Loop through latest leaderboard and use reference data to find driver info
       let thisCarNumber = leaderboardData[i].Car;
       let carAheadNumber;
+      let carAheadInPit = false;
       if (i > 0) {
         carAheadNumber = leaderboardData[i-1].Car;
+        carAheadInPit = pitStatusData[pitStatusData.findIndex(item => item.carNumber === carAheadNumber)].pitStatus;
       };
 
       let thisDriverReferenceData = referenceData.drivers[thisCarNumber];
@@ -950,7 +952,7 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
       let thisCarSpeed;
       let thisCarLastLapSpeed;
       let thisCarLastLapTime;
-      let carAheadInPit = pitStatusData[pitStatusData.findIndex(item => item.carNumber === carAheadNumber)].pitStatus;
+      
 
       //console.log("This car laps behind " + leaderboardData[i].Laps_Behind);
       if (leaderboardData[i].Laps_Behind !== "0" && leaderboardData[i].Laps_Behind !== "1") {
