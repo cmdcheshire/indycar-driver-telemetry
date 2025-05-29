@@ -1412,6 +1412,7 @@ async function main() {
                     console.log(latestLeaderboardData);
                     if (oldLeaderboardDataIndex !== -1) {
                       updatedUnofficialLeaderboardData[i] = latestLeaderboardData[oldLeaderboardDataIndex];
+                      console.log("Old data inserted for car in position ", i+1);
                     } else {
                       console.log("Cannot find old data, skipping message");
                       throw new BadDataError ("Time behind data is bad or misordered, skipping leaderboard message.")
