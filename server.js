@@ -1239,7 +1239,7 @@ async function main() {
       const telemetryStart = '<Telemetry_Leaderboard';
       const telemetryEnd = '</Telemetry_Leaderboard>';
       const pitStart = '<Pit_Summary';
-      const pitEnd = '</Pit_Summary>';
+      const pitEnd = '/>';
       const unofficialLeaderboardStart = '<Unofficial_Leaderboard';
       const unofficialLeaderboardEnd = '</Unofficial_Leaderboard>';
       const completedLapStart = '<Completed_Lap';
