@@ -1406,7 +1406,9 @@ async function main() {
                     console.log("Time behind for position ", i+1, " is greater than car ahead");
                   } else {
                     console.log("Time behind for position ", i+1, " is smaller than car ahead, using previous data until fixed");
+                    console.log(updatedUnofficialLeaderboardData[i]);
                     let oldLeaderboardDataIndex = latestLeaderboardData.findIndex(item => item.Car === updatedUnofficialLeaderboardData[i].Car);
+                    latestLeaderboardData[oldLeaderboardDataIndex];
                     updatedUnofficialLeaderboardData[i] = latestLeaderboardData[oldLeaderboardDataIndex];
                     //throw new BadDataError ("Time behind data is bad or misordered, skipping leaderboard message.")
                   };
