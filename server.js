@@ -949,8 +949,7 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
       let thisCarSpeed;
       let thisCarLastLapSpeed;
       let thisCarLastLapTime;
-
-      let carAheadInPit;
+      let carAheadInPit = pitStatusData[pitStatusData.findIndex(item => item.carNumber === carAheadNumber)].pitStatus;
 
       //console.log("This car laps behind " + leaderboardData[i].Laps_Behind);
       if (leaderboardData[i].Laps_Behind !== "0" && leaderboardData[i].Laps_Behind !== "1") {
@@ -1014,8 +1013,6 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
       } else {
         thisCarDelta = '-';
       };
-
-      let carAheadInPit = pitStatusData[pitStatusData.findIndex(item => item.carNumber === carAheadNumber)].pitStatus;
 
       if (thisCarDNF) {
         thisCarIntervalSplit = 'DNF';
@@ -1411,7 +1408,7 @@ async function main() {
                   };
 
                   pitStatusData[pitStatusDataIndex] = newPitStatusDataObject;
-                  
+
                 };
               } else if (unofficialLeaderboardStartIndex !== -1) {
                 //process Unofficial Leaderboard message
