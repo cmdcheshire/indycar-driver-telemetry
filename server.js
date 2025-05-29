@@ -278,7 +278,6 @@ async function readReferenceData() {
       };
       //console.log(newLapDataObject);
       pitStatusData.push(newPitStatusDataObject);
-      console.log(pitStatusData);
 
       // Average speed data
       let newAverageSpeedDataObject = {
@@ -303,6 +302,7 @@ async function readReferenceData() {
     console.log(allLapTimesData);
     console.log(averageSpeedData);
     console.log(manualDNFOverride);
+    console.log(pitStatusData);
 
     // Setup structure of manual DNF override object
     for (i = 0; i < driverKeys.length; i++) {
@@ -1385,6 +1385,8 @@ async function main() {
                 //console.log(latestFullTelemetryData); 
 
               } else if (pitStartIndex !== -1) {
+                console.log("pit summary object detected...")
+                console.log(result);
                 if (result.$.Pit_Lane_Entry_Time !== '' && result.$.Pit_Lane_Exit_Time === '') {
 
                   // Car has entered pit lane and has not left yet.
@@ -1395,6 +1397,7 @@ async function main() {
                     pitStatus: true,
                     pitStops: result.$.Pit_Number,
                   };
+                  console.log(newPitStatusDataObject);
 
                   pitStatusData[pitStatusDataIndex] = newPitStatusDataObject;
 
@@ -1407,6 +1410,7 @@ async function main() {
                     pitStatus: true,
                     pitStops: result.$.Pit_Number,
                   };
+                  console.log(newPitStatusDataObject);
 
                   pitStatusData[pitStatusDataIndex] = newPitStatusDataObject;
 
