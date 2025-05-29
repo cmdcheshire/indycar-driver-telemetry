@@ -19,7 +19,7 @@ const TARGET_CAR_CELL = 'B5';    // Cell containing the target car
 const TARGET_CAR_2_CELL = 'B6'; 
 const TARGET_CAR_3_CELL = 'B7';
 
-// Global Variables
+// Global Variables for setup
 let TCP_HOST = 'localhost';
 let TCP_PORT = 5000;
 let client;
@@ -34,6 +34,8 @@ let referenceData = {}; // Store reference data from the sheet
 const MAX_RPM = 12000;
 const MAX_THROTTLE = 100;
 const MAX_BRAKE = 100;
+
+// Global variables for server use
 let isOnline = false;
 let latestTargetTelemetryData = {}; // Telemetry data for car selected in google sheet
 let latestFullTelemetryData = []; // Telemetry data for all cars
@@ -50,6 +52,14 @@ let averageSpeedData = [];
 let lapsCompleted = 0;
 let flagColor;
 let timeElapsed;
+
+// Class definitions
+class BadDataError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "BadDataError"; // Used to catch bad leaderboard data passed from SMT
+  }
+}
 
 /**
  * Function to authenticate with the Google Sheets API using a service account for Telemetry update service account.
@@ -1387,6 +1397,18 @@ async function main() {
                 }
                 //console.log("updated unofficial leaderboard found.. printing processed array.")
                 //console.log(updatedUnofficialLeaderboardData);
+
+                // Check to see if all time behind data is in the right order, if not don't update data because it will cause errors
+                for (i = 0; i < updatedUnofficialLeaderboardData.length; i++) {
+                  if (i === 0) {
+                    // Do nothing, can't check first driver
+                  } else if (parseFloat(updatedUnofficialLeaderboardData[i].Time_Behind) > parseFloat(updatedUnofficialLeaderboardData[i-1].Time_Behind)) {
+                    console.log("Time behind for position ", i+1, " is greater than car ahead");
+                  } else {
+                    throw new BadDataError ("Time behind data is bad or misordered, skipping leaderboard message.")
+                  };
+                };
+
                 latestLeaderboardData = updatedUnofficialLeaderboardData;
                 console.log("latest leaderboard data updated locally.")
               } else if (completedLapStartIndex !== -1) {
@@ -1514,8 +1536,12 @@ async function main() {
                 console.log(timeElapsed);
               };
             } catch (error) {
+              if (error instanceof BadDataError) {
+                console.warn("Bad data encountered (specific handler):", error.message);
+              } else {
               console.error('Error processing XML message:', error, 'Message:', message);
-            }
+              };
+            };
           });
           message = null; // Reset message
         }
