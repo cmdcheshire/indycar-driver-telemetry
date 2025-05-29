@@ -278,6 +278,7 @@ async function readReferenceData() {
       };
       //console.log(newLapDataObject);
       pitStatusData.push(newPitStatusDataObject);
+      console.log(pitStatusData);
 
       // Average speed data
       let newAverageSpeedDataObject = {
