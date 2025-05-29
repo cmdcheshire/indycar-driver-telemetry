@@ -1045,7 +1045,7 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
           thisCarNumber, // Column 2 is Car Number
           thisDriverReferenceData.carLogo, // Column 3 is Car Logo
           thisDriverReferenceData.team, // Column 4 is Team Name
-          thisDriverReferenceData.teamLogo, // Column 5 is Team Logo
+          flagColor, // Column 5 is Team Logo
           thisDriverReferenceData.firstName, // Column 6 is First Name
           thisDriverReferenceData.lastName, // Column 7 is Last Name
           thisDriverReferenceData.displayName, // Column 8 is Display Name
