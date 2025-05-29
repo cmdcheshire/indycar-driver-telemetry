@@ -1023,14 +1023,14 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
         thisCarSpeed = 'DNF';
         thisCarLastLapTime = 'DNF';
         thisCarStatusCoverImg = referenceData.leaderboardImages['DNF'];
+      } else if (thisCarPitStatusData.pitStatus && thisCarIntervalSplit === undefined) {
+        thisCarIntervalSplit = 'IN PIT';
       } else if (parseFloat(thisCarDeltaData) < 0 ) {
         thisCarIntervalSplit = '-'; // Bad time behind data, displaying no data for now
       } else if (i !== 0 && carAheadInPit === false && thisCarIntervalSplit === undefined && thisCarDeltaData > 0) {
         thisCarIntervalSplit = '+' + stringToRoundedDecimalString(leaderboardData[i].Time_Behind - leaderboardData[i-1].Time_Behind);
       } else if (i !== 0 && carAheadInPit === true && thisCarIntervalSplit === undefined) { // Car ahead is in Pit, skip split time for now
         thisCarIntervalSplit = '-';
-      } else if (thisCarPitStatusData.pitStatus && thisCarIntervalSplit === undefined) {
-        thisCarIntervalSplit = 'IN PIT';
       } else if (thisCarIntervalSplit === undefined) { // This car is the leader, enter time behind (usually 0)
         thisCarIntervalSplit = stringToRoundedDecimalString(leaderboardData[i].Time_Behind);
       }
@@ -1409,7 +1409,7 @@ async function main() {
 
                   let newPitStatusDataObject = {
                     carNumber: result.$.Car,
-                    pitStatus: true,
+                    pitStatus: false,
                     pitStops: result.$.Pit_Number,
                   };
                   console.log(newPitStatusDataObject);
