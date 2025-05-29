@@ -1402,7 +1402,7 @@ async function main() {
                 for (i = 0; i < updatedUnofficialLeaderboardData.length; i++) {
                   if (i === 0) {
                     // Do nothing, can't check first driver
-                  } else if (updatedUnofficialLeaderboardData[i] === "-") {
+                  } else if (parseInt(updatedUnofficialLeaderboardData[i].Laps_Behind) > 0) {
                     console.log("Car is lapped, not calculating time behind number");
                   } else if (parseFloat(updatedUnofficialLeaderboardData[i].Time_Behind) > parseFloat(updatedUnofficialLeaderboardData[i-1].Time_Behind)) {
                     console.log("This car time behind ", updatedUnofficialLeaderboardData[i].Time_Behind, " last car time behind ", updatedUnofficialLeaderboardData[i-1].Time_Behind);
