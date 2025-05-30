@@ -172,7 +172,7 @@ async function readReferenceData() {
       `${DATABASE_SHEET_NAME}!A2:H50`, // Driver data
       `${DATABASE_SHEET_NAME}!A52:B54`, // Tire image URLs
       `${DATABASE_SHEET_NAME}!A57:B60`, // Indicator image URLs
-      `${DATABASE_SHEET_NAME}!A63:B67`, // Leaderboard image URLs
+      `${DATABASE_SHEET_NAME}!A63:B70`, // Leaderboard image URLs
     ];
 
     // Loop through the ranges and fetch the data for each
@@ -217,7 +217,7 @@ async function readReferenceData() {
             const indicatorImageUrl = row[1];
             referenceData.indicatorImages[indicatorType] = indicatorImageUrl;
           }
-        } else if (range === `${DATABASE_SHEET_NAME}!A63:B67`) {
+        } else if (range === `${DATABASE_SHEET_NAME}!A63:B70`) {
           // Process leaderboard image URLs
           for (let i = 0; i < values.length; i++) {
             const row = values[i];
@@ -930,6 +930,7 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
     // Build array to update google sheet
     let gsheetLeaderboardUpdateData = [];
     for (i = 0; i < leaderboardData.length; i++) { // Loop through latest leaderboard and use reference data to find driver info
+
       let thisCarNumber = leaderboardData[i].Car;
       let carAheadNumber;
       let carAheadInPit = false;
@@ -952,6 +953,23 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
       let thisCarSpeed;
       let thisCarLastLapSpeed;
       let thisCarLastLapTime;
+
+      //Setup flag color data
+      let flagColorImg;
+      let cautionStripImg;
+      if (flagColor === 'green') {
+        flagColorImg = leaderboardImages.['Green Flag'];
+        cautionStripImg = '';
+      } else if (flagColor === 'yellow') {
+        flagColorImg = leaderboardImages.['Yellow Flag'];
+        cautionStripImg = leaderboardImages.['Caution'];
+      } else if (flagColor === 'white') {
+        flagColorImg = leaderboardImages.['White Flag'];
+        cautionStripImg = '';
+      } else {
+        flagColorImg = '';
+        cautionStripImg = '';
+      }
       
 
       //console.log("This car laps behind " + leaderboardData[i].Laps_Behind);
@@ -1045,11 +1063,11 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
           thisCarNumber, // Column 2 is Car Number
           thisDriverReferenceData.carLogo, // Column 3 is Car Logo
           thisDriverReferenceData.team, // Column 4 is Team Name
-          flagColor, // Column 5 is Team Logo
+          flagColorImg, // Column 5 is Flag Color IMG
           thisDriverReferenceData.firstName, // Column 6 is First Name
           thisDriverReferenceData.lastName, // Column 7 is Last Name
           thisDriverReferenceData.displayName, // Column 8 is Display Name
-          'total time', // Column 9 is Total Time, not built yet
+          cautionStripImg, // Column 9 is Caution Strip IMG
           thisCarTimeBehind, // Column 10 is Leader Split
           thisCarIntervalSplit, // Column 10 is Interval Split
           thisCarSpeed, // Column 12 is last known speed
