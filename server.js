@@ -958,13 +958,13 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
       let flagColorImg;
       let cautionStripImg;
       if (flagColor === 'green') {
-        flagColorImg = leaderboardImages.['Green Flag'];
+        flagColorImg = leaderboardImages['Green Flag'];
         cautionStripImg = '';
       } else if (flagColor === 'yellow') {
-        flagColorImg = leaderboardImages.['Yellow Flag'];
+        flagColorImg = leaderboardImages['Yellow Flag'];
         cautionStripImg = leaderboardImages.['Caution'];
       } else if (flagColor === 'white') {
-        flagColorImg = leaderboardImages.['White Flag'];
+        flagColorImg = leaderboardImages['White Flag'];
         cautionStripImg = '';
       } else {
         flagColorImg = '';
