@@ -962,7 +962,7 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
         cautionStripImg = '';
       } else if (flagColor === 'yellow') {
         flagColorImg = leaderboardImages['Yellow Flag'];
-        cautionStripImg = leaderboardImages.['Caution'];
+        cautionStripImg = leaderboardImages['Caution'];
       } else if (flagColor === 'white') {
         flagColorImg = leaderboardImages['White Flag'];
         cautionStripImg = '';
