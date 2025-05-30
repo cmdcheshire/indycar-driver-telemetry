@@ -1063,15 +1063,15 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
           thisCarNumber, // Column 2 is Car Number
           thisDriverReferenceData.carLogo, // Column 3 is Car Logo
           thisDriverReferenceData.team, // Column 4 is Team Name
-          flagColorImg, // Column 5 is Flag Color IMG
+          flagColorImg, // Column 5 is Flag Color IMG (only using first driver for overall)
           thisDriverReferenceData.firstName, // Column 6 is First Name
           thisDriverReferenceData.lastName, // Column 7 is Last Name
           thisDriverReferenceData.displayName, // Column 8 is Display Name
-          cautionStripImg, // Column 9 is Caution Strip IMG
+          cautionStripImg, // Column 9 is Caution Strip IMG (only using first driver for overall)
           thisCarTimeBehind, // Column 10 is Leader Split
           thisCarIntervalSplit, // Column 10 is Interval Split
           thisCarSpeed, // Column 12 is last known speed
-          'tire compound', // Column 13 is tire compound, not built yet
+          lapsCompleted, // Column 13 is total laps completed (only using first driver for overall total)
           thisCarHighlight, // Column 14 is the link to the highlight graphic URL if this is the target car
           thisCarLapData.lapNumber, // Column 15 is laps completed
           thisCarLastLapTime, // Column 16 is last lap time
