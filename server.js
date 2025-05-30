@@ -989,11 +989,11 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
       // Handler for target car highlight
       let thisCarHighlight;
       if (thisCarNumber === targetCarNumber) {
-        thisCarHighlight = referenceData.leaderboardImages['Highlight_Orange'];
+        thisCarHighlight = referenceData.leaderboardImages['Highlight_Driver1'];
       } else if (thisCarNumber === targetCar2Number) {
-        thisCarHighlight = referenceData.leaderboardImages['Highlight_Yellow']
+        thisCarHighlight = referenceData.leaderboardImages['Highlight_Driver2']
       } else if (thisCarNumber === targetCar3Number) {
-        thisCarHighlight = referenceData.leaderboardImages['Highlight_Red']
+        thisCarHighlight = referenceData.leaderboardImages['Highlight_Driver3']
       } else {
         thisCarHighlight = '';
       }
