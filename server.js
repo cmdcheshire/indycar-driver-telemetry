@@ -1458,8 +1458,8 @@ async function main() {
                 //console.log(updatedUnofficialLeaderboardData);
 
                 // Check to see if all time behind data is in the right order, if not don't update data because it will cause errors
-                console.log(result)
                 for (i = 0; i < updatedUnofficialLeaderboardData.length; i++) {
+                  console.log(updatedUnofficialLeaderboardData[i]);
                   if (i === 0) {
                     // Do nothing, can't check first driver
                   } else if (parseInt(updatedUnofficialLeaderboardData[i].Laps_Behind) > 0) {
