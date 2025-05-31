@@ -721,12 +721,12 @@ function getDriverInfoForUpdate (driverInfoCarNumber, startingRow, leaderboardDa
       ));
   }
 
-  if (driverAheadLeaderboardData === null || isNaN(currentDriverAheadSplit) || currentDriverAheadSplit === 0) {
+  if (driverAheadLeaderboardData === null || isNaN(currentDriverAheadSplit) || currentDriverAheadSplit === 0 || currentDriverAheadSplit < 0) {
       // If no driver ahead, or split is invalid/zero, reset to white
       driverAheadSplitData = {
           range: DRIVERINFO_SHEET_NAME + '!R'+startingRow+':R'+parseInt((parseInt(startingRow)+2)),
           majorDimension: 'COLUMNS',
-          values: [['', '', '']] // All white
+          values: [['-', '', '']] // All white
       };
       thisCarState.prevDriverAheadSplitColorState = 'white';
       thisCarState.prevDriverAheadSplitValue = null;
@@ -805,12 +805,12 @@ function getDriverInfoForUpdate (driverInfoCarNumber, startingRow, leaderboardDa
       ));
   }
 
-  if (driverBehindLeaderboardData === null || isNaN(currentDriverBehindSplit) || currentDriverBehindSplit === 0) {
+  if (driverBehindLeaderboardData === null || isNaN(currentDriverBehindSplit) || currentDriverBehindSplit === 0 || currentDriverBehindSplit < 0) {
       // If no driver behind, or split is invalid/zero, reset to white
       driverBehindSplitData = {
           range: DRIVERINFO_SHEET_NAME + '!S'+startingRow+':S'+parseInt((parseInt(startingRow)+2)),
           majorDimension: 'COLUMNS',
-          values: [['', '', '']] // All white
+          values: [['-', '', '']] // All white
       };
       thisCarState.prevDriverBehindSplitColorState = 'white';
       thisCarState.prevDriverBehindSplitValue = null;
