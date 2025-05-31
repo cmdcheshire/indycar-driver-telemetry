@@ -370,7 +370,7 @@ function getOrdinal(n) {
   // Check if the input is a string and matches a basic numeric format.
   // It now allows for any number of decimal places, but the output will be truncated to 3.
   if (typeof timeString !== 'string' || !/^\d+(\.\d*)?$/.test(timeString)) {
-      console.warn(`Invalid input format for time conversion: "${timeString}". Expected a numeric string. Returning original string.`);
+      //console.warn(`Invalid input format for time conversion: "${timeString}". Expected a numeric string. Returning original string.`);
       return timeString; // Return the original string for invalid input
   }
 
