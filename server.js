@@ -1478,8 +1478,18 @@ async function main() {
                       updatedUnofficialLeaderboardData[i] = latestLeaderboardData[oldLeaderboardDataIndex];
                       //console.log("Old data inserted for car in position ", i+1);
                     } else {
-                      //console.log("Cannot find old data, skipping message");
-                      throw new BadDataError ("Time behind data is bad or misordered, skipping leaderboard message.")
+                      let thisCarDNFIndex = manualDNFOverride.findIndex(item => item.carNumber === updatedUnofficialLeaderboardData[i].Car)
+                      if (thisCarDNFIndex !== -1) {
+                        updatedUnofficialLeaderboardData[i] = { // This car is DNF, adding data because it will be overwritten in google sheet update 
+                          "Car":result.Position[i].$.Car,
+                          "Rank":result.Position[i].$.Rank,
+                          "Laps_Behind":result.Position[i].$.Laps_Behind,
+                          "Time_Behind":result.Position[i].$.Time_Behind,
+                        };
+                      } else {
+                        //console.log("Cannot find old data, skipping message");
+                        throw new BadDataError ("Time behind data is bad or misordered, skipping leaderboard message.")
+                      }
                     }   
                   };
                 };
