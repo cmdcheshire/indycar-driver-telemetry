@@ -172,7 +172,7 @@ async function readReferenceData() {
       `${DATABASE_SHEET_NAME}!A2:H50`, // Driver data
       `${DATABASE_SHEET_NAME}!A52:B54`, // Tire image URLs
       `${DATABASE_SHEET_NAME}!A57:B60`, // Indicator image URLs
-      `${DATABASE_SHEET_NAME}!A63:B70`, // Leaderboard image URLs
+      `${DATABASE_SHEET_NAME}!A63:B73`, // Leaderboard image URLs
     ];
 
     // Loop through the ranges and fetch the data for each
@@ -217,7 +217,7 @@ async function readReferenceData() {
             const indicatorImageUrl = row[1];
             referenceData.indicatorImages[indicatorType] = indicatorImageUrl;
           }
-        } else if (range === `${DATABASE_SHEET_NAME}!A63:B70`) {
+        } else if (range === `${DATABASE_SHEET_NAME}!A63:B73`) {
           // Process leaderboard image URLs
           for (let i = 0; i < values.length; i++) {
             const row = values[i];
@@ -962,9 +962,15 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
         cautionStripImg = '';
       } else if (flagColor === 'yellow') {
         flagColorImg = referenceData.leaderboardImages['Yellow Flag'];
-        cautionStripImg = referenceData.leaderboardImages['Caution'];
+        cautionStripImg = referenceData.leaderboardImages['Caution Strip'];
       } else if (flagColor === 'white') {
         flagColorImg = referenceData.leaderboardImages['White Flag'];
+        cautionStripImg = '';
+      } else if (flagColor === 'red') {
+        flagColorImg = referenceData.leaderboardImages['Red Flag'];
+        cautionStripImg = referenceData.leaderboardImages['Red Strip'];
+      } else if (flagColor === 'finish') {
+        flagColorImg = referenceData.leaderboardImages['Finish Flag'];
         cautionStripImg = '';
       } else {
         flagColorImg = '';
@@ -1071,7 +1077,7 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
           thisCarTimeBehind, // Column 10 is Leader Split
           thisCarIntervalSplit, // Column 10 is Interval Split
           thisCarSpeed, // Column 12 is last known speed
-          lapsCompleted, // Column 13 is total laps completed (only using first driver for overall total)
+          parseInt(lapsCompleted) + 1, // Column 13 is total laps completed (only using first driver for overall total)
           thisCarHighlight, // Column 14 is the link to the highlight graphic URL if this is the target car
           thisCarLapData.lapNumber, // Column 15 is laps completed
           thisCarLastLapTime, // Column 16 is last lap time
