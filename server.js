@@ -51,6 +51,7 @@ let manualDNFOverride = [];
 let allLapTimesData = [];
 let averageSpeedData = [];
 let lapsCompleted = 0;
+let currentLap = 0;
 let flagColor;
 let timeElapsed;
 
@@ -642,7 +643,7 @@ function getDriverInfoForUpdate (driverInfoCarNumber, startingRow, leaderboardDa
       thisDriverReferenceData.headshot, // Column G is headshot URL (find in the tagboard graphic library and update in the google sheet 'Database')
       thisDriverReferenceData.teamLogo + ' ', // Column H is team logo (added space for formatting)
       convertSecondsToMinutesSeconds(thisDriverAllLapTimesData.fastestLapTime), // Column I is fastest lap time
-      parseInt(parseInt(lapsCompleted) + 1), // Column J is last lap number
+      currentLap, // Column J is last lap number
       convertSecondsToMinutesSeconds(thisDriverLapData.lastLapTime), // Column K is last lap time (not lapNumber as previously)
       stringToRoundedWholeString(thisDriverTelemetryData.speed), // Column L is speed
       stringToRoundedDecimalString(thisDriverAverageSpeedData.lastLapAverage), // Column M is average speed
@@ -1077,7 +1078,7 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
           thisCarTimeBehind, // Column 10 is Leader Split
           thisCarIntervalSplit, // Column 10 is Interval Split
           thisCarSpeed, // Column 12 is last known speed
-          parseInt(lapsCompleted) + 1, // Column 13 is total laps completed (only using first driver for overall total)
+          currentLap, // Column 13 is total laps completed (only using first driver for overall total)
           thisCarHighlight, // Column 14 is the link to the highlight graphic URL if this is the target car
           thisCarLapData.lapNumber, // Column 15 is laps completed
           thisCarLastLapTime, // Column 16 is last lap time
@@ -1626,6 +1627,11 @@ async function main() {
                 console.log(flagColor);
                 timeElapsed = result.$.Elapsed_Time;
                 console.log(timeElapsed);
+                if (flagColor === 'finish') {
+                  currentLap = parseInt(lapsCompleted);
+                } else {
+                  currentLap = parseInt(lapsCompleted) + 1;
+                }
               };
             } catch (error) {
               if (error instanceof BadDataError) {
