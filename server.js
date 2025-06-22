@@ -1017,7 +1017,7 @@ async function updateDriverInfoSheet(leaderboardData, telemetryData, lapData) {
         thisCarDNF = true;
         thisCarDNFImg = referenceData.leaderboardImages['DNF'];
         thisCarTimeBehind = 'DNF';
-      } else if (thisCarTelemetryData.speed === undefined ){
+      } else if (thisCarTelemetryData === undefined){
         thisCarDNF = false;
         thisCarDNFImg = '';
         thisCarSpeed = '';
