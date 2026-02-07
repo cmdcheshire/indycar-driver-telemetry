@@ -106,15 +106,13 @@ function _startPreview() {
 
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const token = getToken();
-  const url = `${protocol}//${window.location.host}/ws?token=${encodeURIComponent(token || '')}`;
+  const url = `${protocol}//${window.location.host}/ws/dashboard?token=${encodeURIComponent(token || '')}`;
 
   wsClient = new WebSocketClient(url);
 
   wsClient.on('_open', () => {
     isPreviewActive = true;
     _updateStatus(true);
-    // Subscribe to telemetry and timing data
-    wsClient.send('subscribe', { channels: ['telemetry', 'leaderboard', 'lapData', 'carStatus', 'pitStatus', 'raceState'] });
   });
 
   wsClient.on('_close', () => {
@@ -122,8 +120,8 @@ function _startPreview() {
     _updateStatus(false);
   });
 
-  // Handle incoming data for each source type
-  const dataTypes = ['telemetry', 'leaderboard', 'lapData', 'carStatus', 'pitStatus', 'raceState'];
+  // Handle incoming data — dashboard broadcasts: telemetry, leaderboard, lap, pit, carStatus, flag
+  const dataTypes = ['telemetry', 'leaderboard', 'lap', 'pit', 'carStatus', 'flag'];
   for (const type of dataTypes) {
     wsClient.on(type, (data) => _applyLiveData(type, data));
   }

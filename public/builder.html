@@ -405,6 +405,46 @@
       border-top: 1px solid var(--border);
     }
 
+    /* Overlay link section */
+    .overlay-link-section {
+      padding: 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    .overlay-link-url {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .overlay-link-url-text {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      font-family: monospace;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+      min-width: 0;
+      background: var(--card-bg);
+      padding: 4px 8px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+    }
+
+    .overlay-link-actions {
+      display: flex;
+      gap: 4px;
+      margin-top: 6px;
+    }
+
+    .overlay-link-actions .btn {
+      flex: 1;
+      font-size: 0.7rem;
+      padding: 4px 8px;
+    }
+
     /* ---- Bottom Layer Panel ---- */
     .layer-panel {
       grid-area: layers;
@@ -599,6 +639,16 @@
       </div>
       <div class="preview-section" id="previewSection">
         <!-- Preview controls populated by preview-panel.js -->
+      </div>
+      <div class="overlay-link-section" id="overlayLinkSection" style="display:none;">
+        <div class="sidebar-section-title">Overlay Link</div>
+        <div class="overlay-link-url">
+          <span class="overlay-link-url-text" id="overlayLinkUrl" title=""></span>
+        </div>
+        <div class="overlay-link-actions">
+          <button class="btn btn-sm btn-primary" id="overlayLinkCopy">Copy URL</button>
+          <a class="btn btn-sm" id="overlayLinkOpen" href="#" target="_blank" rel="noopener">Open</a>
+        </div>
       </div>
     </div>
 

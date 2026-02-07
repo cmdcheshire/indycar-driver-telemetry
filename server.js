@@ -121,7 +121,7 @@ async function main() {
     reconnect: connectTcp,
   });
 
-  connectTcp();
+  // TCP is not auto-started; use dashboard "Reconnect TCP" or simulator for data
 
   // Periodic session cleanup
   setInterval(() => authService.cleanExpiredSessions(), 3600000);
