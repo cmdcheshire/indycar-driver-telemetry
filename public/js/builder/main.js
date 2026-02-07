@@ -1,0 +1,781 @@
+/**
+ * Overlay Builder - Main entry point.
+ * Initializes canvas, tools, panels, and wires together all subsystems.
+ */
+
+import { initAuth, isAuthenticated } from '/js/modules/auth.js';
+import { showToast } from '/js/modules/ui.js';
+
+import { CanvasEngine } from './canvas-engine.js';
+import { SelectionManager } from './selection-manager.js';
+import { DragEngine } from './drag-engine.js';
+import { SnapEngine } from './snap-engine.js';
+import { HistoryManager } from './history-manager.js';
+import { TemplateManager } from './template-manager.js';
+import {
+  createTextElement,
+  createImageElement,
+  createShapeElement,
+  createDataElement,
+  cloneElement,
+} from './element-factory.js';
+import {
+  groupElements,
+  ungroupElement,
+  getGroupMembers,
+  getElementGroupId,
+  getAllGroupIds,
+} from './group-manager.js';
+import { resolveBindingPreview } from './data-binding.js';
+
+import { initToolsPanel, getActiveTool, setActiveTool, handleToolShortcut } from './panels/tools-panel.js';
+import { initLayerPanel, renderLayerPanel } from './panels/layer-panel.js';
+import { initPropertiesPanel, updatePropertiesPanel } from './panels/properties-panel.js';
+import { renderDataPanel } from './panels/data-panel.js';
+import { initDataPanel } from './panels/data-panel.js';
+import { initPreviewPanel, destroyPreviewPanel } from './panels/preview-panel.js';
+
+/* ================================================================ *
+ *  State
+ * ================================================================ */
+
+/** @type {object[]} Master elements array */
+let elements = [];
+
+/** @type {CanvasEngine} */
+let canvas;
+/** @type {SelectionManager} */
+let selection;
+/** @type {DragEngine} */
+let dragEngine;
+/** @type {SnapEngine} */
+let snapEngine;
+/** @type {HistoryManager} */
+let history;
+/** @type {TemplateManager} */
+let templateManager;
+
+/* ================================================================ *
+ *  Bootstrap
+ * ================================================================ */
+
+document.addEventListener('DOMContentLoaded', () => {
+  // Auth check
+  if (!initAuth() || !isAuthenticated()) {
+    window.location.href = '/';
+    return;
+  }
+
+  _initCanvas();
+  _initEngines();
+  _initPanels();
+  _initToolbar();
+  _initKeyboardShortcuts();
+  _initCanvasInteractions();
+  _loadFromUrl();
+
+  // Initial history snapshot
+  history.push(elements);
+
+  console.log('Overlay Builder initialized');
+});
+
+/* ================================================================ *
+ *  Initialization
+ * ================================================================ */
+
+function _initCanvas() {
+  const containerEl = document.getElementById('canvasContainer');
+  const wrapperEl = document.getElementById('canvasWrapper');
+  canvas = new CanvasEngine(containerEl, wrapperEl);
+}
+
+function _initEngines() {
+  const containerEl = document.getElementById('canvasContainer');
+
+  snapEngine = new SnapEngine(containerEl);
+
+  selection = new SelectionManager(containerEl, (selectedIds) => {
+    _onSelectionChanged(selectedIds);
+  });
+
+  dragEngine = new DragEngine(
+    canvas,
+    snapEngine,
+    // onUpdate: update element in real-time during drag
+    (id, props) => {
+      _updateElementInPlace(id, props);
+      canvas.updateElement(id, props);
+      const el = _getElementById(id);
+      if (el) selection.updateSelectionHandles(el);
+    },
+    // onDragEnd: push history snapshot
+    (id) => {
+      _pushHistory();
+      _refreshPanels();
+    },
+  );
+
+  history = new HistoryManager((state) => {
+    document.getElementById('btnUndo').disabled = !state.canUndo;
+    document.getElementById('btnRedo').disabled = !state.canRedo;
+  });
+
+  templateManager = new TemplateManager();
+}
+
+function _initPanels() {
+  // Tools
+  initToolsPanel({
+    onToolChange: (toolId) => {
+      if (toolId !== 'select') {
+        selection.deselectAll();
+      }
+    },
+  });
+
+  // Layers
+  initLayerPanel({
+    getElements: () => elements,
+    getSelectedIds: () => selection.getSelected(),
+    onSelect: (id) => {
+      selection.selectElement(id);
+      setActiveTool('select');
+    },
+    onReorder: (elementId, newIndex) => {
+      _reorderElementToIndex(elementId, newIndex);
+      _pushHistory();
+    },
+    onVisibilityToggle: (id) => {
+      const el = _getElementById(id);
+      if (el) {
+        el.visible = !el.visible;
+        canvas.updateElement(id, { visible: el.visible });
+        _refreshPanels();
+      }
+    },
+    onLockToggle: (id) => {
+      const el = _getElementById(id);
+      if (el) {
+        el.locked = !el.locked;
+        canvas.updateElement(id, { locked: el.locked });
+        _refreshPanels();
+      }
+    },
+  });
+
+  // Properties
+  initPropertiesPanel({
+    onPropertyChange: (id, changes) => {
+      _applyPropertyChange(id, changes);
+    },
+  });
+
+  // Data
+  initDataPanel({
+    onBindingChange: (id, changes) => {
+      _applyPropertyChange(id, changes);
+    },
+  });
+
+  // Preview
+  initPreviewPanel({
+    getElements: () => elements,
+    onDataUpdate: (id, changes) => {
+      _updateElementInPlace(id, changes);
+      canvas.updateElement(id, changes);
+    },
+  });
+
+  // Load template list
+  _refreshTemplateList();
+}
+
+function _initToolbar() {
+  // Save
+  document.getElementById('btnSave').addEventListener('click', () => _save());
+
+  // Undo / Redo
+  document.getElementById('btnUndo').addEventListener('click', () => _undo());
+  document.getElementById('btnRedo').addEventListener('click', () => _redo());
+
+  // Zoom
+  document.getElementById('btnZoomIn').addEventListener('click', () => {
+    const z = canvas.setZoom(canvas.getZoom() + 0.1);
+    _updateZoomDisplay(z);
+  });
+  document.getElementById('btnZoomOut').addEventListener('click', () => {
+    const z = canvas.setZoom(canvas.getZoom() - 0.1);
+    _updateZoomDisplay(z);
+  });
+  document.getElementById('btnZoomFit').addEventListener('click', () => {
+    _zoomToFit();
+  });
+
+  // Group / Ungroup
+  document.getElementById('btnGroupLayers').addEventListener('click', () => _groupSelected());
+  document.getElementById('btnUngroupLayers').addEventListener('click', () => _ungroupSelected());
+}
+
+function _initKeyboardShortcuts() {
+  document.addEventListener('keydown', (e) => {
+    const target = e.target;
+    const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT';
+
+    // Ctrl+S: Save
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      e.preventDefault();
+      _save();
+      return;
+    }
+
+    // Ctrl+Z: Undo
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+      e.preventDefault();
+      _undo();
+      return;
+    }
+
+    // Ctrl+Shift+Z: Redo
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z' && e.shiftKey) {
+      e.preventDefault();
+      _redo();
+      return;
+    }
+
+    // Ctrl+D: Duplicate
+    if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+      e.preventDefault();
+      _duplicateSelected();
+      return;
+    }
+
+    // Ctrl+G: Group
+    if ((e.ctrlKey || e.metaKey) && e.key === 'g' && !e.shiftKey) {
+      e.preventDefault();
+      _groupSelected();
+      return;
+    }
+
+    // Ctrl+Shift+G: Ungroup
+    if ((e.ctrlKey || e.metaKey) && e.key === 'g' && e.shiftKey) {
+      e.preventDefault();
+      _ungroupSelected();
+      return;
+    }
+
+    // Don't handle shortcuts if typing in an input
+    if (isInput) return;
+
+    // Delete / Backspace: Remove
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      e.preventDefault();
+      _deleteSelected();
+      return;
+    }
+
+    // Escape: Deselect
+    if (e.key === 'Escape') {
+      selection.deselectAll();
+      setActiveTool('select');
+      return;
+    }
+
+    // Tool shortcuts (single letter keys)
+    if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+      handleToolShortcut(e.key.toLowerCase());
+    }
+  });
+}
+
+function _initCanvasInteractions() {
+  const containerEl = document.getElementById('canvasContainer');
+
+  containerEl.addEventListener('mousedown', (e) => {
+    const tool = getActiveTool();
+
+    if (tool !== 'select') {
+      // Creation tools: create element at click position
+      _createElementAtMouse(tool, e);
+      return;
+    }
+
+    // Check if we clicked on a selection handle
+    const handleEl = e.target.closest('[data-handle]');
+    if (handleEl) {
+      const handleType = handleEl.dataset.handle;
+      const selectedId = selection.getSingleSelected();
+      const el = selectedId ? _getElementById(selectedId) : null;
+      if (el) {
+        if (handleType === 'rotate') {
+          dragEngine.startRotate(el, e);
+        } else {
+          dragEngine.startResize(el, handleType, e);
+        }
+        return;
+      }
+    }
+
+    // Check if we clicked on a canvas element
+    const elementNode = e.target.closest('.canvas-element');
+    if (elementNode) {
+      const id = elementNode.dataset.elementId;
+      const el = _getElementById(id);
+      if (!el) return;
+
+      // If element is locked, don't allow interaction
+      if (el.locked) return;
+
+      // Multi-select with Shift
+      if (e.shiftKey) {
+        selection.toggleSelection(id);
+      } else {
+        // If clicking on an element in a group, select all group members
+        if (el.groupId) {
+          const groupMembers = getGroupMembers(el.groupId, elements);
+          selection.multiSelect(groupMembers);
+        } else {
+          selection.selectElement(id);
+        }
+      }
+
+      // Start drag
+      dragEngine.startDrag(el, e);
+      return;
+    }
+
+    // Clicked on empty canvas: deselect
+    selection.deselectAll();
+  });
+
+  // Mouse wheel zoom on canvas area
+  document.getElementById('canvasArea').addEventListener('wheel', (e) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? -0.05 : 0.05;
+      const z = canvas.setZoom(canvas.getZoom() + delta);
+      _updateZoomDisplay(z);
+    }
+  }, { passive: false });
+}
+
+/* ================================================================ *
+ *  Element operations
+ * ================================================================ */
+
+function _createElementAtMouse(tool, event) {
+  const pos = canvas.screenToCanvas(event.clientX, event.clientY);
+  let el;
+
+  switch (tool) {
+    case 'text':
+      el = createTextElement(pos.x, pos.y);
+      break;
+    case 'image':
+      el = createImageElement(pos.x, pos.y);
+      break;
+    case 'shape':
+      el = createShapeElement(pos.x, pos.y);
+      break;
+    case 'data':
+      el = createDataElement(pos.x, pos.y);
+      // Set default preview value
+      el.props._previewValue = resolveBindingPreview(el.props);
+      break;
+    default:
+      return;
+  }
+
+  // Assign z-index based on current count
+  el.zIndex = elements.length;
+
+  elements.push(el);
+  canvas.addElement(el);
+  _pushHistory();
+
+  // Switch back to select tool and select the new element
+  setActiveTool('select');
+  selection.selectElement(el.id);
+
+  showToast(`${el.type} element created`, 'info', 2000);
+}
+
+function _deleteSelected() {
+  const selectedIds = selection.getSelected();
+  if (selectedIds.length === 0) return;
+
+  for (const id of selectedIds) {
+    canvas.removeElement(id);
+    elements = elements.filter(e => e.id !== id);
+  }
+
+  selection.deselectAll();
+  _pushHistory();
+  _refreshPanels();
+  showToast('Element(s) deleted', 'info', 2000);
+}
+
+function _duplicateSelected() {
+  const selectedIds = selection.getSelected();
+  if (selectedIds.length === 0) return;
+
+  const newIds = [];
+  for (const id of selectedIds) {
+    const original = _getElementById(id);
+    if (!original) continue;
+    const clone = cloneElement(original);
+    clone.zIndex = elements.length;
+    elements.push(clone);
+    canvas.addElement(clone);
+    newIds.push(clone.id);
+  }
+
+  selection.multiSelect(newIds);
+  _pushHistory();
+  _refreshPanels();
+  showToast('Element(s) duplicated', 'info', 2000);
+}
+
+function _groupSelected() {
+  const selectedIds = selection.getSelected();
+  if (selectedIds.length < 2) {
+    showToast('Select 2 or more elements to group', 'warning', 3000);
+    return;
+  }
+  groupElements(selectedIds, elements);
+  _pushHistory();
+  _refreshPanels();
+  showToast('Elements grouped', 'info', 2000);
+}
+
+function _ungroupSelected() {
+  const selectedIds = selection.getSelected();
+  if (selectedIds.length === 0) return;
+
+  for (const id of selectedIds) {
+    const groupId = getElementGroupId(id, elements);
+    if (groupId) {
+      ungroupElement(groupId, elements);
+    }
+  }
+
+  _pushHistory();
+  _refreshPanels();
+  showToast('Elements ungrouped', 'info', 2000);
+}
+
+function _applyPropertyChange(id, changes) {
+  _updateElementInPlace(id, changes);
+  canvas.updateElement(id, changes);
+
+  const el = _getElementById(id);
+  if (el) {
+    selection.updateSelectionHandles(el);
+  }
+
+  // Don't push history on every keystroke; debounce
+  _debouncedPushHistory();
+  renderLayerPanel();
+}
+
+function _reorderElementToIndex(elementId, targetIndex) {
+  // Re-assign z-indices so that elementId ends up at targetIndex position
+  const sorted = [...elements].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+  const fromIdx = sorted.findIndex(e => e.id === elementId);
+  if (fromIdx === -1 || fromIdx === targetIndex) return;
+
+  const [moved] = sorted.splice(fromIdx, 1);
+  sorted.splice(targetIndex, 0, moved);
+
+  // Re-assign z-indices
+  sorted.forEach((el, i) => {
+    el.zIndex = i;
+    canvas.reorderElement(el.id, i);
+  });
+
+  _refreshPanels();
+}
+
+/* ================================================================ *
+ *  History
+ * ================================================================ */
+
+function _pushHistory() {
+  history.push(elements.map(e => JSON.parse(JSON.stringify(e))));
+}
+
+let _historyDebounceTimer = null;
+function _debouncedPushHistory() {
+  if (_historyDebounceTimer) clearTimeout(_historyDebounceTimer);
+  _historyDebounceTimer = setTimeout(() => _pushHistory(), 500);
+}
+
+function _undo() {
+  const state = history.undo();
+  if (state) {
+    _restoreState(state);
+    showToast('Undo', 'info', 1500);
+  }
+}
+
+function _redo() {
+  const state = history.redo();
+  if (state) {
+    _restoreState(state);
+    showToast('Redo', 'info', 1500);
+  }
+}
+
+function _restoreState(state) {
+  elements = state;
+  canvas.loadElements(elements);
+  selection.deselectAll();
+  _refreshPanels();
+}
+
+/* ================================================================ *
+ *  Save / Load
+ * ================================================================ */
+
+async function _save() {
+  const name = document.getElementById('templateName').value.trim() || 'Untitled Template';
+  const type = document.getElementById('templateType').value;
+  const groupIds = getAllGroupIds(elements);
+  const { width, height } = canvas.canvasSize;
+
+  try {
+    await templateManager.save(name, type, elements, groupIds, width, height);
+    showToast('Template saved', 'success');
+    _refreshTemplateList();
+
+    // Update URL with template ID if new
+    if (templateManager.currentId) {
+      const url = new URL(window.location);
+      url.searchParams.set('id', templateManager.currentId);
+      window.history.replaceState({}, '', url);
+    }
+  } catch (err) {
+    showToast(`Save failed: ${err.message}`, 'error');
+    console.error('Save error:', err);
+  }
+}
+
+async function _loadFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get('id');
+  if (!id) return;
+
+  try {
+    const template = await templateManager.load(id);
+    document.getElementById('templateName').value = template.name || 'Untitled';
+    document.getElementById('templateType').value = template.type || 'custom';
+    elements = template.elements || [];
+
+    // Assign z-indices if missing
+    elements.forEach((el, i) => {
+      if (el.zIndex === undefined) el.zIndex = i;
+    });
+
+    canvas.loadElements(elements);
+    history.clear();
+    history.push(elements.map(e => JSON.parse(JSON.stringify(e))));
+    _refreshPanels();
+    showToast(`Loaded "${template.name}"`, 'success');
+  } catch (err) {
+    showToast(`Failed to load template: ${err.message}`, 'error');
+    console.error('Load error:', err);
+  }
+}
+
+async function _loadTemplate(id) {
+  try {
+    const template = await templateManager.load(id);
+    document.getElementById('templateName').value = template.name || 'Untitled';
+    document.getElementById('templateType').value = template.type || 'custom';
+    elements = template.elements || [];
+
+    elements.forEach((el, i) => {
+      if (el.zIndex === undefined) el.zIndex = i;
+    });
+
+    canvas.loadElements(elements);
+    selection.deselectAll();
+    history.clear();
+    history.push(elements.map(e => JSON.parse(JSON.stringify(e))));
+    _refreshPanels();
+
+    // Update URL
+    const url = new URL(window.location);
+    url.searchParams.set('id', id);
+    window.history.replaceState({}, '', url);
+
+    showToast(`Loaded "${template.name}"`, 'success');
+  } catch (err) {
+    showToast(`Failed to load: ${err.message}`, 'error');
+  }
+}
+
+async function _refreshTemplateList() {
+  const listEl = document.getElementById('templateList');
+  if (!listEl) return;
+
+  try {
+    const templates = await templateManager.list();
+    listEl.innerHTML = '';
+
+    if (templates.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'text-sm text-muted';
+      empty.style.padding = '12px';
+      empty.textContent = 'No saved templates';
+      listEl.appendChild(empty);
+      return;
+    }
+
+    for (const tmpl of templates) {
+      const item = document.createElement('div');
+      item.className = 'template-list-item';
+
+      const name = document.createElement('span');
+      name.className = 'tmpl-name';
+      name.textContent = tmpl.name || 'Untitled';
+      item.appendChild(name);
+
+      const type = document.createElement('span');
+      type.className = 'tmpl-type';
+      type.textContent = tmpl.type || '';
+      item.appendChild(type);
+
+      const actions = document.createElement('div');
+      actions.className = 'tmpl-actions';
+
+      const dupBtn = document.createElement('button');
+      dupBtn.className = 'tmpl-action-btn';
+      dupBtn.textContent = 'Dup';
+      dupBtn.title = 'Duplicate';
+      dupBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        try {
+          await templateManager.duplicate(tmpl.id);
+          _refreshTemplateList();
+          showToast('Template duplicated', 'success');
+        } catch (err) {
+          showToast(`Duplicate failed: ${err.message}`, 'error');
+        }
+      });
+      actions.appendChild(dupBtn);
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'tmpl-action-btn delete';
+      delBtn.textContent = 'Del';
+      delBtn.title = 'Delete';
+      delBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (!confirm(`Delete "${tmpl.name}"?`)) return;
+        try {
+          await templateManager.delete(tmpl.id);
+          _refreshTemplateList();
+          showToast('Template deleted', 'info');
+        } catch (err) {
+          showToast(`Delete failed: ${err.message}`, 'error');
+        }
+      });
+      actions.appendChild(delBtn);
+
+      item.appendChild(actions);
+
+      item.addEventListener('click', () => _loadTemplate(tmpl.id));
+      listEl.appendChild(item);
+    }
+  } catch (err) {
+    console.error('Failed to load template list:', err);
+  }
+}
+
+/* ================================================================ *
+ *  Selection / Panel refresh
+ * ================================================================ */
+
+function _onSelectionChanged(selectedIds) {
+  // Show/hide selection handles
+  selection.clearSelectionHandles();
+
+  if (selectedIds.length === 1) {
+    const el = _getElementById(selectedIds[0]);
+    const node = canvas.getNode(selectedIds[0]);
+    if (el && node) {
+      selection.renderSelectionHandles(el, node);
+      updatePropertiesPanel(el);
+
+      // Render data panel if it's a data element
+      const dataPanelContainer = document.getElementById('previewSection');
+      if (el.type === 'data' && dataPanelContainer) {
+        renderDataPanel(dataPanelContainer, el);
+      } else if (dataPanelContainer) {
+        // Reset preview section if not a data element
+        initPreviewPanel({
+          getElements: () => elements,
+          onDataUpdate: (id, changes) => {
+            _updateElementInPlace(id, changes);
+            canvas.updateElement(id, changes);
+          },
+        });
+      }
+    }
+  } else {
+    updatePropertiesPanel(null);
+  }
+
+  renderLayerPanel();
+}
+
+function _refreshPanels() {
+  renderLayerPanel();
+
+  const selectedIds = selection.getSelected();
+  if (selectedIds.length === 1) {
+    const el = _getElementById(selectedIds[0]);
+    updatePropertiesPanel(el || null);
+  } else {
+    updatePropertiesPanel(null);
+  }
+}
+
+/* ================================================================ *
+ *  Zoom
+ * ================================================================ */
+
+function _updateZoomDisplay(zoom) {
+  document.getElementById('zoomDisplay').textContent = `${Math.round(zoom * 100)}%`;
+}
+
+function _zoomToFit() {
+  const area = document.getElementById('canvasArea');
+  const areaRect = area.getBoundingClientRect();
+  const padding = 40;
+  const scaleX = (areaRect.width - padding * 2) / 1920;
+  const scaleY = (areaRect.height - padding * 2) / 1080;
+  const z = canvas.setZoom(Math.min(scaleX, scaleY));
+  _updateZoomDisplay(z);
+}
+
+/* ================================================================ *
+ *  Helpers
+ * ================================================================ */
+
+function _getElementById(id) {
+  return elements.find(e => e.id === id) || null;
+}
+
+function _updateElementInPlace(id, changes) {
+  const el = _getElementById(id);
+  if (!el) return;
+
+  for (const [key, value] of Object.entries(changes)) {
+    if (key === 'props' && typeof value === 'object') {
+      el.props = { ...el.props, ...value };
+    } else {
+      el[key] = value;
+    }
+  }
+}

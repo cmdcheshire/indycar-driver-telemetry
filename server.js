@@ -1,67 +1,147 @@
-const config = require('./src/config');
-const state = require('./src/race-state');
-const sheets = require('./src/google-sheets');
-const TcpClient = require('./src/tcp-client');
-const { processMessage } = require('./src/message-processor');
+require('dotenv').config();
 
-let leaderboardInterval = null;
-let driverInfoInterval = null;
+const http = require('http');
+const express = require('express');
+const path = require('path');
+
+const constants = require('./src/config/constants');
+const { initializeDatabase, getSetting } = require('./src/config/database');
+const { registerRoutes } = require('./src/routes/index');
+const { httpLogger } = require('./src/middleware/logging.middleware');
+const wsService = require('./src/services/websocket.service');
+const metricsService = require('./src/services/metrics.service');
+const referenceService = require('./src/services/reference-data.service');
+const overlayService = require('./src/services/overlay.service');
+const { initializeFirstRun } = require('./src/utils/init.util');
+const authService = require('./src/services/auth.service');
+
+const state = require('./src/telemetry/race-state');
+const TcpClient = require('./src/telemetry/tcp-client');
+const { processMessage } = require('./src/telemetry/message-processor');
+
+let tcp = null;
 
 async function main() {
-  // Authenticate with Google Sheets (two accounts for rate-limit headroom)
-  await sheets.authenticateLeaderboardAccount();
-  await sheets.authenticateTelemetryAccount();
+  console.log(`\n${constants.APP_NAME} v${constants.APP_VERSION}`);
+  console.log('─'.repeat(50));
 
-  // Load configuration and reference data from control sheet
-  await sheets.readIpInformation();
-  await sheets.readReferenceData();
-  await sheets.readAllTargetCars();
+  // Initialize database
+  initializeDatabase();
+  await initializeFirstRun();
 
-  // Connect to IndyCar telemetry TCP stream
-  const tcp = new TcpClient();
-  tcp.on('message', processMessage);
-  tcp.on('error', () => {
-    tcp.destroy();
-    console.log(`Reconnecting in ${config.RECONNECT_DELAY / 1000}s...`);
-    setTimeout(() => tcp.connect(state.tcpHost, state.tcpPort), config.RECONNECT_DELAY);
+  // Load settings into state
+  state.tcpHost = getSetting('tcp_host') || constants.DEFAULT_TCP_HOST;
+  state.tcpPort = parseInt(getSetting('tcp_port'), 10) || constants.DEFAULT_TCP_PORT;
+  state.isOnline = getSetting('is_online') === 'true';
+  state.targetCarNumbers = JSON.parse(getSetting('target_cars') || '[null,null,null]');
+
+  // Load manual DNF from settings
+  const dnfList = JSON.parse(getSetting('manual_dnf') || '[]');
+
+  // Load reference data from database
+  referenceService.loadReferenceData();
+
+  // Apply stored DNF overrides after driver data is initialized
+  for (const carNumber of dnfList) {
+    const entry = state.manualDNFOverride.find(d => d.carNumber === carNumber);
+    if (entry) entry.DNF = true;
+  }
+
+  // Create Express app
+  const app = express();
+  app.use(express.json());
+  app.use(express.urlencoded({ extended: true }));
+  app.use(httpLogger);
+  app.use(express.static(path.join(__dirname, 'public')));
+
+  // Register API routes
+  registerRoutes(app);
+
+  // Overlay renderer route (public, token-based auth)
+  app.get('/overlay/:accessToken', (req, res) => {
+    const instance = overlayService.getInstanceByToken(req.params.accessToken);
+    if (!instance) return res.status(404).send('Overlay not found');
+    res.sendFile(path.join(__dirname, 'public', 'overlay.html'));
   });
-  tcp.connect(state.tcpHost, state.tcpPort);
 
-  // Periodic control-plane check: online status, target cars, DNF overrides
-  setInterval(async () => {
-    try {
-      const online = await sheets.checkOnlineStatusAndUpdateHeartbeat();
+  // SPA fallback
+  app.get('/dashboard', (req, res) => res.sendFile(path.join(__dirname, 'public', 'dashboard.html')));
+  app.get('/builder', (req, res) => res.sendFile(path.join(__dirname, 'public', 'builder.html')));
+  app.get('/builder/:id', (req, res) => res.sendFile(path.join(__dirname, 'public', 'builder.html')));
 
-      if (online) {
-        await sheets.readAllTargetCars();
+  // Create HTTP server
+  const server = http.createServer(app);
 
-        // Start periodic sheet updates if not already running
-        if (!leaderboardInterval) {
-          leaderboardInterval = setInterval(sheets.periodicUpdateLeaderboard, config.LEADERBOARD_UPDATE_INTERVAL);
-          console.log(`Leaderboard updates started (${config.LEADERBOARD_UPDATE_INTERVAL}ms)`);
-        }
-        if (!driverInfoInterval) {
-          driverInfoInterval = setInterval(sheets.periodicUpdateDriverInfo, config.DRIVER_INFO_UPDATE_INTERVAL);
-          console.log(`Driver info updates started (${config.DRIVER_INFO_UPDATE_INTERVAL}ms)`);
-        }
-      } else {
-        // Stop updates when offline
-        if (leaderboardInterval) {
-          clearInterval(leaderboardInterval);
-          leaderboardInterval = null;
-          console.log('Leaderboard updates stopped.');
-        }
-        if (driverInfoInterval) {
-          clearInterval(driverInfoInterval);
-          driverInfoInterval = null;
-          console.log('Driver info updates stopped.');
-        }
-        state.resetLiveData();
-      }
-    } catch (error) {
-      console.error('Error in control loop:', error.message);
-    }
-  }, config.ONLINE_CHECK_INTERVAL);
+  // Initialize WebSocket on the HTTP server
+  wsService.initialize(server);
+  metricsService.start();
+
+  // TCP connection management
+  function connectTcp() {
+    if (tcp) tcp.destroy();
+
+    tcp = new TcpClient();
+
+    tcp.on('message', ({ type, raw }) => {
+      metricsService.recordMessage(type);
+      processMessage({ type, raw });
+    });
+
+    tcp.on('connected', () => {
+      wsService.setTcpStatus({
+        connected: true,
+        host: state.tcpHost,
+        port: state.tcpPort,
+        connectedAt: new Date().toISOString(),
+      });
+    });
+
+    tcp.on('disconnected', () => {
+      wsService.setTcpStatus({ connected: false, host: state.tcpHost, port: state.tcpPort, connectedAt: null });
+    });
+
+    tcp.on('error', () => {
+      wsService.setTcpStatus({ connected: false, host: state.tcpHost, port: state.tcpPort, connectedAt: null });
+      tcp.destroy();
+      console.log(`TCP reconnecting in ${constants.RECONNECT_DELAY / 1000}s...`);
+      setTimeout(() => connectTcp(), constants.RECONNECT_DELAY);
+    });
+
+    tcp.connect(state.tcpHost, state.tcpPort);
+  }
+
+  app.set('tcpReconnect', connectTcp);
+  connectTcp();
+
+  // Periodic session cleanup
+  setInterval(() => authService.cleanExpiredSessions(), 3600000);
+
+  // Start HTTP server
+  server.listen(constants.PORT, () => {
+    console.log(`\nServer running at http://localhost:${constants.PORT}`);
+    console.log(`Dashboard:  http://localhost:${constants.PORT}/dashboard`);
+    console.log(`Builder:    http://localhost:${constants.PORT}/builder`);
+    console.log(`TCP target: ${state.tcpHost}:${state.tcpPort}`);
+    console.log(`Online:     ${state.isOnline}`);
+    console.log('─'.repeat(50));
+  });
+
+  // Graceful shutdown
+  process.on('SIGTERM', () => shutdown(server));
+  process.on('SIGINT', () => shutdown(server));
+}
+
+function shutdown(server) {
+  console.log('\nShutting down...');
+  metricsService.stop();
+  wsService.shutdown();
+  if (tcp) tcp.destroy();
+  const { closeDatabase } = require('./src/config/database');
+  closeDatabase();
+  server.close(() => {
+    console.log('Server stopped.');
+    process.exit(0);
+  });
 }
 
 main().catch(err => {
