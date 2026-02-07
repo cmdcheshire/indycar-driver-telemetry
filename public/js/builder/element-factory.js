@@ -3,6 +3,17 @@
  * All coordinates and sizes are in canvas percentages (0-100).
  */
 
+/** Generate a UUID — works in non-secure (HTTP) contexts unlike crypto.randomUUID(). */
+function _uuid() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random() * 16 | 0;
+    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+  });
+}
+
 /**
  * Create a text element at the given canvas position.
  * @param {number} x - X position as percentage
@@ -11,7 +22,7 @@
  */
 export function createTextElement(x = 10, y = 10) {
   return {
-    id: crypto.randomUUID(),
+    id: _uuid(),
     type: 'text',
     name: 'Text',
     visible: true,
@@ -52,7 +63,7 @@ export function createTextElement(x = 10, y = 10) {
  */
 export function createImageElement(x = 10, y = 10) {
   return {
-    id: crypto.randomUUID(),
+    id: _uuid(),
     type: 'image',
     name: 'Image',
     visible: true,
@@ -86,7 +97,7 @@ export function createImageElement(x = 10, y = 10) {
  */
 export function createShapeElement(x = 10, y = 10) {
   return {
-    id: crypto.randomUUID(),
+    id: _uuid(),
     type: 'shape',
     name: 'Rectangle',
     visible: true,
@@ -123,7 +134,7 @@ export function createShapeElement(x = 10, y = 10) {
  */
 export function createDataElement(x = 10, y = 10) {
   return {
-    id: crypto.randomUUID(),
+    id: _uuid(),
     type: 'data',
     name: 'Data Binding',
     visible: true,
@@ -175,7 +186,7 @@ export function createDataElement(x = 10, y = 10) {
  */
 export function cloneElement(element) {
   const clone = JSON.parse(JSON.stringify(element));
-  clone.id = crypto.randomUUID();
+  clone.id = _uuid();
   clone.name = `${element.name} Copy`;
   clone.x += 2;
   clone.y += 2;

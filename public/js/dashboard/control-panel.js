@@ -17,6 +17,7 @@ let targetCarEls = [null, null, null];
 let dnfListEl = null;
 
 // ── State ──
+/** @type {{ car_number: string, driver_name?: string, name?: string }[]} */
 let driverList = [];         // { car_number, driver_name, ... }[]
 let currentDnfOverrides = []; // carNumber[] that are currently DNF
 let isUpdating = false;       // Guard against echoing back our own changes
@@ -306,6 +307,14 @@ async function handleDnfToggle(carNumber, isDNF) {
 /**
  * Save the current target car selections to the server.
  */
+/**
+ * Return the loaded driver list for use by other modules.
+ * @returns {{ car_number: string, driver_name?: string, name?: string }[]}
+ */
+export function getDriverList() {
+  return driverList;
+}
+
 async function saveTargetCars() {
   if (isUpdating) return;
 

@@ -13,6 +13,8 @@ let leaderboardBodyEl = null;
 // ── State ──
 let currentFlag = null;
 let leaderboardData = [];
+/** @type {Map<string, string>} carNumber -> display name */
+let driverMap = new Map();
 
 /**
  * Map flag color string to display label.
@@ -34,6 +36,14 @@ export function initRaceStatus() {
   elapsedTimeEl = document.getElementById('elapsedTime');
   carCountEl = document.getElementById('carCount');
   leaderboardBodyEl = document.getElementById('leaderboardBody');
+}
+
+/**
+ * Set the driver reference map for leaderboard name lookups.
+ * @param {Map<string, string>} map - carNumber -> display name
+ */
+export function setDriverMap(map) {
+  driverMap = map;
 }
 
 /**
@@ -99,9 +109,10 @@ export function updateTelemetry(data) {
 
 /**
  * Update the leaderboard table with the latest standings data.
+ * Data from the telemetry pipeline uses uppercase/snake_case field names:
+ *   { Car, Rank, Laps_Behind, Time_Behind }
  *
  * @param {Array} data - Array of leaderboard entry objects, sorted by position.
- *   Each entry: { rank, carNumber, driverName, speed, timeBehindLeader, interval, ... }
  */
 export function updateLeaderboard(data) {
   if (!Array.isArray(data) || !leaderboardBodyEl) return;
@@ -109,7 +120,7 @@ export function updateLeaderboard(data) {
   leaderboardData = data;
 
   if (data.length === 0) {
-    leaderboardBodyEl.innerHTML = '<tr><td colspan="6" class="empty-state">Waiting for race data...</td></tr>';
+    leaderboardBodyEl.innerHTML = '<tr><td colspan="5" class="empty-state">Waiting for race data...</td></tr>';
     return;
   }
 
@@ -120,41 +131,38 @@ export function updateLeaderboard(data) {
     const entry = data[i];
     const tr = document.createElement('tr');
 
+    const carNumber = entry.Car || entry.carNumber || '--';
+
     // Position / rank
     const tdRank = document.createElement('td');
     tdRank.className = 'leaderboard-rank';
-    tdRank.textContent = entry.rank || entry.position || (i + 1);
+    tdRank.textContent = entry.Rank || entry.rank || (i + 1);
     tr.appendChild(tdRank);
 
     // Car number
     const tdCar = document.createElement('td');
     tdCar.className = 'leaderboard-car';
-    tdCar.textContent = entry.carNumber || '--';
+    tdCar.textContent = carNumber;
     tr.appendChild(tdCar);
 
-    // Driver name
+    // Driver name (from reference data)
     const tdDriver = document.createElement('td');
     tdDriver.className = 'leaderboard-driver';
-    tdDriver.textContent = entry.driverName || entry.driver || '--';
+    tdDriver.textContent = driverMap.get(carNumber) || '--';
     tr.appendChild(tdDriver);
 
-    // Speed
-    const tdSpeed = document.createElement('td');
-    tdSpeed.className = 'leaderboard-speed';
-    tdSpeed.textContent = formatSpeed(entry.speed || entry.lastSpeed);
-    tr.appendChild(tdSpeed);
+    // Laps behind
+    const tdLaps = document.createElement('td');
+    tdLaps.className = 'leaderboard-laps';
+    const lapsBehind = parseInt(entry.Laps_Behind || entry.lapsBehind || '0', 10);
+    tdLaps.textContent = lapsBehind > 0 ? `+${lapsBehind}L` : '--';
+    tr.appendChild(tdLaps);
 
     // Time behind leader (gap)
     const tdGap = document.createElement('td');
     tdGap.className = 'leaderboard-gap';
-    tdGap.textContent = formatGap(entry.timeBehindLeader || entry.gap);
+    tdGap.textContent = formatGap(entry.Time_Behind || entry.timeBehindLeader);
     tr.appendChild(tdGap);
-
-    // Interval to car ahead
-    const tdInterval = document.createElement('td');
-    tdInterval.className = 'leaderboard-interval';
-    tdInterval.textContent = formatGap(entry.interval);
-    tr.appendChild(tdInterval);
 
     fragment.appendChild(tr);
   }

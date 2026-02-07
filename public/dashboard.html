@@ -390,16 +390,12 @@
       text-overflow: ellipsis;
     }
 
-    .leaderboard-speed {
+    .leaderboard-laps {
       color: var(--text-muted);
     }
 
     .leaderboard-gap {
       color: var(--warning);
-    }
-
-    .leaderboard-interval {
-      color: var(--text-muted);
     }
 
     /* ── Overlay Instances List (Center Column, below leaderboard) ── */
@@ -762,14 +758,13 @@
                 <th>Pos</th>
                 <th>Car</th>
                 <th>Driver</th>
-                <th>Speed</th>
+                <th>Laps</th>
                 <th>Gap</th>
-                <th>Int</th>
               </tr>
             </thead>
             <tbody id="leaderboardBody">
               <tr>
-                <td colspan="6" class="empty-state">Waiting for race data...</td>
+                <td colspan="5" class="empty-state">Waiting for race data...</td>
               </tr>
             </tbody>
           </table>

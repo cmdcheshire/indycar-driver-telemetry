@@ -3,6 +3,16 @@
  * Groups are identified by a shared groupId on each member element.
  */
 
+function _uuid() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random() * 16 | 0;
+    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+  });
+}
+
 /**
  * Group the specified elements together.
  * Assigns a new shared groupId to all specified elements.
@@ -13,7 +23,7 @@
 export function groupElements(ids, elements) {
   if (ids.length < 2) return { groupId: null, elements };
 
-  const groupId = crypto.randomUUID();
+  const groupId = _uuid();
 
   for (const el of elements) {
     if (ids.includes(el.id)) {

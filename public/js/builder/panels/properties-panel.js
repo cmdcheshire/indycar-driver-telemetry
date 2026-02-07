@@ -125,8 +125,19 @@ function _addTextProps(p) {
 }
 
 function _addImageProps(p) {
+  const srcRow = _textInput('Source URL', p.src || '', (v) => _emitProp({ src: v }));
+
+  // Add upload button next to source input
+  const uploadBtn = document.createElement('button');
+  uploadBtn.className = 'btn btn-sm';
+  uploadBtn.textContent = 'Upload';
+  uploadBtn.style.flexShrink = '0';
+  uploadBtn.addEventListener('click', () => _triggerImageUpload());
+
+  srcRow.appendChild(uploadBtn);
+
   _addGroup('Image', [
-    _textInput('Source URL', p.src || '', (v) => _emitProp({ src: v })),
+    srcRow,
     _textInput('Alt Text', p.alt || '', (v) => _emitProp({ alt: v })),
     _selectInput('Fit', p.fit || 'contain', [
       { value: 'contain', label: 'Contain' },
@@ -135,6 +146,56 @@ function _addImageProps(p) {
       { value: 'none', label: 'None' },
     ], (v) => _emitProp({ fit: v })),
   ]);
+}
+
+/**
+ * Trigger a file picker, upload the selected image, and set it as the current image src.
+ */
+async function _triggerImageUpload() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.style.display = 'none';
+
+  input.addEventListener('change', async () => {
+    const file = input.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('image', file);
+
+    try {
+      const { getToken } = await import('/js/modules/auth.js');
+      const token = getToken();
+
+      const res = await fetch('/api/assets/upload/overlays', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData,
+      });
+
+      if (!res.ok) throw new Error('Upload failed');
+      const data = await res.json();
+
+      // Set the uploaded path as the image source
+      _emitProp({ src: data.path });
+
+      // Re-render panel to show the new URL
+      if (currentElement) {
+        currentElement.props = { ...(currentElement.props || {}), src: data.path };
+        updatePropertiesPanel(currentElement);
+      }
+    } catch (err) {
+      console.error('Image upload error:', err);
+      const { showToast } = await import('/js/modules/ui.js');
+      showToast('Image upload failed', 'error');
+    } finally {
+      input.remove();
+    }
+  });
+
+  document.body.appendChild(input);
+  input.click();
 }
 
 function _addShapeProps(p) {
