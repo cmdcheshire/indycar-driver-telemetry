@@ -1,0 +1,18 @@
+{
+  "name": "indycar-driver-telemetry",
+  "version": "1.0.0",
+  "description": "IndyCar live telemetry data processor — ingests race data via TCP and outputs to Google Sheets",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cmdcheshire/indycar-driver-telemetry.git"
+  },
+  "dependencies": {
+    "google-auth-library": "^9.0.0",
+    "googleapis": "^140.0.0",
+    "xml2js": "^0.6.0"
+  }
+}
