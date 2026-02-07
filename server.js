@@ -142,6 +142,11 @@ function shutdown(server) {
     console.log('Server stopped.');
     process.exit(0);
   });
+  // Force exit if graceful shutdown stalls (e.g. open WebSocket connections)
+  setTimeout(() => {
+    console.log('Forcing exit.');
+    process.exit(0);
+  }, 3000).unref();
 }
 
 main().catch(err => {
