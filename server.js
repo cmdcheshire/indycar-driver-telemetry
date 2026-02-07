@@ -18,6 +18,7 @@ const authService = require('./src/services/auth.service');
 const state = require('./src/telemetry/race-state');
 const TcpClient = require('./src/telemetry/tcp-client');
 const { processMessage } = require('./src/telemetry/message-processor');
+const simulatorService = require('./src/services/simulator.service');
 
 let tcp = null;
 
@@ -113,6 +114,13 @@ async function main() {
   }
 
   app.set('tcpReconnect', connectTcp);
+
+  // Give simulator service TCP control so it can disconnect during playback
+  simulatorService.setTcpControl({
+    disconnect: () => { if (tcp) { tcp.destroy(); tcp = null; } },
+    reconnect: connectTcp,
+  });
+
   connectTcp();
 
   // Periodic session cleanup

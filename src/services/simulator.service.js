@@ -296,6 +296,19 @@ class SimulatorService {
     this.rate = 1;
     this.loadedFile = null;
     this.playTimer = null;
+
+    // TCP control callbacks (set by server.js)
+    this._tcpDisconnect = null;
+    this._tcpReconnect = null;
+  }
+
+  /**
+   * Set TCP control callbacks so the simulator can disconnect TCP
+   * during playback and reconnect when stopped.
+   */
+  setTcpControl({ disconnect, reconnect }) {
+    this._tcpDisconnect = disconnect;
+    this._tcpReconnect = reconnect;
   }
 
   // ── File Management ──
@@ -430,6 +443,9 @@ class SimulatorService {
       this.position = 0;
     }
 
+    // Disconnect TCP so live data doesn't interfere with simulation
+    if (this._tcpDisconnect) this._tcpDisconnect();
+
     this.state = 'playing';
     console.log(`[simulator] Playing from position ${this.position}/${this.chunks.length} at ${this.rate}x`);
     this._playNext();
@@ -453,6 +469,7 @@ class SimulatorService {
    * Stop playback and reset position to 0.
    */
   stop() {
+    const wasPlaying = this.state === 'playing' || this.state === 'paused';
     this.state = 'stopped';
     this.position = 0;
     if (this.playTimer) {
@@ -460,6 +477,9 @@ class SimulatorService {
       this.playTimer = null;
     }
     console.log('[simulator] Stopped');
+
+    // Reconnect TCP when stopping simulator
+    if (wasPlaying && this._tcpReconnect) this._tcpReconnect();
   }
 
   /**
@@ -549,6 +569,7 @@ class SimulatorService {
       // Reached the end
       this.state = 'stopped';
       console.log('[simulator] Playback complete — end of file reached');
+      if (this._tcpReconnect) this._tcpReconnect();
       return;
     }
 
@@ -565,6 +586,7 @@ class SimulatorService {
     if (this.position >= this.chunks.length) {
       this.state = 'stopped';
       console.log('[simulator] Playback complete — end of file reached');
+      if (this._tcpReconnect) this._tcpReconnect();
       return;
     }
 

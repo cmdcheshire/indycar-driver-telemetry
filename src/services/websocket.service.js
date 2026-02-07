@@ -208,6 +208,7 @@ function handleOverlayUpgrade(request, socket, head, query) {
           pitStatus: state.pitStatus,
           averageSpeed: state.averageSpeed,
           manualDNF: state.manualDNFOverride,
+          drivers: state.referenceData.drivers,
         },
       },
     });
