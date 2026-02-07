@@ -1,5 +1,6 @@
 const authService = require('../services/auth.service');
 const overlayService = require('../services/overlay.service');
+const referenceService = require('../services/reference-data.service');
 const constants = require('../config/constants');
 
 /**
@@ -21,6 +22,14 @@ async function initializeFirstRun() {
     console.log('Seeding example overlay templates...');
     _seedExampleTemplates();
     console.log('3 example templates created.');
+  }
+
+  // Seed 2025 IndyCar driver data if no drivers exist
+  const drivers = referenceService.getAllDrivers();
+  if (drivers.length === 0) {
+    console.log('Seeding 2025 IndyCar driver roster...');
+    const count = referenceService.bulkImportDrivers(_2025Drivers());
+    console.log(`${count} drivers seeded.`);
   }
 }
 
@@ -299,6 +308,41 @@ function _timingTowerRows(count) {
   }
 
   return rows;
+}
+
+/**
+ * 2025 NTT IndyCar Series full-time driver roster (27 entries, 11 teams).
+ */
+function _2025Drivers() {
+  return [
+    { car_number: '2', first_name: 'Josef', last_name: 'Newgarden', team: 'Team Penske' },
+    { car_number: '3', first_name: 'Scott', last_name: 'McLaughlin', team: 'Team Penske' },
+    { car_number: '4', first_name: 'David', last_name: 'Malukas', team: 'A.J. Foyt Racing' },
+    { car_number: '5', first_name: 'Pato', last_name: "O'Ward", team: 'Arrow McLaren' },
+    { car_number: '6', first_name: 'Nolan', last_name: 'Siegel', team: 'Arrow McLaren' },
+    { car_number: '7', first_name: 'Christian', last_name: 'Lundgaard', team: 'Arrow McLaren' },
+    { car_number: '8', first_name: 'Kyffin', last_name: 'Simpson', team: 'Chip Ganassi Racing' },
+    { car_number: '9', first_name: 'Scott', last_name: 'Dixon', team: 'Chip Ganassi Racing' },
+    { car_number: '10', first_name: 'Alex', last_name: 'Palou', team: 'Chip Ganassi Racing' },
+    { car_number: '12', first_name: 'Will', last_name: 'Power', team: 'Team Penske' },
+    { car_number: '14', first_name: 'Santino', last_name: 'Ferrucci', team: 'A.J. Foyt Racing' },
+    { car_number: '15', first_name: 'Graham', last_name: 'Rahal', team: 'Rahal Letterman Lanigan Racing' },
+    { car_number: '18', first_name: 'Rinus', last_name: 'VeeKay', team: 'Dale Coyne Racing' },
+    { car_number: '20', first_name: 'Alexander', last_name: 'Rossi', team: 'Ed Carpenter Racing' },
+    { car_number: '21', first_name: 'Christian', last_name: 'Rasmussen', team: 'Ed Carpenter Racing' },
+    { car_number: '26', first_name: 'Colton', last_name: 'Herta', team: 'Andretti Global' },
+    { car_number: '27', first_name: 'Kyle', last_name: 'Kirkwood', team: 'Andretti Global' },
+    { car_number: '28', first_name: 'Marcus', last_name: 'Ericsson', team: 'Andretti Global' },
+    { car_number: '30', first_name: 'Louis', last_name: 'Foster', team: 'Rahal Letterman Lanigan Racing' },
+    { car_number: '45', first_name: 'Devlin', last_name: 'DeFrancesco', team: 'Rahal Letterman Lanigan Racing' },
+    { car_number: '51', first_name: 'Jacob', last_name: 'Abel', team: 'Dale Coyne Racing' },
+    { car_number: '60', first_name: 'Felix', last_name: 'Rosenqvist', team: 'Meyer Shank Racing' },
+    { car_number: '66', first_name: 'Marcus', last_name: 'Armstrong', team: 'Meyer Shank Racing' },
+    { car_number: '77', first_name: 'Conor', last_name: 'Daly', team: 'Juncos Hollinger Racing' },
+    { car_number: '78', first_name: 'Sting Ray', last_name: 'Robb', team: 'Juncos Hollinger Racing' },
+    { car_number: '83', first_name: 'Robert', last_name: 'Shwartzman', team: 'PREMA Racing' },
+    { car_number: '90', first_name: 'Callum', last_name: 'Ilott', team: 'PREMA Racing' },
+  ];
 }
 
 module.exports = { initializeFirstRun };

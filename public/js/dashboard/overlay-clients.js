@@ -15,6 +15,7 @@ let overlayClientListEl = null;     // Right column: connected overlay client su
 let instances = [];          // All overlay instances from the API
 let connectedClients = [];   // Currently connected overlay WS clients (from WS messages)
 let visibilityState = {};    // instanceId -> boolean (local tracking)
+let createFormVisible = false;
 
 /**
  * Initialize the overlay clients module and cache DOM elements.
@@ -77,6 +78,22 @@ function renderOverlayInstances() {
 
   const fragment = document.createDocumentFragment();
 
+  // "New Instance" button
+  const headerRow = document.createElement('div');
+  headerRow.style.cssText = 'display:flex;justify-content:flex-end;margin-bottom:8px;';
+  const newBtn = document.createElement('button');
+  newBtn.className = 'btn btn-sm btn-primary';
+  newBtn.textContent = '+ New Instance';
+  newBtn.addEventListener('click', () => showCreateForm());
+  headerRow.appendChild(newBtn);
+  fragment.appendChild(headerRow);
+
+  // Create form (if visible)
+  if (createFormVisible) {
+    const form = _buildCreateForm();
+    fragment.appendChild(form);
+  }
+
   for (const inst of instances) {
     const isConnected = connectedClients.some(c => c.instanceId === inst.id);
     const isVisible = visibilityState[inst.id] !== false;
@@ -100,6 +117,37 @@ function renderOverlayInstances() {
     const statusColor = isConnected ? 'var(--success)' : 'var(--text-muted)';
     meta.innerHTML = `<span class="status-dot ${isConnected ? 'online' : 'offline'}" style="width:6px;height:6px;margin-right:4px;vertical-align:middle;"></span><span style="color:${statusColor}">${statusLabel}</span>`;
     info.appendChild(meta);
+
+    // URL row
+    const urlRow = document.createElement('div');
+    urlRow.className = 'overlay-instance-url';
+    const overlayUrl = inst.access_token
+      ? `${window.location.origin}/overlay/${inst.access_token}`
+      : '';
+    urlRow.innerHTML = `<span class="overlay-url-text" title="${overlayUrl}">${overlayUrl}</span>`;
+
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'btn btn-sm';
+    copyBtn.textContent = 'Copy URL';
+    copyBtn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(overlayUrl);
+        copyBtn.textContent = 'Copied!';
+        setTimeout(() => { copyBtn.textContent = 'Copy URL'; }, 2000);
+      } catch {
+        // Fallback for non-HTTPS
+        const input = document.createElement('input');
+        input.value = overlayUrl;
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand('copy');
+        input.remove();
+        copyBtn.textContent = 'Copied!';
+        setTimeout(() => { copyBtn.textContent = 'Copy URL'; }, 2000);
+      }
+    });
+    urlRow.appendChild(copyBtn);
+    info.appendChild(urlRow);
 
     card.appendChild(info);
 
@@ -269,6 +317,97 @@ async function toggleInstanceVisibility(instanceId, visible, buttonEl) {
   } catch (err) {
     console.error('Toggle visibility error:', err);
     showToast('Failed to update visibility', 'error');
+  }
+}
+
+// ── Create Instance ──
+
+function showCreateForm() {
+  createFormVisible = true;
+  renderOverlayInstances();
+  // Load templates for the dropdown
+  _loadTemplatesForDropdown();
+}
+
+function hideCreateForm() {
+  createFormVisible = false;
+  renderOverlayInstances();
+}
+
+async function _loadTemplatesForDropdown() {
+  try {
+    const res = await authenticatedFetch('/api/overlays/templates');
+    if (!res.ok) return;
+    const data = await res.json();
+    const select = document.getElementById('newInstanceTemplate');
+    if (!select) return;
+    select.innerHTML = '<option value="">-- Select Template --</option>';
+    for (const t of (data.templates || [])) {
+      const opt = document.createElement('option');
+      opt.value = t.id;
+      opt.textContent = `${t.name} (${t.overlay_type})`;
+      select.appendChild(opt);
+    }
+  } catch (err) {
+    console.error('Load templates error:', err);
+  }
+}
+
+function _buildCreateForm() {
+  const form = document.createElement('div');
+  form.className = 'overlay-create-form';
+  form.style.cssText = 'background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:8px;display:flex;gap:8px;align-items:flex-end;';
+
+  form.innerHTML = `
+    <div style="flex:1;display:flex;flex-direction:column;gap:4px;">
+      <label style="font-size:0.7rem;color:var(--text-muted);font-weight:600;">Template</label>
+      <select class="select" id="newInstanceTemplate" style="padding:6px 8px;font-size:0.8rem;">
+        <option value="">Loading...</option>
+      </select>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;gap:4px;">
+      <label style="font-size:0.7rem;color:var(--text-muted);font-weight:600;">Name</label>
+      <input class="input" type="text" id="newInstanceName" placeholder="Instance name" style="padding:6px 8px;font-size:0.8rem;" />
+    </div>
+    <button class="btn btn-sm btn-primary" id="createInstanceConfirmBtn">Create</button>
+    <button class="btn btn-sm" id="createInstanceCancelBtn">Cancel</button>
+  `;
+
+  // Wire events after appending
+  setTimeout(() => {
+    document.getElementById('createInstanceConfirmBtn')?.addEventListener('click', createInstance);
+    document.getElementById('createInstanceCancelBtn')?.addEventListener('click', hideCreateForm);
+  }, 0);
+
+  return form;
+}
+
+async function createInstance() {
+  const templateId = document.getElementById('newInstanceTemplate')?.value;
+  const name = document.getElementById('newInstanceName')?.value.trim();
+
+  if (!templateId) {
+    showToast('Select a template', 'warning');
+    return;
+  }
+  if (!name) {
+    showToast('Enter an instance name', 'warning');
+    return;
+  }
+
+  try {
+    const res = await authenticatedFetch('/api/overlays/instances', {
+      method: 'POST',
+      body: JSON.stringify({ template_id: parseInt(templateId, 10), name }),
+    });
+    if (!res.ok) throw new Error('Failed to create instance');
+    const data = await res.json();
+    showToast(`Instance created: ${name}`, 'success', 3000);
+    createFormVisible = false;
+    await loadOverlayInstances();
+  } catch (err) {
+    console.error('Create instance error:', err);
+    showToast('Failed to create instance', 'error');
   }
 }
 

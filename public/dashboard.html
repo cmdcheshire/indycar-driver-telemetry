@@ -485,6 +485,30 @@
       color: var(--warning);
     }
 
+    .overlay-instance-url {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 4px;
+    }
+
+    .overlay-url-text {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      font-family: monospace;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .overlay-instance-url .btn {
+      flex-shrink: 0;
+      font-size: 0.7rem;
+      padding: 2px 8px;
+    }
+
     /* ── System Status (Right Column) ── */
     .connection-row {
       display: flex;
@@ -648,6 +672,8 @@
         <nav class="top-bar-nav">
           <a href="/dashboard" class="active">Dashboard</a>
           <a href="/builder">Builder</a>
+          <a href="/drivers">Drivers</a>
+          <a href="/simulator">Simulator</a>
         </nav>
       </div>
       <div class="top-bar-right">

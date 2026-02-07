@@ -34,13 +34,15 @@ export class TemplateManager {
   async save(name, type, elements, groups, canvasW = 1920, canvasH = 1080) {
     const payload = {
       name,
-      type,
+      overlay_type: type,
       template_data: {
         elements,
         groups,
         canvas: { width: canvasW, height: canvasH },
         version: 1,
       },
+      canvas_width: canvasW,
+      canvas_height: canvasH,
     };
 
     let res;
@@ -88,7 +90,8 @@ export class TemplateManager {
       throw new Error(data.error || `Failed to load template (${res.status})`);
     }
 
-    const template = await res.json();
+    const data = await res.json();
+    const template = data.template || data;
     this.#currentId = template.id || id;
 
     // Parse template_data if it's a string
@@ -100,7 +103,7 @@ export class TemplateManager {
     return {
       id: this.#currentId,
       name: template.name,
-      type: template.type,
+      type: template.overlay_type || template.type,
       elements: templateData?.elements || [],
       groups: templateData?.groups || [],
       canvas: templateData?.canvas || { width: 1920, height: 1080 },

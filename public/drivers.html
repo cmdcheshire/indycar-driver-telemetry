@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Drivers - IndyCar Telemetry</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <style>
+    /* ── Drivers Page Layout ── */
+    .drivers-page {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* ── Top Bar ── */
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      height: 56px;
+      min-height: 56px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      z-index: 100;
+    }
+
+    .top-bar-left {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .app-title {
+      font-size: 1.125rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+
+    .app-title span {
+      color: var(--accent);
+    }
+
+    .top-bar-nav {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .top-bar-nav a {
+      font-size: 0.825rem;
+      color: var(--text-muted);
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      transition: all var(--transition);
+    }
+
+    .top-bar-nav a:hover {
+      color: var(--text);
+      background: var(--surface-alt);
+    }
+
+    .top-bar-nav a.active {
+      color: var(--accent);
+      background: var(--accent-light);
+    }
+
+    .top-bar-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .user-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 12px;
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .user-badge .user-avatar {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      font-weight: 700;
+    }
+
+    .user-badge .user-name {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .user-badge .user-role {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    #logoutBtn {
+      padding: 6px 14px;
+      font-size: 0.8rem;
+    }
+
+    /* ── Content Area ── */
+    .drivers-content {
+      flex: 1;
+      padding: 24px;
+      overflow-y: auto;
+      background: var(--deep-space);
+    }
+
+    .content-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .content-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+    }
+
+    /* ── Add Driver Form ── */
+    .add-driver-form {
+      display: none;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr) auto;
+      gap: 12px;
+      align-items: end;
+    }
+
+    .form-input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .form-input-group label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .form-actions {
+      display: flex;
+      gap: 8px;
+      align-items: end;
+    }
+
+    /* ── Drivers Table ── */
+    .drivers-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+
+    .drivers-table th {
+      position: sticky;
+      top: 0;
+      background: var(--surface);
+      padding: 10px 14px;
+      text-align: left;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .drivers-table td {
+      padding: 8px 14px;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    .drivers-table tr:hover td {
+      background: var(--surface-alt);
+    }
+
+    .car-number-cell {
+      font-weight: 700;
+      color: var(--accent);
+      width: 60px;
+    }
+
+    .team-cell {
+      color: var(--text-muted);
+    }
+
+    .actions-cell {
+      width: 120px;
+      text-align: right;
+    }
+
+    .actions-cell button {
+      margin-left: 4px;
+    }
+
+    /* ── Inline Edit Inputs ── */
+    .edit-input {
+      padding: 4px 8px;
+      font-size: 0.85rem;
+    }
+
+    /* ── Empty State ── */
+    .empty-state {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="drivers-page">
+
+    <!-- ── Top Bar ── -->
+    <header class="top-bar">
+      <div class="top-bar-left">
+        <div class="app-title">Indy<span>Car</span> Telemetry</div>
+        <nav class="top-bar-nav">
+          <a href="/dashboard">Dashboard</a>
+          <a href="/builder">Builder</a>
+          <a href="/drivers" class="active">Drivers</a>
+          <a href="/simulator">Simulator</a>
+        </nav>
+      </div>
+      <div class="top-bar-right">
+        <div class="user-badge" id="userBadge">
+          <div class="user-avatar" id="userAvatar">--</div>
+          <div>
+            <div class="user-name" id="userName">---</div>
+            <div class="user-role" id="userRole">---</div>
+          </div>
+        </div>
+        <button class="btn btn-sm" id="logoutBtn">Logout</button>
+      </div>
+    </header>
+
+    <!-- ── Main Content ── -->
+    <div class="drivers-content">
+
+      <div class="content-header">
+        <h1 class="content-title">Driver Reference Data</h1>
+        <button class="btn btn-sm btn-primary" id="addDriverBtn">Add Driver</button>
+      </div>
+
+      <!-- Add Driver Form (hidden by default) -->
+      <div class="add-driver-form" id="addDriverForm">
+        <div class="form-grid">
+          <div class="form-input-group">
+            <label for="newCarNumber">Car #</label>
+            <input class="input" type="number" id="newCarNumber" placeholder="e.g. 28" required />
+          </div>
+          <div class="form-input-group">
+            <label for="newFirstName">First Name</label>
+            <input class="input" type="text" id="newFirstName" placeholder="First name" />
+          </div>
+          <div class="form-input-group">
+            <label for="newLastName">Last Name</label>
+            <input class="input" type="text" id="newLastName" placeholder="Last name" />
+          </div>
+          <div class="form-input-group">
+            <label for="newTeam">Team</label>
+            <input class="input" type="text" id="newTeam" placeholder="Team name" />
+          </div>
+          <div class="form-actions">
+            <button class="btn btn-sm btn-primary" id="saveNewDriverBtn">Save</button>
+            <button class="btn btn-sm" id="cancelNewDriverBtn">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Drivers Table -->
+      <table class="drivers-table" id="driversTable">
+        <thead>
+          <tr>
+            <th>Car #</th>
+            <th>First Name</th>
+            <th>Last Name</th>
+            <th>Display Name</th>
+            <th>Team</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="driversBody">
+          <tr>
+            <td colspan="6" class="empty-state">No drivers loaded. Click "Add Driver" to get started.</td>
+          </tr>
+        </tbody>
+      </table>
+
+    </div>
+  </div>
+
+  <script type="module" src="/js/drivers/main.js"></script>
+</body>
+</html>
