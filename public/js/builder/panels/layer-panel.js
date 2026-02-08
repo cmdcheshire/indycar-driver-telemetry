@@ -74,6 +74,9 @@ let contextMenuTargetId = null;
 /** @type {string|null} Right-clicked group ID for context menu */
 let contextMenuTargetGroupId = null;
 
+/** @type {string|null} Drag-and-drop source element ID */
+let _dragSourceId = null;
+
 /* ================================================================ *
  *  Initialization
  * ================================================================ */
@@ -342,6 +345,56 @@ function _renderElementNode(el, container, selectedIds, depth) {
   item.className = `layer-item${selectedIds.has(el.id) ? ' selected' : ''}`;
   item.dataset.elementId = el.id;
   item.style.paddingLeft = `${4 + depth * 16}px`;
+  item.draggable = true;
+
+  // Drag handle
+  const handle = document.createElement('span');
+  handle.className = 'layer-drag-handle';
+  handle.innerHTML = _dragHandleIcon();
+  item.appendChild(handle);
+
+  // Drag events
+  item.addEventListener('dragstart', (e) => {
+    _dragSourceId = el.id;
+    item.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/element-id', el.id);
+  });
+
+  item.addEventListener('dragend', () => {
+    item.classList.remove('dragging');
+    _dragSourceId = null;
+    // Clean up any lingering drag-over classes
+    layerListEl.querySelectorAll('.layer-item.drag-over').forEach(el => el.classList.remove('drag-over'));
+  });
+
+  item.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    if (_dragSourceId && _dragSourceId !== el.id) {
+      item.classList.add('drag-over');
+    }
+  });
+
+  item.addEventListener('dragleave', () => {
+    item.classList.remove('drag-over');
+  });
+
+  item.addEventListener('drop', (e) => {
+    e.preventDefault();
+    item.classList.remove('drag-over');
+    if (!_dragSourceId || _dragSourceId === el.id || !onReorder) return;
+
+    // Get all element items in visual order (descending zIndex = front at top)
+    const allItems = [...layerListEl.querySelectorAll('.layer-item[data-element-id]')];
+    const totalElements = allItems.length;
+    const targetVisualIdx = allItems.indexOf(item);
+
+    // Visual order is descending zIndex, but _reorderElementToIndex uses ascending.
+    // Convert: ascendingIndex = (totalElements - 1) - visualIndex
+    const targetAscIdx = (totalElements - 1) - targetVisualIdx;
+    onReorder(_dragSourceId, targetAscIdx);
+    _dragSourceId = null;
+  });
 
   // Type icon
   const typeIcon = document.createElement('span');
@@ -710,4 +763,8 @@ function _folderIcon() {
 
 function _folderOpenIcon() {
   return '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4v8a1 1 0 001 1h10a1 1 0 001-1V6a1 1 0 00-1-1H8L6.5 3.5A1 1 0 005.8 3H3a1 1 0 00-1 1z"/><path d="M2 8h12"/></svg>';
+}
+
+function _dragHandleIcon() {
+  return '<svg width="8" height="14" viewBox="0 0 8 14" fill="currentColor"><circle cx="2" cy="2" r="1.2"/><circle cx="6" cy="2" r="1.2"/><circle cx="2" cy="7" r="1.2"/><circle cx="6" cy="7" r="1.2"/><circle cx="2" cy="12" r="1.2"/><circle cx="6" cy="12" r="1.2"/></svg>';
 }

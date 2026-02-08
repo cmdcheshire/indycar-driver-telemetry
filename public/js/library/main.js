@@ -347,21 +347,38 @@ function renderFolderTree() {
   html += renderFolderNodes(tree, 0);
   folderTreeEl.innerHTML = html;
 
-  // Bind click events
+  // Bind chevron clicks — toggle expand only (don't change selection)
+  folderTreeEl.querySelectorAll('.lib-folder-chevron').forEach(chevron => {
+    if (chevron.classList.contains('empty')) return;
+    chevron.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const row = chevron.closest('.lib-folder-row');
+      if (!row) return;
+      const folderId = row.dataset.folderId;
+      if (folderId === 'root') return;
+      const id = parseInt(folderId, 10);
+      if (expandedFolders.has(id)) {
+        expandedFolders.delete(id);
+      } else {
+        expandedFolders.add(id);
+      }
+      renderFolderTree();
+    });
+  });
+
+  // Bind row clicks — select folder (auto-expand if collapsed, never collapse)
   folderTreeEl.querySelectorAll('.lib-folder-row').forEach(row => {
     row.addEventListener('click', (e) => {
-      // Ignore if clicking action buttons
       if (e.target.closest('.lib-folder-actions') || e.target.closest('.lib-folder-action-btn')) return;
+      if (e.target.closest('.lib-folder-chevron')) return; // handled above
 
       const folderId = row.dataset.folderId;
       if (folderId === 'root') {
         selectFolder(null);
       } else {
         const id = parseInt(folderId, 10);
-        // Toggle expand first so selectFolder's re-render picks it up
-        if (expandedFolders.has(id)) {
-          expandedFolders.delete(id);
-        } else {
+        // Auto-expand when selecting, but never collapse
+        if (!expandedFolders.has(id)) {
           expandedFolders.add(id);
         }
         selectFolder(id);

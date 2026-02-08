@@ -231,36 +231,27 @@
       white-space: nowrap;
     }
 
-    /* Output item styles -- compact chiclets */
+    /* Output item styles -- list rows */
     .gc-output-item {
-      display: inline-flex;
+      display: flex;
       align-items: center;
       gap: 6px;
-      padding: 4px 10px;
-      margin: 2px 4px 2px 0;
+      padding: 6px 12px;
       cursor: pointer;
       color: var(--text);
-      font-size: 0.75rem;
-      border-radius: 999px;
-      border: 1px solid var(--border);
-      background: var(--card-bg);
+      font-size: 0.8rem;
+      border-radius: var(--radius-sm);
       transition: all var(--transition);
       user-select: none;
-      max-width: 100%;
-    }
-
-    .gc-folder-children .gc-output-item {
-      margin-left: 0;
     }
 
     .gc-folder-children {
-      padding: 2px 4px 4px 24px;
+      padding-left: 24px;
       display: none;
-      flex-wrap: wrap;
     }
 
     .gc-folder-children.open {
-      display: flex;
+      display: block;
     }
 
     .gc-output-item:hover {

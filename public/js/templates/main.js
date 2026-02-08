@@ -292,23 +292,41 @@ function renderFolderTree() {
   html += renderFolderNodes(tree, 0);
   folderTreeEl.innerHTML = html;
 
-  // Bind click events
+  // Bind chevron clicks — toggle expand only (don't change selection)
+  folderTreeEl.querySelectorAll('.tmpl-folder-chevron').forEach(chevron => {
+    if (chevron.classList.contains('empty')) return;
+    chevron.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const row = chevron.closest('.tmpl-folder-row');
+      if (!row) return;
+      const folderId = row.dataset.folderId;
+      if (folderId === 'root') return;
+      const id = parseInt(folderId, 10);
+      if (expandedFolders.has(id)) {
+        expandedFolders.delete(id);
+      } else {
+        expandedFolders.add(id);
+      }
+      renderFolderTree();
+    });
+  });
+
+  // Bind row clicks — select folder (auto-expand if collapsed, never collapse)
   folderTreeEl.querySelectorAll('.tmpl-folder-row').forEach(row => {
     row.addEventListener('click', (e) => {
       if (e.target.closest('.tmpl-folder-actions') || e.target.closest('.tmpl-folder-action-btn')) return;
+      if (e.target.closest('.tmpl-folder-chevron')) return; // handled above
 
       const folderId = row.dataset.folderId;
       if (folderId === 'root') {
         selectFolder(null);
       } else {
-        selectFolder(folderId);
-        // Toggle expand
-        if (expandedFolders.has(folderId)) {
-          expandedFolders.delete(folderId);
-        } else {
-          expandedFolders.add(folderId);
+        const id = parseInt(folderId, 10);
+        // Auto-expand when selecting, but never collapse
+        if (!expandedFolders.has(id)) {
+          expandedFolders.add(id);
         }
-        renderFolderTree();
+        selectFolder(id);
       }
     });
   });
@@ -317,7 +335,7 @@ function renderFolderTree() {
   folderTreeEl.querySelectorAll('.tmpl-folder-action-btn[data-action="rename"]').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
-      const folderId = btn.dataset.folderId;
+      const folderId = parseInt(btn.dataset.folderId, 10);
       const folder = folders.find(f => f.id === folderId);
       if (!folder) return;
       const newName = await showPrompt('Rename Folder', 'Folder name', folder.name);
@@ -330,13 +348,33 @@ function renderFolderTree() {
   folderTreeEl.querySelectorAll('.tmpl-folder-action-btn[data-action="delete"]').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
-      const folderId = btn.dataset.folderId;
+      const folderId = parseInt(btn.dataset.folderId, 10);
       const folder = folders.find(f => f.id === folderId);
       if (!folder) return;
       const confirmed = await showConfirm('Delete Folder', `Delete "${folder.name}" and all its contents?`);
       if (confirmed) {
         await deleteFolder(folderId);
       }
+    });
+  });
+
+  // Drag-and-drop: folders as drop targets for templates
+  folderTreeEl.querySelectorAll('.tmpl-folder-row').forEach(row => {
+    row.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      row.classList.add('drag-over');
+    });
+    row.addEventListener('dragleave', () => {
+      row.classList.remove('drag-over');
+    });
+    row.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      row.classList.remove('drag-over');
+      const templateId = e.dataTransfer.getData('text/template-id');
+      if (!templateId) return;
+      const folderId = row.dataset.folderId;
+      const targetFolderId = folderId === 'root' ? null : parseInt(folderId, 10);
+      await moveTemplate(parseInt(templateId, 10), targetFolderId);
     });
   });
 }
@@ -410,7 +448,7 @@ function renderTemplateGrid() {
     const timeStr = relativeTime(tmpl.updated_at || tmpl.created_at);
 
     html += `
-      <div class="tmpl-card" data-template-id="${tmpl.id}">
+      <div class="tmpl-card" data-template-id="${tmpl.id}" draggable="true">
         <button class="tmpl-card-dots" data-template-id="${tmpl.id}" title="More actions">&#8943;</button>
         <div class="tmpl-card-thumb">
           ${iconSvg}
@@ -436,13 +474,19 @@ function renderTemplateGrid() {
       const templateId = card.dataset.templateId;
       window.location.href = `/builder/${templateId}`;
     });
+
+    // Drag-and-drop: template cards as drag sources
+    card.addEventListener('dragstart', (e) => {
+      e.dataTransfer.setData('text/template-id', card.dataset.templateId);
+      e.dataTransfer.effectAllowed = 'move';
+    });
   });
 
   // Bind three-dot menu
   templateGridEl.querySelectorAll('.tmpl-card-dots').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      const templateId = btn.dataset.templateId;
+      const templateId = parseInt(btn.dataset.templateId, 10);
       const tmpl = templates.find(t => t.id === templateId);
       if (tmpl) showContextMenu(e, tmpl);
     });
@@ -452,7 +496,7 @@ function renderTemplateGrid() {
   templateGridEl.querySelectorAll('.tmpl-card').forEach(card => {
     card.addEventListener('contextmenu', (e) => {
       e.preventDefault();
-      const templateId = card.dataset.templateId;
+      const templateId = parseInt(card.dataset.templateId, 10);
       const tmpl = templates.find(t => t.id === templateId);
       if (tmpl) showContextMenu(e, tmpl);
     });
@@ -482,7 +526,7 @@ function renderBreadcrumb() {
   breadcrumbEl.querySelectorAll('.tmpl-breadcrumb-item:not(.current)').forEach(item => {
     item.addEventListener('click', () => {
       const folderId = item.dataset.folderId;
-      selectFolder(folderId === 'root' ? null : folderId);
+      selectFolder(folderId === 'root' ? null : parseInt(folderId, 10));
     });
   });
 }
@@ -604,7 +648,7 @@ function showMoveModal(template) {
       overlay.querySelectorAll('.tmpl-move-folder-option').forEach(o => o.classList.remove('selected'));
       opt.classList.add('selected');
       const fid = opt.dataset.folderId;
-      selectedMoveTarget = fid === 'root' ? null : fid;
+      selectedMoveTarget = fid === 'root' ? null : parseInt(fid, 10);
     });
   });
 
