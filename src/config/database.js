@@ -96,7 +96,7 @@ function initializeDatabase() {
 
     CREATE TABLE IF NOT EXISTS overlay_instances (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      template_id INTEGER NOT NULL,
+      template_id INTEGER,
       name TEXT NOT NULL,
       instance_config TEXT NOT NULL DEFAULT '{}',
       is_active INTEGER DEFAULT 1,
@@ -104,7 +104,7 @@ function initializeDatabase() {
       access_token TEXT UNIQUE NOT NULL,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
-      FOREIGN KEY (template_id) REFERENCES overlay_templates(id) ON DELETE CASCADE
+      FOREIGN KEY (template_id) REFERENCES overlay_templates(id) ON DELETE SET NULL
     );
     CREATE INDEX IF NOT EXISTS idx_instances_token ON overlay_instances(access_token);
 
@@ -123,7 +123,64 @@ function initializeDatabase() {
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
     );
     CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log(timestamp);
+
+    CREATE TABLE IF NOT EXISTS output_folders (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      parent_id INTEGER REFERENCES output_folders(id) ON DELETE CASCADE,
+      sort_order INTEGER DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS rundown_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      instance_id INTEGER NOT NULL REFERENCES overlay_instances(id) ON DELETE CASCADE,
+      template_id INTEGER NOT NULL REFERENCES overlay_templates(id) ON DELETE CASCADE,
+      sort_order INTEGER DEFAULT 0,
+      is_on_air INTEGER DEFAULT 0,
+      config_overrides TEXT DEFAULT '{}',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
   `);
+
+  // Add folder_id column to overlay_instances if it doesn't exist
+  try {
+    db.exec('ALTER TABLE overlay_instances ADD COLUMN folder_id INTEGER REFERENCES output_folders(id) ON DELETE SET NULL');
+  } catch (e) {
+    // Column already exists — ignore
+  }
+
+  // Migrate overlay_instances to allow nullable template_id (existing DBs have NOT NULL)
+  try {
+    const colInfo = db.pragma('table_info(overlay_instances)');
+    const templateCol = colInfo.find(c => c.name === 'template_id');
+    if (templateCol && templateCol.notnull === 1) {
+      db.exec(`
+        CREATE TABLE overlay_instances_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          template_id INTEGER,
+          name TEXT NOT NULL,
+          instance_config TEXT NOT NULL DEFAULT '{}',
+          is_active INTEGER DEFAULT 1,
+          delay_seconds REAL DEFAULT 0,
+          access_token TEXT UNIQUE NOT NULL,
+          folder_id INTEGER REFERENCES output_folders(id) ON DELETE SET NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          FOREIGN KEY (template_id) REFERENCES overlay_templates(id) ON DELETE SET NULL
+        );
+        INSERT INTO overlay_instances_new SELECT id, template_id, name, instance_config, is_active, delay_seconds, access_token, folder_id, created_at, updated_at FROM overlay_instances;
+        DROP TABLE overlay_instances;
+        ALTER TABLE overlay_instances_new RENAME TO overlay_instances;
+        CREATE INDEX IF NOT EXISTS idx_instances_token ON overlay_instances(access_token);
+      `);
+      console.log('Migrated overlay_instances: template_id now nullable.');
+    }
+  } catch (e) {
+    console.warn('overlay_instances migration skipped:', e.message);
+  }
 
   // Seed default system settings if they don't exist
   const seedSettings = {

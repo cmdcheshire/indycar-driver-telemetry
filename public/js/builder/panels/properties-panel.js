@@ -1,10 +1,12 @@
 /**
  * Properties panel - right sidebar showing editable properties for the selected element.
- * Dynamically renders inputs based on element type.
+ * Features: quick actions bar, collapsible sections, color swatches, animation controls.
  */
 
 /** @type {Function} */
 let onPropertyChange = null;
+/** @type {Function} */
+let onQuickAction = null;
 
 /** @type {HTMLElement} */
 let panelEl = null;
@@ -12,13 +14,46 @@ let panelEl = null;
 /** @type {object|null} */
 let currentElement = null;
 
+/** Persisted collapsed state for sections */
+const _sectionState = {};
+
+const ENTER_ANIMATIONS = [
+  { value: 'none', label: 'None' },
+  { value: 'fadeIn', label: 'Fade In' },
+  { value: 'slideInLeft', label: 'Slide In Left' },
+  { value: 'slideInRight', label: 'Slide In Right' },
+  { value: 'slideInUp', label: 'Slide In Up' },
+  { value: 'slideInDown', label: 'Slide In Down' },
+  { value: 'scaleIn', label: 'Scale In' },
+];
+
+const EXIT_ANIMATIONS = [
+  { value: 'none', label: 'None' },
+  { value: 'fadeOut', label: 'Fade Out' },
+  { value: 'slideOutLeft', label: 'Slide Out Left' },
+  { value: 'slideOutRight', label: 'Slide Out Right' },
+  { value: 'slideOutUp', label: 'Slide Out Up' },
+  { value: 'slideOutDown', label: 'Slide Out Down' },
+  { value: 'scaleOut', label: 'Scale Out' },
+];
+
+const EASINGS = [
+  { value: 'ease', label: 'Ease' },
+  { value: 'ease-in', label: 'Ease In' },
+  { value: 'ease-out', label: 'Ease Out' },
+  { value: 'ease-in-out', label: 'Ease In-Out' },
+  { value: 'linear', label: 'Linear' },
+];
+
 /**
  * Initialize the properties panel.
  * @param {object} opts
  * @param {Function} opts.onPropertyChange - Called with (elementId, changedProps)
+ * @param {Function} [opts.onQuickAction] - Called with (elementId, action) for quick action buttons
  */
 export function initPropertiesPanel(opts) {
   onPropertyChange = opts.onPropertyChange;
+  onQuickAction = opts.onQuickAction || null;
   panelEl = document.getElementById('propertiesPanel');
 }
 
@@ -38,13 +73,16 @@ export function updatePropertiesPanel(element) {
 
   panelEl.innerHTML = '';
 
-  // Element name (editable)
-  _addGroup('Element', [
+  // Quick actions bar
+  _addQuickActions(element);
+
+  // Element name
+  _addCollapsibleGroup('Element', [
     _textInput('Name', element.name, (v) => _emit({ name: v })),
   ]);
 
-  // Position & Size
-  _addGroup('Transform', [
+  // Transform
+  _addCollapsibleGroup('Transform', [
     _row([
       _numberInput('X', element.x, 0, 100, 0.1, (v) => _emit({ x: v })),
       _numberInput('Y', element.y, 0, 100, 0.1, (v) => _emit({ y: v })),
@@ -76,12 +114,63 @@ export function updatePropertiesPanel(element) {
       _addDataProps(p);
       break;
   }
+
+  // Animation (all element types)
+  _addAnimationSection(element);
+}
+
+/* ---- Quick Actions ---- */
+
+function _addQuickActions(element) {
+  const bar = document.createElement('div');
+  bar.className = 'quick-actions';
+
+  bar.appendChild(_quickActionBtn('Duplicate', _svgDuplicate(), () => {
+    if (onQuickAction) onQuickAction(element.id, 'duplicate');
+  }));
+
+  bar.appendChild(_quickActionBtn(
+    element.visible ? 'Hide' : 'Show',
+    element.visible ? _svgEye() : _svgEyeOff(),
+    () => { if (onQuickAction) onQuickAction(element.id, 'visibility'); }
+  ));
+
+  bar.appendChild(_quickActionBtn(
+    element.locked ? 'Unlock' : 'Lock',
+    element.locked ? _svgLock() : _svgUnlock(),
+    () => { if (onQuickAction) onQuickAction(element.id, 'lock'); }
+  ));
+
+  bar.appendChild(_quickActionBtn('Move to Front', _svgFront(), () => {
+    if (onQuickAction) onQuickAction(element.id, 'front');
+  }));
+
+  bar.appendChild(_quickActionBtn('Move to Back', _svgBack(), () => {
+    if (onQuickAction) onQuickAction(element.id, 'back');
+  }));
+
+  const deleteBtn = _quickActionBtn('Delete', _svgDelete(), () => {
+    if (onQuickAction) onQuickAction(element.id, 'delete');
+  });
+  deleteBtn.classList.add('danger');
+  bar.appendChild(deleteBtn);
+
+  panelEl.appendChild(bar);
+}
+
+function _quickActionBtn(title, svgHtml, onClick) {
+  const btn = document.createElement('button');
+  btn.className = 'quick-action-btn';
+  btn.title = title;
+  btn.innerHTML = svgHtml;
+  btn.addEventListener('click', onClick);
+  return btn;
 }
 
 /* ---- Type-specific property sections ---- */
 
 function _addTextProps(p) {
-  _addGroup('Typography', [
+  _addCollapsibleGroup('Typography', [
     _selectInput('Font', p.fontFamily || 'Inter, sans-serif', [
       { value: 'Inter, sans-serif', label: 'Inter' },
       { value: 'Roboto, sans-serif', label: 'Roboto' },
@@ -104,8 +193,8 @@ function _addTextProps(p) {
       ], (v) => _emitProp({ fontWeight: v })),
     ]),
     _row([
-      _colorInput('Color', p.color || '#FFFFFF', (v) => _emitProp({ color: v })),
-      _colorInput('BG', p.backgroundColor || 'transparent', (v) => _emitProp({ backgroundColor: v })),
+      _colorInputWithSwatch('Color', p.color || '#FFFFFF', (v) => _emitProp({ color: v })),
+      _colorInputWithSwatch('BG', p.backgroundColor || 'transparent', (v) => _emitProp({ backgroundColor: v })),
     ]),
     _selectInput('Align', p.textAlign || 'left', [
       { value: 'left', label: 'Left' },
@@ -114,29 +203,27 @@ function _addTextProps(p) {
     ], (v) => _emitProp({ textAlign: v })),
   ]);
 
-  _addGroup('Text Content', [
+  _addCollapsibleGroup('Text Content', [
     _textareaInput('Text', p.text || '', (v) => _emitProp({ text: v })),
   ]);
 
-  _addGroup('Effects', [
+  _addCollapsibleGroup('Effects', [
     _textInput('Shadow', p.textShadow || '', (v) => _emitProp({ textShadow: v })),
     _textInput('Stroke', p.textStroke || '', (v) => _emitProp({ textStroke: v })),
-  ]);
+  ], true); // collapsed by default
 }
 
 function _addImageProps(p) {
   const srcRow = _textInput('Source URL', p.src || '', (v) => _emitProp({ src: v }));
 
-  // Add upload button next to source input
   const uploadBtn = document.createElement('button');
   uploadBtn.className = 'btn btn-sm';
   uploadBtn.textContent = 'Upload';
   uploadBtn.style.flexShrink = '0';
   uploadBtn.addEventListener('click', () => _triggerImageUpload());
-
   srcRow.appendChild(uploadBtn);
 
-  _addGroup('Image', [
+  _addCollapsibleGroup('Image', [
     srcRow,
     _textInput('Alt Text', p.alt || '', (v) => _emitProp({ alt: v })),
     _selectInput('Fit', p.fit || 'contain', [
@@ -148,9 +235,6 @@ function _addImageProps(p) {
   ]);
 }
 
-/**
- * Trigger a file picker, upload the selected image, and set it as the current image src.
- */
 async function _triggerImageUpload() {
   const input = document.createElement('input');
   input.type = 'file';
@@ -177,10 +261,8 @@ async function _triggerImageUpload() {
       if (!res.ok) throw new Error('Upload failed');
       const data = await res.json();
 
-      // Set the uploaded path as the image source
       _emitProp({ src: data.path });
 
-      // Re-render panel to show the new URL
       if (currentElement) {
         currentElement.props = { ...(currentElement.props || {}), src: data.path };
         updatePropertiesPanel(currentElement);
@@ -199,15 +281,15 @@ async function _triggerImageUpload() {
 }
 
 function _addShapeProps(p) {
-  _addGroup('Shape', [
+  _addCollapsibleGroup('Shape', [
     _selectInput('Type', p.shapeType || 'rectangle', [
       { value: 'rectangle', label: 'Rectangle' },
       { value: 'ellipse', label: 'Ellipse' },
       { value: 'line', label: 'Line' },
     ], (v) => _emitProp({ shapeType: v })),
     _row([
-      _colorInput('Fill', p.fill || 'rgba(59,130,246,0.5)', (v) => _emitProp({ fill: v })),
-      _colorInput('Stroke', p.strokeColor || '', (v) => _emitProp({ strokeColor: v })),
+      _colorInputWithSwatch('Fill', p.fill || 'rgba(59,130,246,0.5)', (v) => _emitProp({ fill: v })),
+      _colorInputWithSwatch('Stroke', p.strokeColor || '', (v) => _emitProp({ strokeColor: v })),
     ]),
     _row([
       _numberInput('Stroke W', p.strokeWidth || 0, 0, 20, 1, (v) => _emitProp({ strokeWidth: v })),
@@ -217,11 +299,9 @@ function _addShapeProps(p) {
 }
 
 function _addDataProps(p) {
-  // Text rendering props (same as text)
   _addTextProps(p);
 
-  // The data binding section is handled by data-panel.js but we show a summary here
-  _addGroup('Data Binding', [
+  _addCollapsibleGroup('Data Binding', [
     _readonlyInput('Source', p.bindingSource || '(none)'),
     _readonlyInput('Field', p.bindingField || '(none)'),
     _readonlyInput('Selector', p.carSelector || '(none)'),
@@ -231,20 +311,118 @@ function _addDataProps(p) {
   ]);
 }
 
+/* ---- Animation Section ---- */
+
+function _addAnimationSection(element) {
+  const anim = element.animation || {};
+  const enter = anim.enter || { type: 'none', duration: 300, easing: 'ease' };
+  const exit = anim.exit || { type: 'none', duration: 300, easing: 'ease' };
+  const update = anim.update || { type: 'none', duration: 300, easing: 'ease' };
+
+  const children = [
+    // Enter animation
+    _selectInput('Enter', enter.type, ENTER_ANIMATIONS, (v) => {
+      _emitAnimation({ enter: { ...enter, type: v } });
+    }),
+    _row([
+      _rangeInput('Duration', enter.duration, 100, 2000, 50, 'ms', (v) => {
+        _emitAnimation({ enter: { ...enter, duration: v } });
+      }),
+    ]),
+    _selectInput('Easing', enter.easing, EASINGS, (v) => {
+      _emitAnimation({ enter: { ...enter, easing: v } });
+    }),
+
+    // Separator
+    _separator(),
+
+    // Exit animation
+    _selectInput('Exit', exit.type, EXIT_ANIMATIONS, (v) => {
+      _emitAnimation({ exit: { ...exit, type: v } });
+    }),
+    _row([
+      _rangeInput('Duration', exit.duration, 100, 2000, 50, 'ms', (v) => {
+        _emitAnimation({ exit: { ...exit, duration: v } });
+      }),
+    ]),
+    _selectInput('Easing', exit.easing, EASINGS, (v) => {
+      _emitAnimation({ exit: { ...exit, easing: v } });
+    }),
+  ];
+
+  // Update animation (for data elements)
+  if (element.type === 'data') {
+    children.push(
+      _separator(),
+      _selectInput('Update', update.type, [
+        { value: 'none', label: 'None' },
+        { value: 'crossfade', label: 'Crossfade' },
+      ], (v) => {
+        _emitAnimation({ update: { ...update, type: v } });
+      }),
+      _rangeInput('Duration', update.duration, 50, 1000, 25, 'ms', (v) => {
+        _emitAnimation({ update: { ...update, duration: v } });
+      }),
+    );
+  }
+
+  // Preview button
+  const previewBtn = document.createElement('button');
+  previewBtn.className = 'anim-preview-btn';
+  previewBtn.title = 'Preview enter animation';
+  previewBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6z"/></svg>';
+  previewBtn.addEventListener('click', () => {
+    if (onQuickAction) onQuickAction(element.id, 'previewAnimation');
+  });
+  children.push(previewBtn);
+
+  _addCollapsibleGroup('Animation', children, true);
+}
+
 /* ---- DOM helpers ---- */
 
-function _addGroup(title, children) {
+function _addCollapsibleGroup(title, children, defaultCollapsed = false) {
   const group = document.createElement('div');
   group.className = 'prop-group';
+
+  // Use persisted state or default
+  const isCollapsed = _sectionState[title] !== undefined
+    ? _sectionState[title]
+    : defaultCollapsed;
+
+  // Header (clickable)
+  const header = document.createElement('div');
+  header.className = `prop-group-header${isCollapsed ? ' collapsed' : ''}`;
 
   const titleEl = document.createElement('div');
   titleEl.className = 'prop-group-title';
   titleEl.textContent = title;
-  group.appendChild(titleEl);
+  header.appendChild(titleEl);
+
+  const chevron = document.createElement('span');
+  chevron.className = 'prop-group-chevron';
+  chevron.textContent = '\u25BC'; // down arrow
+  header.appendChild(chevron);
+
+  group.appendChild(header);
+
+  // Body
+  const body = document.createElement('div');
+  body.className = `prop-group-body${isCollapsed ? ' collapsed' : ''}`;
 
   for (const child of children) {
-    if (child) group.appendChild(child);
+    if (child) body.appendChild(child);
   }
+
+  group.appendChild(body);
+
+  // Toggle on header click
+  header.addEventListener('click', () => {
+    const nowCollapsed = !body.classList.contains('collapsed');
+    body.classList.toggle('collapsed');
+    header.classList.toggle('collapsed');
+    _sectionState[title] = nowCollapsed;
+  });
 
   panelEl.appendChild(group);
 }
@@ -256,6 +434,13 @@ function _row(children) {
     if (child) row.appendChild(child);
   }
   return row;
+}
+
+function _separator() {
+  const sep = document.createElement('div');
+  sep.style.borderTop = '1px solid var(--border)';
+  sep.style.margin = '4px 0';
+  return sep;
 }
 
 function _numberInput(label, value, min, max, step, onChange) {
@@ -345,12 +530,9 @@ function _selectInput(label, value, options, onChange) {
   return wrapper;
 }
 
-function _colorInput(label, value, onChange) {
+function _colorInputWithSwatch(label, value, onChange) {
   const wrapper = document.createElement('div');
-  wrapper.style.display = 'flex';
-  wrapper.style.alignItems = 'center';
-  wrapper.style.gap = '4px';
-  wrapper.style.flex = '1';
+  wrapper.className = 'color-swatch-wrapper';
 
   const lbl = document.createElement('label');
   lbl.textContent = label;
@@ -359,13 +541,67 @@ function _colorInput(label, value, onChange) {
   lbl.style.minWidth = '20px';
   wrapper.appendChild(lbl);
 
+  // Color swatch
+  const swatch = document.createElement('div');
+  swatch.className = 'color-swatch';
+  const normalizedColor = _normalizeColor(value);
+  swatch.style.backgroundColor = value === 'transparent' ? 'transparent' : normalizedColor;
+  wrapper.appendChild(swatch);
+
+  // Hidden color input
   const input = document.createElement('input');
   input.type = 'color';
-  input.className = 'input';
-  // Normalize color value for the color picker
-  input.value = _normalizeColor(value);
-  input.addEventListener('input', () => onChange(input.value));
+  input.style.position = 'absolute';
+  input.style.opacity = '0';
+  input.style.width = '0';
+  input.style.height = '0';
+  input.value = normalizedColor;
   wrapper.appendChild(input);
+
+  // Click swatch to open picker
+  swatch.addEventListener('click', () => input.click());
+
+  input.addEventListener('input', () => {
+    swatch.style.backgroundColor = input.value;
+    onChange(input.value);
+  });
+
+  wrapper.style.position = 'relative';
+  return wrapper;
+}
+
+function _rangeInput(label, value, min, max, step, unit, onChange) {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'prop-row';
+  wrapper.style.flex = '1';
+
+  const lbl = document.createElement('label');
+  lbl.textContent = label;
+  wrapper.appendChild(lbl);
+
+  const rangeWrapper = document.createElement('div');
+  rangeWrapper.className = 'prop-range-wrapper';
+
+  const range = document.createElement('input');
+  range.type = 'range';
+  range.min = String(min);
+  range.max = String(max);
+  range.step = String(step);
+  range.value = String(value);
+  rangeWrapper.appendChild(range);
+
+  const display = document.createElement('span');
+  display.className = 'prop-range-value';
+  display.textContent = `${value}${unit}`;
+  rangeWrapper.appendChild(display);
+
+  range.addEventListener('input', () => {
+    const v = parseInt(range.value, 10);
+    display.textContent = `${v}${unit}`;
+    onChange(v);
+  });
+
+  wrapper.appendChild(rangeWrapper);
   return wrapper;
 }
 
@@ -387,13 +623,10 @@ function _readonlyInput(label, value) {
 
 /**
  * Normalize a color string to a hex value suitable for an <input type="color">.
- * @param {string} color
- * @returns {string}
  */
 function _normalizeColor(color) {
   if (!color || color === 'transparent') return '#000000';
   if (color.startsWith('#') && (color.length === 7 || color.length === 4)) return color;
-  // For rgba/named colors, fall back to black for the picker
   return '#000000';
 }
 
@@ -409,4 +642,52 @@ function _emitProp(propChanges) {
   if (currentElement && onPropertyChange) {
     onPropertyChange(currentElement.id, { props: propChanges });
   }
+}
+
+function _emitAnimation(animChanges) {
+  if (!currentElement) return;
+  const current = currentElement.animation || {
+    enter: { type: 'none', duration: 300, easing: 'ease' },
+    exit: { type: 'none', duration: 300, easing: 'ease' },
+    update: { type: 'none', duration: 300, easing: 'ease' },
+  };
+  const merged = { ...current };
+  for (const [key, val] of Object.entries(animChanges)) {
+    merged[key] = { ...(current[key] || {}), ...val };
+  }
+  _emit({ animation: merged });
+}
+
+/* ---- SVG Icons for Quick Actions ---- */
+
+function _svgDuplicate() {
+  return '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M2 11V3a1 1 0 0 1 1-1h8"/></svg>';
+}
+
+function _svgDelete() {
+  return '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 4h12M5 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1M6 7v5M10 7v5"/><path d="M3 4l1 10a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1l1-10"/></svg>';
+}
+
+function _svgEye() {
+  return '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 8s3-5 7-5 7 5 7 5-3 5-7 5S1 8 1 8z"/><circle cx="8" cy="8" r="2"/></svg>';
+}
+
+function _svgEyeOff() {
+  return '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6.6 6.6a2 2 0 0 0 2.8 2.8"/><path d="M1 8s3-5 7-5c.7 0 1.4.1 2 .4"/><path d="M15 8s-3 5-7 5c-.7 0-1.4-.1-2-.4"/><path d="M1 1l14 14"/></svg>';
+}
+
+function _svgLock() {
+  return '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="7" width="10" height="7" rx="1"/><path d="M5 7V5a3 3 0 0 1 6 0v2"/></svg>';
+}
+
+function _svgUnlock() {
+  return '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="7" width="10" height="7" rx="1"/><path d="M5 7V5a3 3 0 0 1 6 0"/></svg>';
+}
+
+function _svgFront() {
+  return '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="4" y="1" width="8" height="8" rx="1"/><path d="M4 12h8M6 15h4"/></svg>';
+}
+
+function _svgBack() {
+  return '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="4" y="7" width="8" height="8" rx="1"/><path d="M4 4h8M6 1h4"/></svg>';
 }

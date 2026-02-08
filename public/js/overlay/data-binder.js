@@ -6,6 +6,7 @@
  */
 
 import { updateElementText, updateElementStyle } from './element-renderer.js';
+import { AnimationEngine } from './animation-engine.js';
 
 // ---------------------------------------------------------------------------
 // Formatting utilities
@@ -84,6 +85,16 @@ export class DataBinder {
 
     /** Filter to only data-type elements for faster iteration */
     this._dataElements = this._elements.filter(el => el.type === 'data');
+
+    /**
+     * Previous rank assignments: elementId -> { carNumber, rank }
+     * Used to detect when the car at a given byRank slot changes and
+     * trigger position transition animations.
+     */
+    this._previousRanks = new Map();
+
+    /** Animation engine instance for position transitions */
+    this._animationEngine = new AnimationEngine(domMap);
   }
 
   // -----------------------------------------------------------------------
@@ -145,6 +156,9 @@ export class DataBinder {
    * and update the DOM if it has changed.
    */
   resolveBindings() {
+    // Build a snapshot of current rank -> carNumber mapping for position tracking
+    const currentRankMap = this._buildCurrentRankMap();
+
     for (const element of this._dataElements) {
       const domNode = this._domMap.get(element.id);
       if (!domNode) continue;
@@ -158,6 +172,9 @@ export class DataBinder {
         suffix:   element.suffix   || '',
         fallback: element.fallback || '',
       };
+
+      // Check for byRank position changes and trigger animations
+      this._checkRankTransition(element, currentRankMap);
 
       // Resolve the raw value
       const rawValue = this.resolveValue(binding);
@@ -393,6 +410,91 @@ export class DataBinder {
   // -----------------------------------------------------------------------
   // Private helpers
   // -----------------------------------------------------------------------
+
+  /**
+   * Build a map of rank (string) -> carNumber (string) from the current
+   * leaderboard data. Used for detecting position changes between resolves.
+   *
+   * @returns {Map<string, string>} rank -> carNumber
+   */
+  _buildCurrentRankMap() {
+    const rankMap = new Map();
+    const leaderboard = this._dataStore.leaderboard;
+    if (Array.isArray(leaderboard)) {
+      for (const entry of leaderboard) {
+        const rank = String(entry.Rank || entry.rank || '');
+        const carNumber = String(entry.carNumber || entry.Car || entry.car || '');
+        if (rank && carNumber) {
+          rankMap.set(rank, carNumber);
+        }
+      }
+    }
+    return rankMap;
+  }
+
+  /**
+   * Check whether the car occupying a byRank slot has changed since the
+   * last resolve. If so, determine the old rank of the new occupant and
+   * trigger a position transition animation.
+   *
+   * @param {Object}           element        - The template element definition.
+   * @param {Map<string,string>} currentRankMap - Current rank -> carNumber map.
+   */
+  _checkRankTransition(element, currentRankMap) {
+    const carSelector = element.car;
+    if (!carSelector) return;
+
+    const selectorStr = String(carSelector);
+    const rankMatch = selectorStr.match(/^byRank:(\d+)$/);
+    if (!rankMatch) return;
+
+    const currentRank = parseInt(rankMatch[1], 10);
+    const currentCar = currentRankMap.get(String(currentRank));
+    if (!currentCar) return;
+
+    const prev = this._previousRanks.get(element.id);
+
+    if (prev && prev.carNumber !== currentCar) {
+      // The car at this rank slot changed - find where the new car was before
+      const previousRankOfNewCar = prev.carNumber !== currentCar
+        ? this._findPreviousRank(currentCar)
+        : null;
+
+      if (previousRankOfNewCar !== null && previousRankOfNewCar !== currentRank) {
+        // Determine row height from the DOM element or use a sensible default
+        const domNode = this._domMap.get(element.id);
+        const rowHeight = domNode
+          ? (domNode.offsetHeight || domNode.getBoundingClientRect().height || 40)
+          : 40;
+
+        this._animationEngine.animatePosition(
+          element.id,
+          previousRankOfNewCar,
+          currentRank,
+          rowHeight,
+          400
+        );
+      }
+    }
+
+    // Store the current assignment for next comparison
+    this._previousRanks.set(element.id, { carNumber: currentCar, rank: currentRank });
+  }
+
+  /**
+   * Look up the previous rank of a car number from stored _previousRanks data.
+   *
+   * @param {string} carNumber - The car number to find.
+   * @returns {number|null} The previous rank, or null if not found.
+   */
+  _findPreviousRank(carNumber) {
+    for (const [, entry] of this._previousRanks) {
+      if (entry.carNumber === carNumber) {
+        return entry.rank;
+      }
+    }
+    return null;
+  }
 
   /**
    * Find a car number by its rank in available leaderboard/telemetry data.

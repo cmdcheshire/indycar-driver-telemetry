@@ -34,6 +34,7 @@ import { initPropertiesPanel, updatePropertiesPanel } from './panels/properties-
 import { renderDataPanel } from './panels/data-panel.js';
 import { initDataPanel } from './panels/data-panel.js';
 import { initPreviewPanel, destroyPreviewPanel } from './panels/preview-panel.js';
+import { showPresetPicker, hidePresetPicker } from './panels/data-presets.js';
 
 /* ================================================================ *
  *  State
@@ -162,12 +163,108 @@ function _initPanels() {
         _refreshPanels();
       }
     },
+    onDelete: (id) => {
+      canvas.removeElement(id);
+      elements = elements.filter(e => e.id !== id);
+      selection.deselectAll();
+      _pushHistory();
+      _refreshPanels();
+      showToast('Element deleted', 'info', 2000);
+    },
+    onDuplicate: (id) => {
+      const original = _getElementById(id);
+      if (!original) return;
+      const clone = cloneElement(original);
+      clone.zIndex = elements.length;
+      elements.push(clone);
+      canvas.addElement(clone);
+      selection.selectElement(clone.id);
+      _pushHistory();
+      _refreshPanels();
+      showToast('Element duplicated', 'info', 2000);
+    },
+    onRename: (id, newName) => {
+      const el = _getElementById(id);
+      if (el) {
+        el.name = newName;
+        canvas.updateElement(id, { name: newName });
+        _debouncedPushHistory();
+      }
+    },
+    onMoveToFront: (id) => _moveElementZIndex(id, 'front'),
+    onMoveToBack: (id) => _moveElementZIndex(id, 'back'),
+    onMoveForward: (id) => _moveElementZIndex(id, 'forward'),
+    onMoveBackward: (id) => _moveElementZIndex(id, 'backward'),
+    onGroup: () => _groupSelected(),
+    onUngroup: () => _ungroupSelected(),
   });
 
   // Properties
   initPropertiesPanel({
     onPropertyChange: (id, changes) => {
       _applyPropertyChange(id, changes);
+    },
+    onQuickAction: (id, action) => {
+      switch (action) {
+        case 'duplicate': {
+          const original = _getElementById(id);
+          if (!original) return;
+          const clone = cloneElement(original);
+          clone.zIndex = elements.length;
+          elements.push(clone);
+          canvas.addElement(clone);
+          selection.selectElement(clone.id);
+          _pushHistory();
+          _refreshPanels();
+          showToast('Element duplicated', 'info', 2000);
+          break;
+        }
+        case 'delete':
+          canvas.removeElement(id);
+          elements = elements.filter(e => e.id !== id);
+          selection.deselectAll();
+          _pushHistory();
+          _refreshPanels();
+          showToast('Element deleted', 'info', 2000);
+          break;
+        case 'visibility': {
+          const el = _getElementById(id);
+          if (el) {
+            el.visible = !el.visible;
+            canvas.updateElement(id, { visible: el.visible });
+            _refreshPanels();
+          }
+          break;
+        }
+        case 'lock': {
+          const el = _getElementById(id);
+          if (el) {
+            el.locked = !el.locked;
+            canvas.updateElement(id, { locked: el.locked });
+            _refreshPanels();
+          }
+          break;
+        }
+        case 'front':
+        case 'back':
+          _moveElementZIndex(id, action);
+          break;
+        case 'previewAnimation': {
+          const el = _getElementById(id);
+          const node = canvas.getNode(id);
+          if (el && node && el.animation?.enter?.type && el.animation.enter.type !== 'none') {
+            const cls = `anim-${el.animation.enter.type}`;
+            const duration = el.animation.enter.duration || 300;
+            node.style.animationDuration = `${duration}ms`;
+            node.classList.add(cls);
+            node.addEventListener('animationend', () => {
+              node.classList.remove(cls);
+              node.style.animationDuration = '';
+            }, { once: true });
+          }
+          break;
+        }
+      }
     },
   });
 
@@ -215,6 +312,9 @@ function _initToolbar() {
   // Group / Ungroup
   document.getElementById('btnGroupLayers').addEventListener('click', () => _groupSelected());
   document.getElementById('btnUngroupLayers').addEventListener('click', () => _ungroupSelected());
+
+  // Template dropdown
+  _initTemplateDropdown();
 }
 
 function _initKeyboardShortcuts() {
@@ -378,10 +478,9 @@ function _createElementAtMouse(tool, event) {
       el = createShapeElement(pos.x, pos.y);
       break;
     case 'data':
-      el = createDataElement(pos.x, pos.y);
-      // Set default preview value
-      el.props._previewValue = resolveBindingPreview(el.props);
-      break;
+      // Show preset picker instead of immediately creating
+      _showDataPresetPicker(pos);
+      return; // Don't fall through to the rest of the function
     default:
       return;
   }
@@ -398,6 +497,63 @@ function _createElementAtMouse(tool, event) {
   selection.selectElement(el.id);
 
   showToast(`${el.type} element created`, 'info', 2000);
+}
+
+/**
+ * Show the data preset picker and create a data element based on the user's choice.
+ * @param {{ x: number, y: number }} pos - Canvas position where the element should be placed.
+ */
+function _showDataPresetPicker(pos) {
+  const canvasArea = document.getElementById('canvasArea');
+
+  showPresetPicker(
+    canvasArea,
+    // onSelect: create a data element pre-filled with preset bindings
+    (preset) => {
+      const el = createDataElement(pos.x, pos.y);
+
+      // Override props with preset values
+      el.props.bindingSource = preset.source;
+      el.props.bindingField = preset.field;
+      el.props.format = preset.format;
+      el.props.fallback = preset.fallback;
+      el.props.fontSize = preset.defaultFontSize;
+
+      // Override top-level properties
+      el.width = preset.defaultWidth;
+      el.name = preset.label;
+
+      // Set preview value
+      el.props._previewValue = resolveBindingPreview(el.props);
+
+      // Add to canvas
+      el.zIndex = elements.length;
+      elements.push(el);
+      canvas.addElement(el);
+      _pushHistory();
+
+      // Switch to select tool and select the new element
+      setActiveTool('select');
+      selection.selectElement(el.id);
+
+      showToast(`${el.name} data element created`, 'info', 2000);
+    },
+    // onCustom: create a raw data element with default bindings
+    () => {
+      const el = createDataElement(pos.x, pos.y);
+      el.props._previewValue = resolveBindingPreview(el.props);
+
+      el.zIndex = elements.length;
+      elements.push(el);
+      canvas.addElement(el);
+      _pushHistory();
+
+      setActiveTool('select');
+      selection.selectElement(el.id);
+
+      showToast('data element created', 'info', 2000);
+    },
+  );
 }
 
 function _deleteSelected() {
@@ -494,6 +650,138 @@ function _reorderElementToIndex(elementId, targetIndex) {
   });
 
   _refreshPanels();
+}
+
+/**
+ * Move an element's z-index (front, back, forward, backward).
+ * @param {string} elementId
+ * @param {'front'|'back'|'forward'|'backward'} direction
+ */
+function _moveElementZIndex(elementId, direction) {
+  const sorted = [...elements].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+  const idx = sorted.findIndex(e => e.id === elementId);
+  if (idx === -1) return;
+
+  let targetIndex;
+  switch (direction) {
+    case 'front':
+      targetIndex = sorted.length - 1;
+      break;
+    case 'back':
+      targetIndex = 0;
+      break;
+    case 'forward':
+      targetIndex = Math.min(idx + 1, sorted.length - 1);
+      break;
+    case 'backward':
+      targetIndex = Math.max(idx - 1, 0);
+      break;
+    default:
+      return;
+  }
+
+  if (targetIndex === idx) return;
+
+  const [moved] = sorted.splice(idx, 1);
+  sorted.splice(targetIndex, 0, moved);
+
+  sorted.forEach((el, i) => {
+    el.zIndex = i;
+    canvas.reorderElement(el.id, i);
+  });
+
+  _pushHistory();
+  _refreshPanels();
+}
+
+/* ================================================================ *
+ *  Template Dropdown
+ * ================================================================ */
+
+let _templateDropdownOpen = false;
+
+function _initTemplateDropdown() {
+  const btn = document.getElementById('btnTemplates');
+  const dropdown = document.getElementById('templateDropdown');
+  const newBtn = document.getElementById('btnNewTemplate');
+
+  if (!btn || !dropdown) return;
+
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (_templateDropdownOpen) {
+      _closeTemplateDropdown();
+    } else {
+      _openTemplateDropdown();
+    }
+  });
+
+  // Close on click outside
+  document.addEventListener('click', (e) => {
+    if (_templateDropdownOpen && !dropdown.contains(e.target) && e.target !== btn) {
+      _closeTemplateDropdown();
+    }
+  });
+
+  // New template button
+  if (newBtn) {
+    newBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      _closeTemplateDropdown();
+      _newTemplate();
+    });
+  }
+}
+
+function _openTemplateDropdown() {
+  const btn = document.getElementById('btnTemplates');
+  const dropdown = document.getElementById('templateDropdown');
+  if (!btn || !dropdown) return;
+
+  const rect = btn.getBoundingClientRect();
+  dropdown.style.display = '';
+  dropdown.style.top = `${rect.bottom + 2}px`;
+  dropdown.style.left = `${rect.right - 320}px`; // Align right edge with button
+
+  // Keep within viewport
+  const ddRect = dropdown.getBoundingClientRect();
+  if (ddRect.left < 0) {
+    dropdown.style.left = '4px';
+  }
+
+  _templateDropdownOpen = true;
+  _refreshTemplateList();
+}
+
+function _closeTemplateDropdown() {
+  const dropdown = document.getElementById('templateDropdown');
+  if (dropdown) dropdown.style.display = 'none';
+  _templateDropdownOpen = false;
+}
+
+function _newTemplate() {
+  // Reset to blank state
+  elements = [];
+  canvas.loadElements([]);
+  selection.deselectAll();
+  templateManager.currentId = null;
+
+  document.getElementById('templateName').value = 'Untitled Template';
+  document.getElementById('templateType').value = 'custom';
+
+  // Clear URL param
+  const url = new URL(window.location);
+  url.searchParams.delete('id');
+  window.history.replaceState({}, '', url);
+
+  // Hide overlay link
+  const section = document.getElementById('overlayLinkSection');
+  if (section) section.style.display = 'none';
+
+  history.clear();
+  history.push([]);
+  _refreshPanels();
+  showToast('New template', 'info', 2000);
 }
 
 /* ================================================================ *
@@ -765,7 +1053,10 @@ async function _refreshTemplateList() {
 
       item.appendChild(actions);
 
-      item.addEventListener('click', () => _loadTemplate(tmpl.id));
+      item.addEventListener('click', () => {
+        _closeTemplateDropdown();
+        _loadTemplate(tmpl.id);
+      });
       listEl.appendChild(item);
     }
   } catch (err) {
@@ -855,6 +1146,12 @@ function _updateElementInPlace(id, changes) {
   for (const [key, value] of Object.entries(changes)) {
     if (key === 'props' && typeof value === 'object') {
       el.props = { ...el.props, ...value };
+    } else if (key === 'animation' && typeof value === 'object') {
+      // Deep merge animation sub-objects (enter, exit, update)
+      el.animation = el.animation || {};
+      for (const [sub, subVal] of Object.entries(value)) {
+        el.animation[sub] = { ...(el.animation[sub] || {}), ...subVal };
+      }
     } else {
       el[key] = value;
     }

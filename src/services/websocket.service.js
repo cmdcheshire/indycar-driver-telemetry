@@ -307,11 +307,11 @@ function updateOverlayDelay(instanceId, delaySeconds) {
   }
 }
 
-function sendOverlayVisibility(instanceId, visible) {
+function sendOverlayVisibility(instanceId, visible, animation) {
   const message = JSON.stringify({
     type: 'visibility',
     timestamp: Date.now(),
-    data: { visible, animation: 'fade' },
+    data: { visible, animation: animation || (visible ? 'fadeIn' : 'fadeOut') },
   });
 
   for (const [ws, client] of overlayClients) {
@@ -325,7 +325,10 @@ function sendOverlayTemplateUpdate(instanceId, templateData) {
   const message = JSON.stringify({
     type: 'templateUpdate',
     timestamp: Date.now(),
-    data: templateData,
+    data: {
+      template: templateData.template_data || templateData,
+      referenceData: state.referenceData,
+    },
   });
 
   for (const [ws, client] of overlayClients) {

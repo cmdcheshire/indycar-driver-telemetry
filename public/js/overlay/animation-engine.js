@@ -96,6 +96,46 @@ export class AnimationEngine {
     }
   }
 
+  /**
+   * Animate an element's vertical position when its leaderboard rank changes.
+   *
+   * The element starts offset by the rank-change delta (so it visually appears
+   * at its old position) and transitions smoothly to translateY(0) (its new
+   * position in the DOM/layout).
+   *
+   * @param {string} elementId  - The template element id.
+   * @param {number} fromRank   - The previous rank (1-based).
+   * @param {number} toRank     - The new rank (1-based).
+   * @param {number} rowHeight  - Pixel height of one leaderboard row.
+   * @param {number} [duration=400] - Transition duration in milliseconds.
+   */
+  animatePosition(elementId, fromRank, toRank, rowHeight, duration = 400) {
+    const node = this._domMap.get(elementId);
+    if (!node) return;
+
+    const deltaY = (fromRank - toRank) * rowHeight;
+    if (deltaY === 0) return;
+
+    // Start at the offset (old visual position)
+    node.style.transition = 'none';
+    node.style.transform = `translateY(${deltaY}px)`;
+
+    // Force a reflow so the browser registers the starting position
+    void node.offsetHeight;
+
+    // Transition to the new position
+    node.style.transition = `transform ${duration}ms ease-in-out`;
+    node.style.transform = 'translateY(0)';
+
+    // Clean up inline styles after transition
+    const onEnd = () => {
+      node.style.transition = '';
+      node.style.transform = '';
+      node.removeEventListener('transitionend', onEnd);
+    };
+    node.addEventListener('transitionend', onEnd, { once: true });
+  }
+
   // -----------------------------------------------------------------------
   // Private helpers
   // -----------------------------------------------------------------------

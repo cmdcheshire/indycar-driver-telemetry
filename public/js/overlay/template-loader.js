@@ -34,6 +34,26 @@ function normalizeElement(el) {
   if (flat.textStroke    !== undefined && flat.webkitTextStroke === undefined) flat.webkitTextStroke = flat.textStroke;
   if (flat.conditionalStyles !== undefined && flat.conditions === undefined) flat.conditions = flat.conditionalStyles;
 
+  // Flatten animation object into top-level animation props for the renderer/binder
+  if (flat.animation && typeof flat.animation === 'object') {
+    const anim = flat.animation;
+    if (anim.enter) {
+      if (anim.enter.type)     flat.enterAnimation         = anim.enter.type;
+      if (anim.enter.duration) flat.enterAnimationDuration  = anim.enter.duration;
+      if (anim.enter.delay)    flat.enterAnimationDelay     = anim.enter.delay;
+      if (anim.enter.easing)   flat.enterAnimationEasing    = anim.enter.easing;
+    }
+    if (anim.exit) {
+      if (anim.exit.type)     flat.exitAnimation         = anim.exit.type;
+      if (anim.exit.duration) flat.exitAnimationDuration  = anim.exit.duration;
+      if (anim.exit.easing)   flat.exitAnimationEasing    = anim.exit.easing;
+    }
+    if (anim.update) {
+      if (anim.update.type)     flat.updateAnimation         = anim.update.type;
+      if (anim.update.duration) flat.updateAnimationDuration  = anim.update.duration;
+    }
+  }
+
   return flat;
 }
 

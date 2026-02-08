@@ -11,20 +11,23 @@
       overflow: hidden;
     }
 
-    /* ---- Layout ---- */
+    /* ================================================================ *
+     *  Layout — 2-row grid (toolbar + content)
+     * ================================================================ */
     .builder-layout {
       display: grid;
-      grid-template-rows: 48px 1fr 180px;
+      grid-template-rows: 48px 1fr;
       grid-template-columns: 240px 1fr 280px;
       grid-template-areas:
         "toolbar toolbar toolbar"
-        "left-sidebar canvas right-sidebar"
-        "layers layers layers";
+        "left-sidebar canvas right-sidebar";
       height: 100vh;
       width: 100vw;
     }
 
-    /* ---- Top Toolbar ---- */
+    /* ================================================================ *
+     *  Top Toolbar
+     * ================================================================ */
     .builder-toolbar {
       grid-area: toolbar;
       display: flex;
@@ -77,7 +80,9 @@
       font-variant-numeric: tabular-nums;
     }
 
-    /* ---- Left Sidebar ---- */
+    /* ================================================================ *
+     *  Left Sidebar — Tools + Layers (vertical)
+     * ================================================================ */
     .left-sidebar {
       grid-area: left-sidebar;
       background: var(--surface);
@@ -139,62 +144,128 @@
       fill: currentColor;
     }
 
-    /* Template list */
-    .template-list-container {
+    /* ---- Layer Section (vertical list in left sidebar) ---- */
+    .layer-section {
       flex: 1;
-      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
       border-top: 1px solid var(--border);
+      overflow: hidden;
     }
 
-    .template-list-item {
+    .layer-section-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
       padding: 8px 12px;
+      flex-shrink: 0;
+    }
+
+    .layer-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0;
+    }
+
+    .layer-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 8px 5px 4px;
       cursor: pointer;
       border-bottom: 1px solid var(--border);
       transition: background var(--transition);
+      font-size: 0.8rem;
     }
 
-    .template-list-item:hover { background: var(--surface-alt); }
+    .layer-item:hover { background: var(--surface-alt); }
+    .layer-item.selected { background: var(--accent-light); }
 
-    .template-list-item .tmpl-name {
-      font-size: 0.85rem;
+    .layer-item.drag-over {
+      box-shadow: inset 0 -2px 0 var(--accent);
+    }
+
+    .layer-drag-handle {
+      cursor: grab;
+      color: var(--text-dim);
+      flex-shrink: 0;
+      padding: 0 2px;
+      font-size: 0.7rem;
+      user-select: none;
+      line-height: 1;
+    }
+
+    .layer-type-icon {
+      flex-shrink: 0;
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.6rem;
+      font-weight: 700;
+      color: var(--text-dim);
+      background: var(--surface-alt);
+      border-radius: 3px;
+    }
+
+    .layer-type-icon svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    .layer-name {
       flex: 1;
+      min-width: 0;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
-    .template-list-item .tmpl-type {
-      font-size: 0.7rem;
-      color: var(--text-dim);
-      margin-left: 8px;
+    .layer-name-input {
+      background: transparent;
+      border: 1px solid var(--accent);
+      color: var(--text);
+      font-size: inherit;
+      padding: 1px 4px;
+      border-radius: 2px;
+      width: 100%;
+      outline: none;
     }
 
-    .template-list-item .tmpl-actions {
+    .layer-badges {
       display: flex;
-      gap: 4px;
-      opacity: 0;
-      transition: opacity var(--transition);
+      align-items: center;
+      gap: 2px;
+      flex-shrink: 0;
     }
 
-    .template-list-item:hover .tmpl-actions { opacity: 1; }
+    .layer-anim-badge {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      flex-shrink: 0;
+    }
 
-    .tmpl-action-btn {
+    .layer-ctrl-btn {
       background: transparent;
       border: none;
       color: var(--text-muted);
       cursor: pointer;
-      padding: 2px 4px;
-      font-size: 0.75rem;
+      padding: 2px;
+      font-size: 0.8rem;
       border-radius: var(--radius-sm);
+      line-height: 1;
+      flex-shrink: 0;
     }
 
-    .tmpl-action-btn:hover { color: var(--text); background: var(--border); }
-    .tmpl-action-btn.delete:hover { color: var(--danger); }
+    .layer-ctrl-btn:hover { color: var(--text); }
+    .layer-ctrl-btn.off { color: var(--text-dim); opacity: 0.4; }
 
-    /* ---- Canvas Area ---- */
+    /* ================================================================ *
+     *  Canvas Area
+     * ================================================================ */
     .canvas-area {
       grid-area: canvas;
       overflow: auto;
@@ -324,7 +395,9 @@
       background: transparent;
     }
 
-    /* ---- Right Sidebar ---- */
+    /* ================================================================ *
+     *  Right Sidebar
+     * ================================================================ */
     .right-sidebar {
       grid-area: right-sidebar;
       background: var(--surface);
@@ -398,6 +471,156 @@
       padding: 40px 16px;
     }
 
+    /* ---- Collapsible Property Groups ---- */
+    .prop-group-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      padding-bottom: 4px;
+      border-bottom: 1px solid var(--border);
+      user-select: none;
+    }
+
+    .prop-group-header .prop-group-title {
+      margin-bottom: 0;
+      padding-bottom: 0;
+      border-bottom: none;
+    }
+
+    .prop-group-chevron {
+      font-size: 0.55rem;
+      color: var(--text-dim);
+      transition: transform 0.2s;
+    }
+
+    .prop-group-header.collapsed .prop-group-chevron {
+      transform: rotate(-90deg);
+    }
+
+    .prop-group-body {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding-top: 8px;
+    }
+
+    .prop-group-body.collapsed {
+      display: none;
+    }
+
+    /* ---- Quick Actions Bar ---- */
+    .quick-actions {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .quick-action-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      border: 1px solid transparent;
+      border-radius: var(--radius);
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all var(--transition);
+      font-size: 0.85rem;
+    }
+
+    .quick-action-btn:hover {
+      background: var(--surface-alt);
+      color: var(--text);
+      border-color: var(--border);
+    }
+
+    .quick-action-btn:active { transform: scale(0.95); }
+    .quick-action-btn.danger:hover { color: var(--danger); }
+
+    .quick-action-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    /* ---- Color Swatch ---- */
+    .color-swatch-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+    }
+
+    .color-swatch {
+      width: 22px;
+      height: 22px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    /* ---- Range Slider ---- */
+    .prop-range-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+    }
+
+    .prop-range-wrapper input[type="range"] {
+      flex: 1;
+      height: 4px;
+      -webkit-appearance: none;
+      background: var(--border);
+      border-radius: 2px;
+      outline: none;
+    }
+
+    .prop-range-wrapper input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+    }
+
+    .prop-range-value {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      min-width: 32px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ---- Animation Controls ---- */
+    .anim-preview-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: all var(--transition);
+    }
+
+    .anim-preview-btn:hover {
+      background: var(--accent-light);
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+
     /* Preview section */
     .preview-section {
       margin-top: auto;
@@ -445,115 +668,214 @@
       padding: 4px 8px;
     }
 
-    /* ---- Bottom Layer Panel ---- */
-    .layer-panel {
-      grid-area: layers;
+    /* ================================================================ *
+     *  Template Dropdown
+     * ================================================================ */
+    .template-dropdown {
+      position: fixed;
+      z-index: 200;
       background: var(--surface);
-      border-top: 1px solid var(--border);
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 0 0 var(--radius) var(--radius);
+      box-shadow: var(--shadow-lg);
+      width: 320px;
+      max-height: 420px;
+      overflow-y: auto;
     }
 
-    .layer-panel-header {
+    .template-dropdown-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      background: var(--surface);
+      z-index: 1;
+    }
+
+    .template-list-item {
       display: flex;
       align-items: center;
       justify-content: space-between;
       padding: 8px 12px;
+      cursor: pointer;
       border-bottom: 1px solid var(--border);
-      flex-shrink: 0;
+      transition: background var(--transition);
     }
 
-    .layer-panel-header h3 {
+    .template-list-item:hover { background: var(--surface-alt); }
+
+    .template-list-item .tmpl-name {
+      font-size: 0.85rem;
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .template-list-item .tmpl-type {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      margin-left: 8px;
+    }
+
+    .template-list-item .tmpl-actions {
+      display: flex;
+      gap: 4px;
+      opacity: 0;
+      transition: opacity var(--transition);
+    }
+
+    .template-list-item:hover .tmpl-actions { opacity: 1; }
+
+    .tmpl-action-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 2px 4px;
+      font-size: 0.75rem;
+      border-radius: var(--radius-sm);
+    }
+
+    .tmpl-action-btn:hover { color: var(--text); background: var(--border); }
+    .tmpl-action-btn.delete:hover { color: var(--danger); }
+
+    /* ================================================================ *
+     *  Context Menu
+     * ================================================================ */
+    .context-menu {
+      position: fixed;
+      z-index: 10000;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-lg);
+      min-width: 200px;
+      padding: 4px 0;
+      font-size: 0.8rem;
+    }
+
+    .context-menu-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 12px;
+      cursor: pointer;
+      color: var(--text);
+      transition: background var(--transition);
+    }
+
+    .context-menu-item:hover { background: var(--accent-light); }
+    .context-menu-item.danger:hover { background: rgba(239,68,68,0.15); color: var(--danger); }
+
+    .context-menu-shortcut {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      margin-left: 16px;
+    }
+
+    .context-menu-separator {
+      height: 1px;
+      background: var(--border);
+      margin: 4px 0;
+    }
+
+    /* ================================================================ *
+     *  Data Preset Picker
+     * ================================================================ */
+    .preset-picker-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 500;
+      background: rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .preset-picker {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      width: 640px;
+      max-height: 80%;
+      overflow-y: auto;
+      padding: 20px;
+    }
+
+    .preset-picker-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .preset-picker-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+
+    .preset-category-title {
       font-size: 0.7rem;
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.08em;
       color: var(--text-muted);
+      margin: 16px 0 8px;
     }
 
-    .layer-list {
-      display: flex;
-      flex-direction: row;
-      overflow-x: auto;
-      padding: 8px;
-      gap: 6px;
-      flex: 1;
-      align-items: flex-start;
+    .preset-category-title:first-of-type { margin-top: 0; }
+
+    .preset-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
     }
 
-    .layer-item {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 4px;
-      padding: 8px 10px;
+    .preset-card {
+      padding: 10px 12px;
       background: var(--card-bg);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      min-width: 120px;
-      max-width: 160px;
       cursor: pointer;
       transition: all var(--transition);
-      flex-shrink: 0;
     }
 
-    .layer-item:hover { border-color: var(--border-light); }
-    .layer-item.selected { border-color: var(--accent); background: var(--accent-light); }
-
-    .layer-item.drag-over {
+    .preset-card:hover {
       border-color: var(--accent);
-      box-shadow: 0 0 0 2px var(--accent-light);
+      background: var(--accent-light);
     }
 
-    .layer-preview {
-      width: 100%;
-      height: 50px;
-      background: var(--surface-alt);
-      border-radius: var(--radius-sm);
-      overflow: hidden;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+    .preset-card-name {
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+
+    .preset-card-desc {
       font-size: 0.7rem;
       color: var(--text-dim);
+      margin-top: 2px;
     }
 
-    .layer-info {
-      width: 100%;
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-
-    .layer-name {
-      font-size: 0.78rem;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+    .preset-custom-link {
+      display: block;
       text-align: center;
-    }
-
-    .layer-controls {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-    }
-
-    .layer-ctrl-btn {
-      background: transparent;
-      border: none;
+      padding: 10px;
       color: var(--text-muted);
-      cursor: pointer;
-      padding: 2px;
       font-size: 0.8rem;
-      border-radius: var(--radius-sm);
-      line-height: 1;
+      cursor: pointer;
+      margin-top: 12px;
+      border-top: 1px solid var(--border);
     }
 
-    .layer-ctrl-btn:hover { color: var(--text); }
-    .layer-ctrl-btn.off { color: var(--text-dim); opacity: 0.5; }
+    .preset-custom-link:hover { color: var(--accent); }
   </style>
 </head>
 <body>
@@ -568,6 +890,7 @@
         </a>
         <a href="/drivers" class="btn btn-sm">Drivers</a>
         <a href="/simulator" class="btn btn-sm">Simulator</a>
+        <a href="/graphics-control" class="btn btn-sm">Graphics</a>
         <div class="toolbar-separator"></div>
         <input type="text" class="template-name-input" id="templateName" value="Untitled Template" spellcheck="false" />
         <select class="select" id="templateType" style="font-size:0.8rem; padding:4px 8px;">
@@ -598,6 +921,10 @@
         <button class="btn btn-sm" id="btnZoomFit" title="Fit to View">Fit</button>
       </div>
       <div class="toolbar-right">
+        <button class="btn btn-sm" id="btnTemplates" title="Open/manage templates">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 2h5v5H2zM9 2h5v5H9zM2 9h5v5H2zM9 9h5v5H9z"/></svg>
+          Templates
+        </button>
         <button class="btn btn-sm btn-primary" id="btnSave" title="Save (Ctrl+S)">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M13 16H3a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h8l4 4v9a2 2 0 0 1-2 2z"/><path d="M12 16v-5H4v5"/><path d="M4 1v4h5"/></svg>
           Save
@@ -605,7 +932,7 @@
       </div>
     </div>
 
-    <!-- Left Sidebar -->
+    <!-- Left Sidebar: Tools + Layers -->
     <div class="left-sidebar">
       <div class="sidebar-section" id="toolsPanel">
         <div class="sidebar-section-title">Tools</div>
@@ -613,12 +940,21 @@
           <!-- Populated by tools-panel.js -->
         </div>
       </div>
-      <div class="template-list-container" id="templateListContainer">
-        <div class="sidebar-section">
-          <div class="sidebar-section-title">Templates</div>
+
+      <div class="layer-section" id="layerSection">
+        <div class="layer-section-header">
+          <span class="sidebar-section-title" style="margin-bottom:0">Layers</span>
+          <div class="flex gap-xs">
+            <button class="btn btn-sm btn-icon" id="btnGroupLayers" title="Group (Ctrl+G)">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/><path d="M7 4h2m0 0v2m0-2V2m4 5v2m0 0h2m-2 0H9"/></svg>
+            </button>
+            <button class="btn btn-sm btn-icon" id="btnUngroupLayers" title="Ungroup (Ctrl+Shift+G)">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/><path d="M9 4h4m-4 4h4"/></svg>
+            </button>
+          </div>
         </div>
-        <div id="templateList">
-          <!-- Populated by template-manager.js -->
+        <div class="layer-list" id="layerList">
+          <!-- Populated by layer-panel.js -->
         </div>
       </div>
     </div>
@@ -652,24 +988,55 @@
       </div>
     </div>
 
-    <!-- Bottom Layer Panel -->
-    <div class="layer-panel">
-      <div class="layer-panel-header">
-        <h3>Layers</h3>
-        <div class="flex gap-xs">
-          <button class="btn btn-sm btn-icon" id="btnGroupLayers" title="Group (Ctrl+G)">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/><path d="M7 4h2m0 0v2m0-2V2m4 5v2m0 0h2m-2 0H9"/></svg>
-          </button>
-          <button class="btn btn-sm btn-icon" id="btnUngroupLayers" title="Ungroup (Ctrl+Shift+G)">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/><path d="M9 4h4m-4 4h4"/></svg>
-          </button>
-        </div>
-      </div>
-      <div class="layer-list" id="layerList">
-        <!-- Populated by layer-panel.js -->
-      </div>
-    </div>
+  </div>
 
+  <!-- Template Dropdown (positioned by JS) -->
+  <div class="template-dropdown" id="templateDropdown" style="display:none;">
+    <div class="template-dropdown-header">
+      <span class="sidebar-section-title" style="margin-bottom:0">Templates</span>
+      <button class="btn btn-sm" id="btnNewTemplate">+ New</button>
+    </div>
+    <div id="templateList">
+      <!-- Populated by main.js _refreshTemplateList -->
+    </div>
+  </div>
+
+  <!-- Context Menu (positioned by JS) -->
+  <div class="context-menu" id="layerContextMenu" style="display:none;">
+    <div class="context-menu-item" data-action="duplicate">
+      <span>Duplicate</span>
+      <span class="context-menu-shortcut">Ctrl+D</span>
+    </div>
+    <div class="context-menu-item danger" data-action="delete">
+      <span>Delete</span>
+      <span class="context-menu-shortcut">Del</span>
+    </div>
+    <div class="context-menu-separator"></div>
+    <div class="context-menu-item" data-action="rename">
+      <span>Rename</span>
+    </div>
+    <div class="context-menu-separator"></div>
+    <div class="context-menu-item" data-action="moveToFront">
+      <span>Move to Front</span>
+    </div>
+    <div class="context-menu-item" data-action="moveForward">
+      <span>Move Forward</span>
+    </div>
+    <div class="context-menu-item" data-action="moveBackward">
+      <span>Move Backward</span>
+    </div>
+    <div class="context-menu-item" data-action="moveToBack">
+      <span>Move to Back</span>
+    </div>
+    <div class="context-menu-separator"></div>
+    <div class="context-menu-item" data-action="group">
+      <span>Group</span>
+      <span class="context-menu-shortcut">Ctrl+G</span>
+    </div>
+    <div class="context-menu-item" data-action="ungroup">
+      <span>Ungroup</span>
+      <span class="context-menu-shortcut">Ctrl+Shift+G</span>
+    </div>
   </div>
 
   <script type="module" src="/js/builder/main.js"></script>

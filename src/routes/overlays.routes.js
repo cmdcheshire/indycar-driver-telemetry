@@ -162,4 +162,162 @@ router.put('/instances/:id/visibility', requireRole('operator', 'admin'), (req, 
   }
 });
 
+// ── Folders ──
+
+router.get('/folders', (req, res) => {
+  try {
+    const folders = overlayService.getFolders();
+    // Attach instances to each folder
+    const instances = overlayService.getAllInstances();
+    const foldersWithInstances = folders.map(f => ({
+      ...f,
+      instances: instances.filter(i => i.folder_id === f.id),
+    }));
+    res.json({ folders: foldersWithInstances });
+  } catch (err) {
+    console.error('Error listing folders:', err.message);
+    res.status(500).json({ error: 'Failed to list folders' });
+  }
+});
+
+router.post('/folders', requireRole('operator', 'admin'), (req, res) => {
+  try {
+    const { name, parent_id } = req.body;
+    const folder = overlayService.createFolder(name, parent_id);
+    res.status(201).json({ folder });
+  } catch (err) {
+    console.error('Error creating folder:', err.message);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.put('/folders/:id', requireRole('operator', 'admin'), (req, res) => {
+  try {
+    const folder = overlayService.updateFolder(parseInt(req.params.id, 10), req.body);
+    if (!folder) return res.status(404).json({ error: 'Folder not found' });
+    res.json({ folder });
+  } catch (err) {
+    console.error('Error updating folder:', err.message);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.delete('/folders/:id', requireRole('admin'), (req, res) => {
+  try {
+    overlayService.deleteFolder(parseInt(req.params.id, 10));
+    res.json({ message: 'Folder deleted' });
+  } catch (err) {
+    console.error('Error deleting folder:', err.message);
+    res.status(500).json({ error: 'Failed to delete folder' });
+  }
+});
+
+// ── Rundown ──
+
+router.get('/instances/:id/rundown', (req, res) => {
+  try {
+    const items = overlayService.getRundownItems(parseInt(req.params.id, 10));
+    res.json({ items });
+  } catch (err) {
+    console.error('Error getting rundown:', err.message);
+    res.status(500).json({ error: 'Failed to get rundown' });
+  }
+});
+
+router.post('/instances/:id/rundown', requireRole('operator', 'admin'), (req, res) => {
+  try {
+    const { template_id, sort_order } = req.body;
+    const item = overlayService.addRundownItem(parseInt(req.params.id, 10), template_id, sort_order);
+    res.status(201).json({ item });
+  } catch (err) {
+    console.error('Error adding rundown item:', err.message);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.put('/rundown/:itemId', requireRole('operator', 'admin'), (req, res) => {
+  try {
+    const item = overlayService.updateRundownItem(parseInt(req.params.itemId, 10), req.body);
+    if (!item) return res.status(404).json({ error: 'Rundown item not found' });
+    res.json({ item });
+  } catch (err) {
+    console.error('Error updating rundown item:', err.message);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.delete('/rundown/:itemId', requireRole('admin'), (req, res) => {
+  try {
+    overlayService.deleteRundownItem(parseInt(req.params.itemId, 10));
+    res.json({ message: 'Rundown item deleted' });
+  } catch (err) {
+    console.error('Error deleting rundown item:', err.message);
+    res.status(500).json({ error: 'Failed to delete rundown item' });
+  }
+});
+
+router.post('/rundown/:itemId/take', requireRole('operator', 'admin'), (req, res) => {
+  try {
+    const { action } = req.body;
+    if (action !== 'on' && action !== 'off') {
+      return res.status(400).json({ error: "action must be 'on' or 'off'" });
+    }
+
+    const itemId = parseInt(req.params.itemId, 10);
+    const wsService = require('../services/websocket.service');
+
+    // Get the rundown item directly by its ID
+    const db = require('../config/database').getDb();
+    const rundownItem = db.prepare('SELECT * FROM rundown_items WHERE id = ?').get(itemId);
+    if (!rundownItem) return res.status(404).json({ error: 'Rundown item not found' });
+
+    const instanceId = rundownItem.instance_id;
+
+    // Load template to extract animation config
+    const templateData = overlayService.getTemplate(rundownItem.template_id);
+
+    // Parse animation config from template_data
+    let enterAnimation;
+    let exitAnimation;
+    if (templateData) {
+      try {
+        const tData = typeof templateData.template_data === 'string'
+          ? JSON.parse(templateData.template_data)
+          : templateData.template_data;
+        if (tData && tData.animation) {
+          enterAnimation = tData.animation.enter && tData.animation.enter.type;
+          exitAnimation = tData.animation.exit && tData.animation.exit.type;
+        }
+      } catch (_) { /* ignore parse errors, defaults will be used */ }
+    }
+
+    if (action === 'on') {
+      if (!templateData) return res.status(404).json({ error: 'Template not found' });
+
+      // Take off any other currently on-air items for this instance
+      const onAirItems = db.prepare(
+        'SELECT id FROM rundown_items WHERE instance_id = ? AND is_on_air = 1 AND id != ?'
+      ).all(instanceId, itemId);
+
+      for (const onAirItem of onAirItems) {
+        wsService.sendOverlayVisibility(instanceId, false, exitAnimation);
+        overlayService.setRundownItemOnAir(onAirItem.id, false);
+      }
+
+      // Send template update then visibility with enter animation
+      wsService.sendOverlayTemplateUpdate(instanceId, templateData);
+      wsService.sendOverlayVisibility(instanceId, true, enterAnimation);
+      overlayService.setRundownItemOnAir(itemId, true);
+    } else {
+      wsService.sendOverlayVisibility(instanceId, false, exitAnimation);
+      overlayService.setRundownItemOnAir(itemId, false);
+    }
+
+    res.json({ itemId, action, success: true });
+  } catch (err) {
+    console.error('Error taking rundown item:', err.message);
+    res.status(500).json({ error: 'Failed to take rundown item' });
+  }
+});
+
 module.exports = router;

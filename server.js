@@ -71,6 +71,7 @@ async function main() {
   app.get('/builder/:id', (req, res) => res.sendFile(path.join(__dirname, 'public', 'builder.html')));
   app.get('/drivers', (req, res) => res.sendFile(path.join(__dirname, 'public', 'drivers.html')));
   app.get('/simulator', (req, res) => res.sendFile(path.join(__dirname, 'public', 'simulator.html')));
+  app.get('/graphics-control', (req, res) => res.sendFile(path.join(__dirname, 'public', 'graphics-control.html')));
 
   // Create HTTP server
   const server = http.createServer(app);
