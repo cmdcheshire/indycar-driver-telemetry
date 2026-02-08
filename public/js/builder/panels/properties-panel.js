@@ -19,6 +19,7 @@ import {
 } from '/js/shared/animation-presets.js';
 
 import { getExposableSettings } from '/js/shared/exposed-settings.js';
+import { getCustomFontOptions, registerUploadedFont } from '/js/shared/font-loader.js';
 
 /** @type {Function} */
 let onPropertyChange = null;
@@ -222,17 +223,36 @@ function _quickActionBtn(title, svgHtml, onClick) {
 /* ---- Type-specific property sections ---- */
 
 function _addTextProps(p) {
+  // Build font options: built-in + custom uploaded fonts
+  const builtInFonts = [
+    { value: 'Inter, sans-serif', label: 'Inter' },
+    { value: 'Roboto, sans-serif', label: 'Roboto' },
+    { value: 'Roboto Mono, monospace', label: 'Roboto Mono' },
+    { value: 'Oswald, sans-serif', label: 'Oswald' },
+    { value: 'Montserrat, sans-serif', label: 'Montserrat' },
+    { value: 'Arial, sans-serif', label: 'Arial' },
+    { value: 'Georgia, serif', label: 'Georgia' },
+    { value: 'monospace', label: 'Monospace' },
+  ];
+  const customFonts = getCustomFontOptions();
+  const allFontOptions = customFonts.length > 0
+    ? [...builtInFonts, ...customFonts]
+    : builtInFonts;
+
+  // Font selector row with upload button
+  const fontRow = _selectInput('Font', p.fontFamily || 'Inter, sans-serif', allFontOptions,
+    (v) => _emitProp({ fontFamily: v }));
+
+  const uploadFontBtn = document.createElement('button');
+  uploadFontBtn.className = 'btn btn-sm';
+  uploadFontBtn.textContent = '+';
+  uploadFontBtn.title = 'Upload font';
+  uploadFontBtn.style.flexShrink = '0';
+  uploadFontBtn.addEventListener('click', () => _triggerFontUpload());
+  fontRow.appendChild(uploadFontBtn);
+
   _addCollapsibleGroup('Typography', [
-    _selectInput('Font', p.fontFamily || 'Inter, sans-serif', [
-      { value: 'Inter, sans-serif', label: 'Inter' },
-      { value: 'Roboto, sans-serif', label: 'Roboto' },
-      { value: 'Roboto Mono, monospace', label: 'Roboto Mono' },
-      { value: 'Oswald, sans-serif', label: 'Oswald' },
-      { value: 'Montserrat, sans-serif', label: 'Montserrat' },
-      { value: 'Arial, sans-serif', label: 'Arial' },
-      { value: 'Georgia, serif', label: 'Georgia' },
-      { value: 'monospace', label: 'Monospace' },
-    ], (v) => _emitProp({ fontFamily: v })),
+    fontRow,
     _row([
       _numberInput('Size', p.fontSize || 24, 8, 200, 1, (v) => _emitProp({ fontSize: v })),
       _selectInput('Weight', p.fontWeight || '400', [
@@ -254,6 +274,10 @@ function _addTextProps(p) {
       { value: 'right', label: 'Right' },
     ], (v) => _emitProp({ textAlign: v })),
     _checkboxInput('Fit Text', !!p.fitText, (v) => _emitProp({ fitText: v })),
+    _selectInput('Overflow', p.overflow || 'hidden', [
+      { value: 'hidden', label: 'Clip' },
+      { value: 'visible', label: 'Visible' },
+    ], (v) => _emitProp({ overflow: v })),
   ]);
 
   _addCollapsibleGroup('Text Content', [
@@ -325,6 +349,61 @@ async function _triggerImageUpload() {
       console.error('Image upload error:', err);
       const { showToast } = await import('/js/modules/ui.js');
       showToast('Image upload failed', 'error');
+    } finally {
+      input.remove();
+    }
+  });
+
+  document.body.appendChild(input);
+  input.click();
+}
+
+async function _triggerFontUpload() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.ttf,.otf,.woff,.woff2';
+  input.style.display = 'none';
+
+  input.addEventListener('change', async () => {
+    const file = input.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('files', file);
+
+    try {
+      const { getToken } = await import('/js/modules/auth.js');
+      const token = getToken();
+
+      const res = await fetch('/api/library/assets/upload', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData,
+      });
+
+      if (!res.ok) throw new Error('Upload failed');
+      const data = await res.json();
+
+      const asset = data.assets && data.assets[0];
+      if (!asset) throw new Error('No asset returned');
+
+      // Register the font and get its family name
+      const { family } = registerUploadedFont(asset.id, asset.original_name);
+
+      // Apply the new font to the current element
+      _emitProp({ fontFamily: family });
+
+      if (currentElement) {
+        currentElement.props = { ...(currentElement.props || {}), fontFamily: family };
+        updatePropertiesPanel(currentElement);
+      }
+
+      const { showToast } = await import('/js/modules/ui.js');
+      showToast(`Font "${family}" uploaded`, 'success');
+    } catch (err) {
+      console.error('Font upload error:', err);
+      const { showToast } = await import('/js/modules/ui.js');
+      showToast('Font upload failed', 'error');
     } finally {
       input.remove();
     }

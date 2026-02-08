@@ -67,6 +67,11 @@ export function renderElement(element, referenceData = {}) {
       console.warn(`[element-renderer] Unknown element type: "${element.type}"`);
   }
 
+  // ── Overflow override (textbox clipping) ──
+  if (element.overflow) {
+    wrapper.style.overflow = element.overflow;
+  }
+
   // ── Fit text (auto-shrink) ──
   if (element.fitText && (element.type === 'text' || element.type === 'data')) {
     wrapper.dataset.fitText = 'true';
@@ -295,7 +300,7 @@ export function updateElementStyle(domNode, styles) {
  * Shrink font size until text fits within the element bounds.
  * @param {HTMLElement} el
  */
-function fitTextToElement(el) {
+export function fitTextToElement(el) {
   const maxSize = parseInt(el.dataset.maxFontSize, 10) || 24;
   let size = maxSize;
   el.style.fontSize = `${size}px`;

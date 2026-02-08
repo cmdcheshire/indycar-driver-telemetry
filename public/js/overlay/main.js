@@ -6,10 +6,11 @@
  */
 
 import { buildOverlay, normalizeElements } from './template-loader.js';
-import { updateElementText, updateElementStyle } from './element-renderer.js';
+import { updateElementText, updateElementStyle, fitTextToElement } from './element-renderer.js';
 import { DataBinder } from './data-binder.js';
 import { GsapAnimationEngine } from './gsap-animation-engine.js';
 import { init as initAssetCache, precacheTemplate } from './asset-cache.js';
+import { loadCustomFonts } from '/js/shared/font-loader.js';
 
 // ---------------------------------------------------------------------------
 // State
@@ -158,10 +159,13 @@ function onMessage(event) {
 // Init
 // ---------------------------------------------------------------------------
 
-function handleInit(msg) {
+async function handleInit(msg) {
   const { template, config, referenceData, snapshot } = msg.data || {};
 
   console.log('[overlay] Received init – building overlay');
+
+  // Load custom fonts from library before rendering
+  await loadCustomFonts();
 
   // Normalize builder elements to flat format for renderer/binder
   if (template && template.elements) {
@@ -361,10 +365,13 @@ function scheduleAutoExit(timeline, elementAnimations, rootAnimation) {
 // Template update (hot-reload)
 // ---------------------------------------------------------------------------
 
-function handleTemplateUpdate(msg) {
+async function handleTemplateUpdate(msg) {
   const { template, referenceData } = msg.data || {};
 
   console.log('[overlay] Template update received – rebuilding DOM');
+
+  // Reload custom fonts (picks up any newly uploaded fonts)
+  await loadCustomFonts();
 
   // Normalize builder elements to flat format
   if (template && template.elements) {
@@ -486,6 +493,25 @@ function applyElementOverrides(overrides) {
 
     if (Object.keys(styleMap).length > 0) {
       updateElementStyle(node, styleMap);
+    }
+
+    // Fit text (auto-size)
+    if (props.fitText !== undefined) {
+      const enabled = props.fitText === true || props.fitText === 'true';
+      if (enabled) {
+        node.dataset.fitText = 'true';
+        node.dataset.maxFontSize = String(parseInt(node.style.fontSize, 10) || 24);
+        requestAnimationFrame(() => fitTextToElement(node));
+      } else {
+        delete node.dataset.fitText;
+        node.style.overflow = '';
+        node.style.whiteSpace = '';
+      }
+    }
+
+    // Overflow (textbox clipping)
+    if (props.overflow !== undefined) {
+      node.style.overflow = props.overflow;
     }
 
     // Data binding props (prefix, suffix, fallback, carSelector)

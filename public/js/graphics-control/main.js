@@ -9,6 +9,7 @@ import { initOutputBrowser, renderOutputBrowser, getSelectedOutputId, updateCach
 import { initRundownPanel, renderRundown, clearRundown } from '/js/graphics-control/rundown-panel.js';
 import { initTemplateLibrary, renderTemplateLibrary } from '/js/graphics-control/template-library.js';
 import { initPreviewPanel, updatePreview, clearPreview } from '/js/graphics-control/preview-panel.js';
+import { loadCustomFonts } from '/js/shared/font-loader.js';
 
 // ── State ──
 
@@ -220,6 +221,9 @@ async function init() {
   });
 
   initPreviewPanel();
+
+  // Load custom fonts from library (for exposed font selectors)
+  await loadCustomFonts();
 
   // Load initial data
   await refreshAll();

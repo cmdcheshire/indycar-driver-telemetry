@@ -253,7 +253,7 @@ export class CanvasEngine {
         node.style.lineHeight = p.lineHeight || '1.3';
         node.style.display = 'flex';
         node.style.alignItems = 'center';
-        node.style.overflow = p.fitText ? 'hidden' : '';
+        node.style.overflow = p.fitText ? 'hidden' : (p.overflow || '');
         if (p.textShadow) node.style.textShadow = p.textShadow;
         if (p.textStroke) node.style.webkitTextStroke = p.textStroke;
         if (p.fitText) this.#applyFitText(node, p);
@@ -307,7 +307,7 @@ export class CanvasEngine {
         node.style.lineHeight = p.lineHeight || '1.3';
         node.style.display = 'flex';
         node.style.alignItems = 'center';
-        node.style.overflow = p.fitText ? 'hidden' : '';
+        node.style.overflow = p.fitText ? 'hidden' : (p.overflow || '');
         if (p.textShadow) node.style.textShadow = p.textShadow;
         if (p.textStroke) node.style.webkitTextStroke = p.textStroke;
         if (p.fitText) this.#applyFitText(node, p);

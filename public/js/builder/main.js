@@ -41,6 +41,7 @@ import { initDataPanel } from './panels/data-panel.js';
 import { initPreviewPanel, destroyPreviewPanel } from './panels/preview-panel.js';
 import { showPresetPicker, hidePresetPicker } from './panels/data-presets.js';
 import { initTimelinePanel, renderTimelinePanel } from './panels/timeline-panel.js';
+import { loadCustomFonts } from '/js/shared/font-loader.js';
 
 /* ================================================================ *
  *  State
@@ -89,7 +90,9 @@ document.addEventListener('DOMContentLoaded', () => {
   _initToolbar();
   _initKeyboardShortcuts();
   _initCanvasInteractions();
-  _loadFromUrl();
+
+  // Load custom fonts from library before loading template
+  loadCustomFonts().then(() => _loadFromUrl());
 
   // Initial history snapshot
   history.push(_snapshotState());
