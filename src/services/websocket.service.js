@@ -306,15 +306,18 @@ function updateOverlayDelay(instanceId, delaySeconds) {
   }
 }
 
-function sendOverlayVisibility(instanceId, visible, animation, elementAnimations) {
+function sendOverlayVisibility(instanceId, visible, animation, elementAnimations, timeline) {
+  const data = {
+    visible,
+    animation: animation || (visible ? 'fadeIn' : 'fadeOut'),
+    elementAnimations: elementAnimations || [],
+  };
+  if (timeline) data.timeline = timeline;
+
   const message = JSON.stringify({
     type: 'visibility',
     timestamp: Date.now(),
-    data: {
-      visible,
-      animation: animation || (visible ? 'fadeIn' : 'fadeOut'),
-      elementAnimations: elementAnimations || [],
-    },
+    data,
   });
 
   for (const [ws, client] of overlayClients) {

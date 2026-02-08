@@ -891,27 +891,28 @@
     .preset-custom-link:hover { color: var(--accent); }
 
     /* ================================================================ *
-     *  Timeline Panel
+     *  Timeline Panel — Unified IN / HOLD / OUT
      * ================================================================ */
-    .timeline-panel {
+    .tl-panel {
       grid-area: timeline;
       background: var(--surface);
       border-top: 1px solid var(--border);
       display: flex;
       flex-direction: column;
-      max-height: 200px;
+      max-height: 220px;
       overflow: hidden;
       transition: max-height 0.2s ease;
     }
 
-    .timeline-panel.collapsed {
+    .tl-panel.collapsed {
       max-height: 32px;
     }
 
-    .timeline-header {
+    /* Header */
+    .tl-header {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
       padding: 4px 12px;
       height: 32px;
       flex-shrink: 0;
@@ -919,15 +920,16 @@
       user-select: none;
     }
 
-    .timeline-header-title {
+    .tl-header-title {
       font-size: 0.7rem;
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.08em;
       color: var(--text-muted);
+      margin-right: 4px;
     }
 
-    .timeline-header-btn {
+    .tl-header-btn {
       background: transparent;
       border: 1px solid var(--border);
       border-radius: var(--radius-sm);
@@ -935,16 +937,50 @@
       cursor: pointer;
       padding: 2px 8px;
       font-size: 0.7rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
       transition: all var(--transition);
     }
 
-    .timeline-header-btn:hover {
+    .tl-header-btn:hover {
       background: var(--accent-light);
       color: var(--accent);
       border-color: var(--accent);
     }
 
-    .timeline-toggle-btn {
+    .tl-header-btn.active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    .tl-header-btn svg { width: 10px; height: 10px; }
+
+    .tl-hold-control {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-left: 4px;
+    }
+
+    .tl-hold-control label {
+      font-size: 0.65rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+    }
+
+    .tl-hold-control select {
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-size: 0.7rem;
+      padding: 1px 4px;
+      cursor: pointer;
+    }
+
+    .tl-toggle-btn {
       margin-left: auto;
       background: transparent;
       border: none;
@@ -954,38 +990,105 @@
       padding: 2px 6px;
     }
 
-    .timeline-ruler {
+    /* Ruler + Phase Labels */
+    .tl-ruler {
       position: relative;
-      height: 18px;
+      height: 22px;
       flex-shrink: 0;
       border-bottom: 1px solid var(--border);
+      display: flex;
       overflow: hidden;
     }
 
-    .timeline-tick {
-      position: absolute;
-      top: 0;
+    .tl-ruler-labels {
+      width: 90px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      padding: 0 6px;
       font-size: 0.6rem;
       color: var(--text-dim);
-      border-left: 1px solid var(--border);
-      padding: 2px 4px;
+    }
+
+    .tl-ruler-track {
+      flex: 1;
+      position: relative;
+      display: flex;
+    }
+
+    .tl-phase-ruler {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .tl-phase-ruler.in { background: rgba(76, 175, 80, 0.05); }
+    .tl-phase-ruler.hold { background: rgba(255, 193, 7, 0.08); }
+    .tl-phase-ruler.out { background: rgba(244, 67, 54, 0.05); }
+
+    .tl-phase-label {
+      position: absolute;
+      top: 1px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.55rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-dim);
+      opacity: 0.7;
+      pointer-events: none;
+    }
+
+    .tl-tick {
+      position: absolute;
+      top: 10px;
+      font-size: 0.55rem;
+      color: var(--text-dim);
+      border-left: 1px solid rgba(255,255,255,0.08);
+      padding: 0 3px;
       line-height: 1;
       white-space: nowrap;
     }
 
-    .timeline-body {
+    .tl-separator {
+      width: 2px;
+      flex-shrink: 0;
+      background: var(--border);
+      position: relative;
+    }
+
+    .tl-separator::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -1px;
+      width: 4px;
+      height: 100%;
+      background: var(--text-dim);
+      opacity: 0.3;
+    }
+
+    /* Body / Tracks */
+    .tl-body {
       flex: 1;
       overflow-y: auto;
       overflow-x: hidden;
+      position: relative;
     }
 
-    .timeline-track {
+    .tl-tracks {
+      position: relative;
+    }
+
+    .tl-track {
       display: flex;
       align-items: center;
       border-bottom: 1px solid rgba(255,255,255,0.04);
+      height: 24px;
     }
 
-    .timeline-track-label {
+    .tl-track-label {
+      width: 90px;
       flex-shrink: 0;
       padding: 0 8px;
       font-size: 0.7rem;
@@ -997,21 +1100,34 @@
       line-height: 24px;
     }
 
-    .timeline-track-label:hover {
-      color: var(--text);
-    }
+    .tl-track-label:hover { color: var(--text); }
 
-    .timeline-track-area {
+    .tl-track-phases {
       flex: 1;
-      position: relative;
-      height: 24px;
+      display: flex;
+      height: 100%;
     }
 
-    .timeline-bar {
+    .tl-track-phase {
+      position: relative;
+      height: 100%;
+    }
+
+    .tl-track-phase.in { background: rgba(76, 175, 80, 0.03); }
+    .tl-track-phase.hold { background: rgba(255, 193, 7, 0.04); }
+    .tl-track-phase.out { background: rgba(244, 67, 54, 0.03); }
+
+    .tl-track-sep {
+      width: 2px;
+      flex-shrink: 0;
+      background: var(--border);
+    }
+
+    /* Bars */
+    .tl-bar {
       position: absolute;
       top: 3px;
       height: 18px;
-      background: var(--accent);
       border-radius: 3px;
       opacity: 0.7;
       cursor: grab;
@@ -1022,27 +1138,28 @@
       min-width: 8px;
     }
 
-    .timeline-bar:hover {
-      opacity: 1;
-    }
+    .tl-bar.enter { background: #4caf50; }
+    .tl-bar.exit { background: #f44336; }
 
-    .timeline-bar.dragging,
-    .timeline-bar.resizing {
+    .tl-bar:hover { opacity: 1; }
+
+    .tl-bar.dragging,
+    .tl-bar.resizing {
       opacity: 1;
       cursor: grabbing;
     }
 
-    .timeline-bar-label {
-      font-size: 0.6rem;
+    .tl-bar-label {
+      font-size: 0.55rem;
       color: #fff;
-      padding: 0 6px;
+      padding: 0 5px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
       pointer-events: none;
     }
 
-    .timeline-bar-resize {
+    .tl-bar-resize {
       position: absolute;
       right: 0;
       top: 0;
@@ -1053,11 +1170,74 @@
       border-radius: 0 3px 3px 0;
     }
 
-    .timeline-bar-resize:hover {
+    .tl-bar-resize:hover {
       background: rgba(255,255,255,0.4);
     }
 
-    .timeline-empty {
+    /* Playhead */
+    .tl-playhead {
+      position: absolute;
+      top: 0;
+      width: 2px;
+      height: 100%;
+      background: #ff1744;
+      z-index: 10;
+      pointer-events: none;
+      display: none;
+    }
+
+    .tl-playhead.active { display: block; }
+
+    .tl-playhead::before {
+      content: '';
+      position: absolute;
+      top: -4px;
+      left: -4px;
+      width: 10px;
+      height: 10px;
+      background: #ff1744;
+      clip-path: polygon(50% 100%, 0 0, 100% 0);
+    }
+
+    /* Pause Points */
+    .tl-pause-point {
+      position: absolute;
+      top: 0;
+      width: 2px;
+      height: 100%;
+      border-left: 2px dashed rgba(255, 193, 7, 0.6);
+      cursor: ew-resize;
+      z-index: 5;
+    }
+
+    .tl-pause-point:hover {
+      border-left-color: #ffc107;
+    }
+
+    .tl-pause-point-label {
+      position: absolute;
+      top: -14px;
+      left: -10px;
+      font-size: 0.5rem;
+      color: #ffc107;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+
+    /* Loop Region */
+    .tl-loop-region {
+      position: absolute;
+      top: 0;
+      height: 100%;
+      background: rgba(33, 150, 243, 0.08);
+      border-left: 2px solid rgba(33, 150, 243, 0.5);
+      border-right: 2px solid rgba(33, 150, 243, 0.5);
+      z-index: 3;
+      pointer-events: none;
+    }
+
+    /* Empty state */
+    .tl-empty {
       padding: 8px 12px;
       font-size: 0.75rem;
       color: var(--text-dim);
@@ -1176,19 +1356,43 @@
     </div>
 
     <!-- Timeline Panel -->
-    <div class="timeline-panel collapsed" id="timelinePanel">
-      <div class="timeline-header">
-        <span class="timeline-header-title">Timeline</span>
-        <button class="timeline-header-btn" id="timelineModeToggle">Enter</button>
-        <button class="timeline-header-btn" id="timelinePlayAll">
+    <div class="tl-panel collapsed" id="timelinePanel">
+      <div class="tl-header">
+        <span class="tl-header-title">Timeline</span>
+        <button class="tl-header-btn" id="tlPlayBtn" title="Play">
           <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6z"/></svg>
-          Play All
+          Play
         </button>
-        <button class="timeline-toggle-btn" id="timelineToggle" title="Toggle timeline panel">&#9650;</button>
+        <button class="tl-header-btn" id="tlStopBtn" title="Stop">
+          <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="3" width="10" height="10"/></svg>
+          Stop
+        </button>
+        <button class="tl-header-btn" id="tlLoopBtn" title="Toggle loop">&#8635; Loop</button>
+        <button class="tl-header-btn" id="tlAddPauseBtn" title="Add pause point">+ Pause</button>
+        <div class="tl-hold-control">
+          <label>Hold</label>
+          <select id="tlHoldSelect">
+            <option value="0">Manual</option>
+            <option value="3000">3s</option>
+            <option value="5000" selected>5s</option>
+            <option value="10000">10s</option>
+            <option value="15000">15s</option>
+            <option value="30000">30s</option>
+          </select>
+        </div>
+        <button class="tl-toggle-btn" id="tlToggleBtn" title="Toggle timeline panel">&#9650;</button>
       </div>
-      <div class="timeline-ruler" id="timelineRuler"></div>
-      <div class="timeline-body">
-        <div id="timelineTracks"></div>
+      <div class="tl-ruler" id="tlRuler">
+        <div class="tl-ruler-labels">Phases</div>
+        <div class="tl-ruler-track" id="tlRulerTrack">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+      <div class="tl-body" id="tlBody">
+        <div class="tl-tracks" id="tlTracks">
+          <!-- Populated by JS -->
+        </div>
+        <div class="tl-playhead" id="tlPlayhead"></div>
       </div>
     </div>
 

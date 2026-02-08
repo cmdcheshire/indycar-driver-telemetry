@@ -44,6 +44,13 @@ import { initTimelinePanel, renderTimelinePanel } from './panels/timeline-panel.
 /** @type {object[]} Master elements array */
 let elements = [];
 
+/** @type {object} Timeline settings (persisted with template) */
+let timelineData = {
+  holdDuration: 5000,
+  pausePoints: [],
+  loopRegion: { enabled: false, start: 0, end: 3000 },
+};
+
 /** @type {CanvasEngine} */
 let canvas;
 /** @type {SelectionManager} */
@@ -304,6 +311,10 @@ function _initPanels() {
   // Timeline
   initTimelinePanel({
     getElements: () => elements,
+    getTimeline: () => timelineData,
+    onTimelineChange: (changes) => {
+      Object.assign(timelineData, changes);
+    },
     onAnimationChange: (id, animChanges) => {
       _applyPropertyChange(id, { animation: animChanges });
     },
@@ -746,6 +757,7 @@ function _applyPropertyChange(id, changes) {
   // Don't push history on every keystroke; debounce
   _debouncedPushHistory();
   renderLayerPanel();
+  renderTimelinePanel();
 }
 
 function _reorderElementToIndex(elementId, targetIndex) {
@@ -876,6 +888,7 @@ function _closeTemplateDropdown() {
 function _newTemplate() {
   // Reset to blank state
   elements = [];
+  timelineData = { holdDuration: 5000, pausePoints: [], loopRegion: { enabled: false, start: 0, end: 3000 } };
   canvas.loadElements([]);
   selection.deselectAll();
   templateManager.currentId = null;
@@ -946,7 +959,7 @@ async function _save() {
   const { width, height } = canvas.canvasSize;
 
   try {
-    await templateManager.save(name, type, elements, groupIds, width, height);
+    await templateManager.save(name, type, elements, groupIds, width, height, timelineData);
     showToast('Template saved', 'success');
     _refreshTemplateList();
 
@@ -1047,6 +1060,7 @@ async function _loadFromUrl() {
     document.getElementById('templateName').value = template.name || 'Untitled';
     document.getElementById('templateType').value = template.type || 'custom';
     elements = template.elements || [];
+    timelineData = template.timeline || { holdDuration: 5000, pausePoints: [], loopRegion: { enabled: false, start: 0, end: 3000 } };
 
     // Assign z-indices if missing
     elements.forEach((el, i) => {
@@ -1073,6 +1087,7 @@ async function _loadTemplate(id) {
     document.getElementById('templateName').value = template.name || 'Untitled';
     document.getElementById('templateType').value = template.type || 'custom';
     elements = template.elements || [];
+    timelineData = template.timeline || { holdDuration: 5000, pausePoints: [], loopRegion: { enabled: false, start: 0, end: 3000 } };
 
     elements.forEach((el, i) => {
       if (el.zIndex === undefined) el.zIndex = i;

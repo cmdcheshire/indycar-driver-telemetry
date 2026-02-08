@@ -1,171 +1,248 @@
 /**
- * Timeline panel — visual timeline for per-element animation delay & duration.
+ * Timeline panel — unified IN / HOLD / OUT broadcast timeline.
  *
- * Shows horizontal bars for each element with enter/exit animations.
- * Bars are positioned by delay and sized by duration.
- * Drag bar → updates delay, drag right edge → updates duration.
- * "Play All" previews the orchestrated enter sequence via GSAP.
+ * Shows three phases horizontally:
+ *   IN (enter animations) → HOLD (on-air) → OUT (exit animations)
+ *
+ * Each element gets one track row with an enter bar in the IN phase
+ * and an exit bar in the OUT phase. Bars are draggable (delay) and
+ * resizable (duration). Transport controls play the full sequence
+ * on the canvas via GSAP.
  */
 
 import { getEnterPreset, getExitPreset } from '/js/shared/animation-presets.js';
 
-/** @type {Function} */
-let _getElements = null;
+/* ------------------------------------------------------------------ *
+ *  Module state
+ * ------------------------------------------------------------------ */
 
-/** @type {Function} */
-let _onAnimationChange = null;
+/** @type {Function} */ let _getElements = null;
+/** @type {Function} */ let _getTimeline = null;
+/** @type {Function} */ let _onTimelineChange = null;
+/** @type {Function} */ let _onAnimationChange = null;
+/** @type {Function} */ let _onElementSelect = null;
 
-/** @type {Function} */
-let _onElementSelect = null;
-
-/** @type {HTMLElement} */
-let _panelEl = null;
-
-/** @type {HTMLElement} */
-let _tracksEl = null;
-
-/** @type {HTMLElement} */
-let _rulerEl = null;
+/** @type {HTMLElement} */ let _panelEl = null;
+/** @type {HTMLElement} */ let _rulerTrack = null;
+/** @type {HTMLElement} */ let _tracksEl = null;
+/** @type {HTMLElement} */ let _bodyEl = null;
+/** @type {HTMLElement} */ let _playheadEl = null;
 
 let _collapsed = true;
-let _mode = 'enter'; // 'enter' | 'exit'
+let _loopEnabled = false;
 
-// Timeline scale: how many ms per pixel
-const MIN_TIMELINE_MS = 2000;
+/** @type {gsap.core.Timeline|null} */ let _masterTl = null;
+let _isPlaying = false;
+
+const LABEL_WIDTH = 90;
 const TRACK_HEIGHT = 24;
-const LABEL_WIDTH = 100;
+const MIN_PHASE_MS = 500;
+const HOLD_VISUAL_WIDTH = 60; // px width for the HOLD column
+
+/* ------------------------------------------------------------------ *
+ *  Public API
+ * ------------------------------------------------------------------ */
 
 /**
  * Initialize the timeline panel.
  * @param {object} opts
- * @param {Function} opts.getElements - Returns current elements array
+ * @param {Function} opts.getElements       - Returns current elements array
+ * @param {Function} opts.getTimeline       - Returns current timeline data
+ * @param {Function} opts.onTimelineChange  - Called with partial timeline changes
  * @param {Function} opts.onAnimationChange - Called with (elementId, animChanges)
- * @param {Function} opts.onElementSelect - Called with (elementId)
+ * @param {Function} opts.onElementSelect   - Called with (elementId)
  */
 export function initTimelinePanel(opts) {
   _getElements = opts.getElements;
+  _getTimeline = opts.getTimeline;
+  _onTimelineChange = opts.onTimelineChange;
   _onAnimationChange = opts.onAnimationChange;
   _onElementSelect = opts.onElementSelect;
 
   _panelEl = document.getElementById('timelinePanel');
-  _tracksEl = document.getElementById('timelineTracks');
-  _rulerEl = document.getElementById('timelineRuler');
+  _rulerTrack = document.getElementById('tlRulerTrack');
+  _tracksEl = document.getElementById('tlTracks');
+  _bodyEl = document.getElementById('tlBody');
+  _playheadEl = document.getElementById('tlPlayhead');
 
   if (!_panelEl) return;
 
   // Toggle collapse
-  const toggleBtn = document.getElementById('timelineToggle');
+  const toggleBtn = document.getElementById('tlToggleBtn');
   if (toggleBtn) {
     toggleBtn.addEventListener('click', () => {
       _collapsed = !_collapsed;
       _panelEl.classList.toggle('collapsed', _collapsed);
       toggleBtn.textContent = _collapsed ? '\u25B2' : '\u25BC';
-      // Re-render after expanding so clientWidth is available for ruler
-      if (!_collapsed) {
-        requestAnimationFrame(() => renderTimelinePanel());
-      }
+      if (!_collapsed) requestAnimationFrame(() => renderTimelinePanel());
     });
   }
 
-  // Mode toggle
-  const modeToggle = document.getElementById('timelineModeToggle');
-  if (modeToggle) {
-    modeToggle.addEventListener('click', () => {
-      _mode = _mode === 'enter' ? 'exit' : 'enter';
-      modeToggle.textContent = _mode === 'enter' ? 'Enter' : 'Exit';
+  // Play
+  const playBtn = document.getElementById('tlPlayBtn');
+  if (playBtn) playBtn.addEventListener('click', () => { _expandPanel(); _play(); });
+
+  // Stop
+  const stopBtn = document.getElementById('tlStopBtn');
+  if (stopBtn) stopBtn.addEventListener('click', () => _stop());
+
+  // Loop toggle
+  const loopBtn = document.getElementById('tlLoopBtn');
+  if (loopBtn) {
+    loopBtn.addEventListener('click', () => {
+      _loopEnabled = !_loopEnabled;
+      loopBtn.classList.toggle('active', _loopEnabled);
+    });
+  }
+
+  // Add pause point
+  const addPauseBtn = document.getElementById('tlAddPauseBtn');
+  if (addPauseBtn) {
+    addPauseBtn.addEventListener('click', () => {
       _expandPanel();
+      _addPausePoint();
+    });
+  }
+
+  // Hold duration select
+  const holdSelect = document.getElementById('tlHoldSelect');
+  if (holdSelect) {
+    // Sync initial value from timeline data
+    if (_getTimeline) {
+      const tl = _getTimeline();
+      holdSelect.value = String(tl.holdDuration || 5000);
+    }
+    holdSelect.addEventListener('change', () => {
+      const ms = parseInt(holdSelect.value, 10);
+      if (_onTimelineChange) _onTimelineChange({ holdDuration: ms });
       renderTimelinePanel();
     });
   }
-
-  // Play All
-  const playBtn = document.getElementById('timelinePlayAll');
-  if (playBtn) {
-    playBtn.addEventListener('click', () => {
-      _expandPanel();
-      _playAll();
-    });
-  }
 }
 
 /**
- * Expand the timeline panel if it is collapsed.
- */
-function _expandPanel() {
-  if (!_collapsed) return;
-  _collapsed = false;
-  if (_panelEl) _panelEl.classList.remove('collapsed');
-  const toggleBtn = document.getElementById('timelineToggle');
-  if (toggleBtn) toggleBtn.textContent = '\u25BC';
-}
-
-/**
- * Render the timeline panel based on current elements.
+ * Render the timeline panel based on current elements + timeline data.
  */
 export function renderTimelinePanel() {
-  if (!_tracksEl || !_rulerEl || !_getElements) return;
+  if (!_tracksEl || !_rulerTrack || !_getElements || !_getTimeline) return;
 
   const elements = _getElements();
-  const animKey = _mode; // 'enter' or 'exit'
+  const timeline = _getTimeline();
 
-  // Filter elements that have a non-none animation for the current mode
-  const animatedElements = elements.filter(el => {
-    const anim = el.animation?.[animKey];
-    return anim && anim.type && anim.type !== 'none';
-  });
-
-  // Calculate total timeline duration
-  let maxEnd = MIN_TIMELINE_MS;
-  for (const el of animatedElements) {
-    const anim = el.animation[animKey];
-    const end = (anim.delay || 0) + (anim.duration || 300);
-    if (end > maxEnd) maxEnd = end;
+  // Sync hold select
+  const holdSelect = document.getElementById('tlHoldSelect');
+  if (holdSelect && holdSelect.value !== String(timeline.holdDuration)) {
+    holdSelect.value = String(timeline.holdDuration);
   }
-  // Add 20% padding
-  const timelineMs = Math.ceil(maxEnd * 1.2);
+
+  // Compute phase durations
+  const { inDuration, outDuration } = _computePhases(elements);
+  const holdDuration = timeline.holdDuration || 0;
 
   // Render ruler
-  _renderRuler(timelineMs);
+  _renderRuler(inDuration, holdDuration, outDuration);
 
   // Render tracks
-  _tracksEl.innerHTML = '';
+  _renderTracks(elements, inDuration, holdDuration, outDuration);
 
-  if (animatedElements.length === 0) {
-    const empty = document.createElement('div');
-    empty.className = 'timeline-empty';
-    empty.textContent = `No ${_mode} animations configured`;
-    _tracksEl.appendChild(empty);
-    return;
-  }
-
-  for (const el of animatedElements) {
-    const anim = el.animation[animKey];
-    const track = _createTrack(el, anim, timelineMs, animKey);
-    _tracksEl.appendChild(track);
-  }
+  // Render pause points
+  _renderPausePoints(timeline.pausePoints || [], inDuration);
 }
 
-// ---------------------------------------------------------------------------
-// Ruler
-// ---------------------------------------------------------------------------
+/* ------------------------------------------------------------------ *
+ *  Phase computation
+ * ------------------------------------------------------------------ */
 
-function _renderRuler(timelineMs) {
-  if (!_rulerEl) return;
-  _rulerEl.innerHTML = '';
+function _computePhases(elements) {
+  let inDuration = 0;
+  let outDuration = 0;
 
-  // Calculate a nice tick interval
-  const targetTicks = 8;
-  const rawInterval = timelineMs / targetTicks;
-  const niceInterval = _niceInterval(rawInterval);
+  for (const el of elements) {
+    const enter = el.animation?.enter;
+    if (enter?.type && enter.type !== 'none') {
+      inDuration = Math.max(inDuration, (enter.delay || 0) + (enter.duration || 300));
+    }
+    const exit = el.animation?.exit;
+    if (exit?.type && exit.type !== 'none') {
+      outDuration = Math.max(outDuration, (exit.delay || 0) + (exit.duration || 300));
+    }
+  }
 
-  for (let ms = 0; ms <= timelineMs; ms += niceInterval) {
+  return {
+    inDuration: Math.max(inDuration, MIN_PHASE_MS),
+    outDuration: Math.max(outDuration, MIN_PHASE_MS),
+  };
+}
+
+/* ------------------------------------------------------------------ *
+ *  Ruler
+ * ------------------------------------------------------------------ */
+
+function _renderRuler(inMs, holdMs, outMs) {
+  if (!_rulerTrack) return;
+  _rulerTrack.innerHTML = '';
+
+  const totalWidth = _rulerTrack.clientWidth;
+  if (totalWidth <= 0) return;
+
+  // Calculate phase widths
+  const { inWidth, holdWidth, outWidth } = _phaseWidths(inMs, holdMs, outMs, totalWidth);
+
+  // IN phase ruler
+  const inRuler = document.createElement('div');
+  inRuler.className = 'tl-phase-ruler in';
+  inRuler.style.width = `${inWidth}px`;
+  const inLabel = document.createElement('span');
+  inLabel.className = 'tl-phase-label';
+  inLabel.textContent = 'IN';
+  inRuler.appendChild(inLabel);
+  _addTicks(inRuler, inMs, inWidth);
+  _rulerTrack.appendChild(inRuler);
+
+  // Separator
+  _rulerTrack.appendChild(_sep());
+
+  // HOLD phase ruler
+  const holdRuler = document.createElement('div');
+  holdRuler.className = 'tl-phase-ruler hold';
+  holdRuler.style.width = `${holdWidth}px`;
+  const holdLabel = document.createElement('span');
+  holdLabel.className = 'tl-phase-label';
+  holdLabel.textContent = holdMs > 0 ? `HOLD ${_formatMs(holdMs)}` : 'HOLD';
+  holdRuler.appendChild(holdLabel);
+  _rulerTrack.appendChild(holdRuler);
+
+  // Separator
+  _rulerTrack.appendChild(_sep());
+
+  // OUT phase ruler
+  const outRuler = document.createElement('div');
+  outRuler.className = 'tl-phase-ruler out';
+  outRuler.style.width = `${outWidth}px`;
+  const outLabel = document.createElement('span');
+  outLabel.className = 'tl-phase-label';
+  outLabel.textContent = 'OUT';
+  outRuler.appendChild(outLabel);
+  _addTicks(outRuler, outMs, outWidth);
+  _rulerTrack.appendChild(outRuler);
+}
+
+function _sep() {
+  const d = document.createElement('div');
+  d.className = 'tl-separator';
+  return d;
+}
+
+function _addTicks(container, phaseMs, phaseWidth) {
+  const targetTicks = Math.max(2, Math.floor(phaseWidth / 60));
+  const interval = _niceInterval(phaseMs / targetTicks);
+
+  for (let ms = interval; ms < phaseMs; ms += interval) {
     const tick = document.createElement('div');
-    tick.className = 'timeline-tick';
-    // Position ticks using calc: offset by label width, then percentage of remaining space
-    const pct = (ms / timelineMs) * 100;
-    tick.style.left = `calc(${LABEL_WIDTH}px + (100% - ${LABEL_WIDTH}px) * ${pct / 100})`;
-    tick.textContent = ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms}ms`;
-    _rulerEl.appendChild(tick);
+    tick.className = 'tl-tick';
+    tick.style.left = `${(ms / phaseMs) * 100}%`;
+    tick.textContent = _formatMs(ms);
+    container.appendChild(tick);
   }
 }
 
@@ -177,76 +254,162 @@ function _niceInterval(raw) {
   return 5000;
 }
 
-// ---------------------------------------------------------------------------
-// Track
-// ---------------------------------------------------------------------------
-
-function _createTrack(element, anim, timelineMs, animKey) {
-  const track = document.createElement('div');
-  track.className = 'timeline-track';
-  track.style.height = `${TRACK_HEIGHT}px`;
-
-  // Label
-  const label = document.createElement('div');
-  label.className = 'timeline-track-label';
-  label.style.width = `${LABEL_WIDTH}px`;
-  label.textContent = element.name || element.type;
-  label.title = element.name;
-  label.addEventListener('click', () => {
-    if (_onElementSelect) _onElementSelect(element.id);
-  });
-  track.appendChild(label);
-
-  // Track area
-  const trackArea = document.createElement('div');
-  trackArea.className = 'timeline-track-area';
-
-  // Bar
-  const delay = anim.delay || 0;
-  const duration = anim.duration || 300;
-  const bar = document.createElement('div');
-  bar.className = 'timeline-bar';
-  bar.title = `${anim.type} — ${delay}ms delay, ${duration}ms duration`;
-
-  const leftPct = (delay / timelineMs) * 100;
-  const widthPct = (duration / timelineMs) * 100;
-  bar.style.left = `${leftPct}%`;
-  bar.style.width = `${Math.max(widthPct, 1)}%`;
-
-  // Bar label
-  const barLabel = document.createElement('span');
-  barLabel.className = 'timeline-bar-label';
-  barLabel.textContent = anim.type;
-  bar.appendChild(barLabel);
-
-  // Resize handle (right edge)
-  const resizeHandle = document.createElement('div');
-  resizeHandle.className = 'timeline-bar-resize';
-  bar.appendChild(resizeHandle);
-
-  // Drag bar → change delay
-  _addBarDrag(bar, element, anim, timelineMs, animKey, trackArea);
-
-  // Drag resize handle → change duration
-  _addResizeDrag(resizeHandle, bar, element, anim, timelineMs, animKey, trackArea);
-
-  trackArea.appendChild(bar);
-  track.appendChild(trackArea);
-  return track;
+function _formatMs(ms) {
+  return ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms}ms`;
 }
 
-// ---------------------------------------------------------------------------
-// Bar drag (delay)
-// ---------------------------------------------------------------------------
+/* ------------------------------------------------------------------ *
+ *  Track rendering
+ * ------------------------------------------------------------------ */
 
-function _addBarDrag(bar, element, anim, timelineMs, animKey, trackArea) {
+function _renderTracks(elements, inMs, holdMs, outMs) {
+  _tracksEl.innerHTML = '';
+
+  const totalWidth = _rulerTrack ? _rulerTrack.clientWidth : 0;
+  if (totalWidth <= 0) return;
+
+  const { inWidth, holdWidth, outWidth } = _phaseWidths(inMs, holdMs, outMs, totalWidth);
+
+  // Filter elements that have any animation
+  const animatedElements = elements.filter(el => {
+    const enter = el.animation?.enter;
+    const exit = el.animation?.exit;
+    return (enter?.type && enter.type !== 'none') || (exit?.type && exit.type !== 'none');
+  });
+
+  if (animatedElements.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'tl-empty';
+    empty.textContent = 'No animations configured — select an element and set enter/exit animations';
+    _tracksEl.appendChild(empty);
+    return;
+  }
+
+  for (const el of animatedElements) {
+    const track = document.createElement('div');
+    track.className = 'tl-track';
+
+    // Label
+    const label = document.createElement('div');
+    label.className = 'tl-track-label';
+    label.textContent = el.name || el.type;
+    label.title = el.name || el.type;
+    label.addEventListener('click', () => {
+      if (_onElementSelect) _onElementSelect(el.id);
+    });
+    track.appendChild(label);
+
+    // Phase containers
+    const phases = document.createElement('div');
+    phases.className = 'tl-track-phases';
+
+    // IN phase
+    const inPhase = document.createElement('div');
+    inPhase.className = 'tl-track-phase in';
+    inPhase.style.width = `${inWidth}px`;
+    const enterAnim = el.animation?.enter;
+    if (enterAnim?.type && enterAnim.type !== 'none') {
+      const bar = _createBar(el, enterAnim, inMs, 'enter');
+      inPhase.appendChild(bar);
+    }
+    phases.appendChild(inPhase);
+
+    // Separator
+    const sep1 = document.createElement('div');
+    sep1.className = 'tl-track-sep';
+    phases.appendChild(sep1);
+
+    // HOLD phase
+    const holdPhase = document.createElement('div');
+    holdPhase.className = 'tl-track-phase hold';
+    holdPhase.style.width = `${holdWidth}px`;
+    phases.appendChild(holdPhase);
+
+    // Separator
+    const sep2 = document.createElement('div');
+    sep2.className = 'tl-track-sep';
+    phases.appendChild(sep2);
+
+    // OUT phase
+    const outPhase = document.createElement('div');
+    outPhase.className = 'tl-track-phase out';
+    outPhase.style.width = `${outWidth}px`;
+    const exitAnim = el.animation?.exit;
+    if (exitAnim?.type && exitAnim.type !== 'none') {
+      const bar = _createBar(el, exitAnim, outMs, 'exit');
+      outPhase.appendChild(bar);
+    }
+    phases.appendChild(outPhase);
+
+    track.appendChild(phases);
+    _tracksEl.appendChild(track);
+  }
+}
+
+function _phaseWidths(inMs, holdMs, outMs, totalWidth) {
+  // Reserve fixed width for HOLD, distribute rest proportionally
+  const sepWidth = 4; // 2px * 2 separators
+  const holdWidth = holdMs > 0 ? HOLD_VISUAL_WIDTH : 16;
+  const remaining = totalWidth - holdWidth - sepWidth;
+
+  if (remaining <= 0) {
+    return { inWidth: 0, holdWidth, outWidth: 0 };
+  }
+
+  const total = inMs + outMs;
+  if (total <= 0) {
+    return { inWidth: remaining / 2, holdWidth, outWidth: remaining / 2 };
+  }
+
+  const inWidth = Math.floor((inMs / total) * remaining);
+  const outWidth = remaining - inWidth;
+
+  return { inWidth, holdWidth, outWidth };
+}
+
+/* ------------------------------------------------------------------ *
+ *  Bar creation + drag
+ * ------------------------------------------------------------------ */
+
+function _createBar(element, anim, phaseMs, mode) {
+  const bar = document.createElement('div');
+  bar.className = `tl-bar ${mode}`;
+
+  const delay = anim.delay || 0;
+  const duration = anim.duration || 300;
+  const leftPct = (delay / phaseMs) * 100;
+  const widthPct = (duration / phaseMs) * 100;
+
+  bar.style.left = `${leftPct}%`;
+  bar.style.width = `${Math.max(widthPct, 2)}%`;
+  bar.title = `${anim.type} — ${delay}ms delay, ${duration}ms`;
+
+  // Label
+  const label = document.createElement('span');
+  label.className = 'tl-bar-label';
+  label.textContent = anim.type;
+  bar.appendChild(label);
+
+  // Resize handle
+  const handle = document.createElement('div');
+  handle.className = 'tl-bar-resize';
+  bar.appendChild(handle);
+
+  // Drag bar → change delay
+  _addBarDrag(bar, element, anim, phaseMs, mode);
+
+  // Resize handle → change duration
+  _addResizeDrag(handle, bar, element, anim, phaseMs, mode);
+
+  return bar;
+}
+
+function _addBarDrag(bar, element, anim, phaseMs, mode) {
   let startX = 0;
   let startDelay = 0;
 
   const onMouseDown = (e) => {
-    // Don't start drag if clicking the resize handle
-    if (e.target.classList.contains('timeline-bar-resize')) return;
-
+    if (e.target.classList.contains('tl-bar-resize')) return;
     e.preventDefault();
     e.stopPropagation();
     startX = e.clientX;
@@ -258,15 +421,17 @@ function _addBarDrag(bar, element, anim, timelineMs, animKey, trackArea) {
   };
 
   const onMouseMove = (e) => {
-    const trackWidth = trackArea.clientWidth;
+    const parent = bar.parentElement;
+    if (!parent) return;
+    const trackWidth = parent.clientWidth;
     const dx = e.clientX - startX;
-    const dMs = (dx / trackWidth) * timelineMs;
+    const dMs = (dx / trackWidth) * phaseMs;
     const newDelay = Math.max(0, Math.round((startDelay + dMs) / 50) * 50);
 
     anim.delay = newDelay;
-    const leftPct = (newDelay / timelineMs) * 100;
+    const leftPct = (newDelay / phaseMs) * 100;
     bar.style.left = `${leftPct}%`;
-    bar.title = `${anim.type} — ${newDelay}ms delay, ${anim.duration || 300}ms duration`;
+    bar.title = `${anim.type} — ${newDelay}ms delay, ${anim.duration || 300}ms`;
   };
 
   const onMouseUp = () => {
@@ -274,22 +439,15 @@ function _addBarDrag(bar, element, anim, timelineMs, animKey, trackArea) {
     document.removeEventListener('mouseup', onMouseUp);
     bar.classList.remove('dragging');
 
-    // Emit change
     if (_onAnimationChange) {
-      _onAnimationChange(element.id, {
-        [animKey]: { ...anim },
-      });
+      _onAnimationChange(element.id, { [mode === 'enter' ? 'enter' : 'exit']: { ...anim } });
     }
   };
 
   bar.addEventListener('mousedown', onMouseDown);
 }
 
-// ---------------------------------------------------------------------------
-// Resize drag (duration)
-// ---------------------------------------------------------------------------
-
-function _addResizeDrag(handle, bar, element, anim, timelineMs, animKey, trackArea) {
+function _addResizeDrag(handle, bar, element, anim, phaseMs, mode) {
   let startX = 0;
   let startDuration = 0;
 
@@ -305,15 +463,17 @@ function _addResizeDrag(handle, bar, element, anim, timelineMs, animKey, trackAr
   };
 
   const onMouseMove = (e) => {
-    const trackWidth = trackArea.clientWidth;
+    const parent = bar.parentElement;
+    if (!parent) return;
+    const trackWidth = parent.clientWidth;
     const dx = e.clientX - startX;
-    const dMs = (dx / trackWidth) * timelineMs;
+    const dMs = (dx / trackWidth) * phaseMs;
     const newDuration = Math.max(100, Math.round((startDuration + dMs) / 50) * 50);
 
     anim.duration = newDuration;
-    const widthPct = (newDuration / timelineMs) * 100;
-    bar.style.width = `${Math.max(widthPct, 1)}%`;
-    bar.title = `${anim.type} — ${anim.delay || 0}ms delay, ${newDuration}ms duration`;
+    const widthPct = (newDuration / phaseMs) * 100;
+    bar.style.width = `${Math.max(widthPct, 2)}%`;
+    bar.title = `${anim.type} — ${anim.delay || 0}ms delay, ${newDuration}ms`;
   };
 
   const onMouseUp = () => {
@@ -321,82 +481,310 @@ function _addResizeDrag(handle, bar, element, anim, timelineMs, animKey, trackAr
     document.removeEventListener('mouseup', onMouseUp);
     bar.classList.remove('resizing');
 
-    // Emit change
     if (_onAnimationChange) {
-      _onAnimationChange(element.id, {
-        [animKey]: { ...anim },
-      });
+      _onAnimationChange(element.id, { [mode === 'enter' ? 'enter' : 'exit']: { ...anim } });
     }
   };
 
   handle.addEventListener('mousedown', onMouseDown);
 }
 
-// ---------------------------------------------------------------------------
-// Play All — preview orchestrated animation
-// ---------------------------------------------------------------------------
+/* ------------------------------------------------------------------ *
+ *  Pause points
+ * ------------------------------------------------------------------ */
 
-function _playAll() {
-  if (!_getElements) return;
+function _addPausePoint() {
+  if (!_getTimeline || !_onTimelineChange) return;
+  const timeline = _getTimeline();
+  const elements = _getElements ? _getElements() : [];
+  const { inDuration } = _computePhases(elements);
+
+  // Place at 50% of IN phase by default
+  const time = Math.round(inDuration * 0.5 / 50) * 50;
+  const id = `pp_${Date.now()}`;
+  const pausePoints = [...(timeline.pausePoints || []), { id, time, label: 'Pause' }];
+
+  _onTimelineChange({ pausePoints });
+  _expandPanel();
+  renderTimelinePanel();
+}
+
+function _renderPausePoints(pausePoints, inDuration) {
+  // Remove existing pause point elements
+  if (!_bodyEl) return;
+  _bodyEl.querySelectorAll('.tl-pause-point').forEach(el => el.remove());
+
+  if (!_rulerTrack || pausePoints.length === 0) return;
+
+  const totalWidth = _rulerTrack.clientWidth;
+  if (totalWidth <= 0) return;
+
+  const elements = _getElements ? _getElements() : [];
+  const timeline = _getTimeline ? _getTimeline() : {};
+  const { inDuration: inMs, outDuration: outMs } = _computePhases(elements);
+  const holdMs = timeline.holdDuration || 0;
+  const { inWidth } = _phaseWidths(inMs, holdMs, outMs, totalWidth);
+
+  for (const pp of pausePoints) {
+    if (pp.time > inMs) continue; // Only show pause points in IN phase for now
+
+    const marker = document.createElement('div');
+    marker.className = 'tl-pause-point';
+    // Position relative to body: LABEL_WIDTH + (time / inMs) * inWidth
+    const xOffset = (pp.time / inMs) * inWidth;
+    marker.style.left = `${LABEL_WIDTH + xOffset}px`;
+
+    const ppLabel = document.createElement('span');
+    ppLabel.className = 'tl-pause-point-label';
+    ppLabel.textContent = pp.label || 'Pause';
+    marker.appendChild(ppLabel);
+
+    // Drag to reposition
+    _addPausePointDrag(marker, pp, inMs, inWidth);
+
+    // Right-click to delete
+    marker.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      if (!_getTimeline || !_onTimelineChange) return;
+      const tl = _getTimeline();
+      const newPoints = (tl.pausePoints || []).filter(p => p.id !== pp.id);
+      _onTimelineChange({ pausePoints: newPoints });
+      renderTimelinePanel();
+    });
+
+    _bodyEl.appendChild(marker);
+  }
+}
+
+function _addPausePointDrag(marker, pp, inMs, inWidth) {
+  let startX = 0;
+  let startTime = 0;
+
+  const onMouseDown = (e) => {
+    e.preventDefault();
+    startX = e.clientX;
+    startTime = pp.time;
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  };
+
+  const onMouseMove = (e) => {
+    const dx = e.clientX - startX;
+    const dMs = (dx / inWidth) * inMs;
+    const newTime = Math.max(0, Math.min(inMs, Math.round((startTime + dMs) / 50) * 50));
+    pp.time = newTime;
+    const xOffset = (newTime / inMs) * inWidth;
+    marker.style.left = `${LABEL_WIDTH + xOffset}px`;
+  };
+
+  const onMouseUp = () => {
+    document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('mouseup', onMouseUp);
+    if (_getTimeline && _onTimelineChange) {
+      const tl = _getTimeline();
+      _onTimelineChange({ pausePoints: [...(tl.pausePoints || [])] });
+    }
+  };
+
+  marker.addEventListener('mousedown', onMouseDown);
+}
+
+/* ------------------------------------------------------------------ *
+ *  Transport: Play / Stop
+ * ------------------------------------------------------------------ */
+
+function _play() {
+  if (_isPlaying) _stop();
+  if (!_getElements || !_getTimeline) return;
 
   const elements = _getElements();
-  const animKey = _mode;
+  const timeline = _getTimeline();
+  const { inDuration, outDuration } = _computePhases(elements);
+  const holdMs = timeline.holdDuration || 0;
 
-  const animatedElements = elements.filter(el => {
-    const anim = el.animation?.[animKey];
-    return anim && anim.type && anim.type !== 'none';
+  // Build GSAP master timeline
+  _masterTl = gsap.timeline({
+    repeat: _loopEnabled ? -1 : 0,
+    onUpdate: () => _updatePlayhead(_masterTl, inDuration, holdMs, outDuration),
+    onComplete: () => _stop(),
   });
 
-  if (animatedElements.length === 0) return;
+  // IN phase: play enter animations
+  const enterElements = elements.filter(el => {
+    const a = el.animation?.enter;
+    return a?.type && a.type !== 'none';
+  });
 
-  // Build a GSAP timeline
-  const tl = gsap.timeline();
-
-  for (const el of animatedElements) {
-    const anim = el.animation[animKey];
-    const presetFn = animKey === 'enter' ? getEnterPreset : getExitPreset;
-    const preset = presetFn(anim.type);
+  for (const el of enterElements) {
+    const anim = el.animation.enter;
+    const preset = getEnterPreset(anim.type);
     if (!preset) continue;
 
-    // Find the DOM node on canvas (scope to canvas container to avoid layer panel matches)
     const node = document.querySelector(`#canvasContainer [data-element-id="${el.id}"]`);
     if (!node) continue;
 
     const delay = (anim.delay || 0) / 1000;
     const duration = (anim.duration || 300) / 1000;
-    const easing = anim.easing || (animKey === 'enter' ? 'power2.out' : 'power2.in');
-
-    // Only clear the properties the preset actually animates (not 'all'),
-    // so canvas-engine positioning styles are preserved.
+    const easing = anim.easing || 'power2.out';
     const safeClearProps = preset.clearProps || Object.keys(preset.vars).join(',');
 
-    if (animKey === 'enter') {
-      tl.from(node, {
-        ...preset.vars,
-        duration,
-        ease: easing,
-        clearProps: safeClearProps,
-      }, delay); // absolute position in timeline
-    } else {
-      tl.to(node, {
-        ...preset.vars,
-        duration,
-        ease: easing,
-      }, delay);
+    _masterTl.from(node, {
+      ...preset.vars,
+      duration,
+      ease: easing,
+      clearProps: safeClearProps,
+    }, delay);
+  }
+
+  // Add pause points during IN phase
+  const pausePoints = (timeline.pausePoints || []).sort((a, b) => a.time - b.time);
+  for (const pp of pausePoints) {
+    const ppTimeSec = pp.time / 1000;
+    if (ppTimeSec < inDuration / 1000) {
+      _masterTl.addPause(ppTimeSec);
     }
   }
 
-  // If exit mode, reset elements after timeline completes
-  if (animKey === 'exit') {
-    tl.then(() => {
-      for (const el of animatedElements) {
+  // HOLD phase: just a delay
+  const holdStart = inDuration / 1000;
+  if (holdMs > 0) {
+    _masterTl.to({}, { duration: holdMs / 1000 }, holdStart);
+  }
+
+  // OUT phase: play exit animations
+  const exitElements = elements.filter(el => {
+    const a = el.animation?.exit;
+    return a?.type && a.type !== 'none';
+  });
+
+  const outStart = holdStart + (holdMs > 0 ? holdMs / 1000 : 0.001);
+
+  for (const el of exitElements) {
+    const anim = el.animation.exit;
+    const preset = getExitPreset(anim.type);
+    if (!preset) continue;
+
+    const node = document.querySelector(`#canvasContainer [data-element-id="${el.id}"]`);
+    if (!node) continue;
+
+    const delay = (anim.delay || 0) / 1000;
+    const duration = (anim.duration || 300) / 1000;
+    const easing = anim.easing || 'power2.in';
+
+    _masterTl.to(node, {
+      ...preset.vars,
+      duration,
+      ease: easing,
+    }, outStart + delay);
+  }
+
+  // After OUT, reset exit elements
+  if (exitElements.length > 0) {
+    const totalOutEnd = outStart + outDuration / 1000;
+    _masterTl.call(() => {
+      for (const el of exitElements) {
         const node = document.querySelector(`#canvasContainer [data-element-id="${el.id}"]`);
         if (!node) continue;
-        const anim = el.animation[animKey];
+        const anim = el.animation.exit;
         const preset = getExitPreset(anim.type);
         const props = preset ? (preset.clearProps || Object.keys(preset.vars).join(',')) : 'opacity';
         gsap.set(node, { clearProps: props });
       }
-    });
+    }, null, totalOutEnd + 0.05);
   }
+
+  _isPlaying = true;
+  if (_playheadEl) _playheadEl.classList.add('active');
+
+  const playBtn = document.getElementById('tlPlayBtn');
+  if (playBtn) playBtn.style.opacity = '0.5';
+}
+
+function _stop() {
+  if (_masterTl) {
+    _masterTl.kill();
+    _masterTl = null;
+  }
+
+  _isPlaying = false;
+  if (_playheadEl) {
+    _playheadEl.classList.remove('active');
+    _playheadEl.style.left = '0px';
+  }
+
+  const playBtn = document.getElementById('tlPlayBtn');
+  if (playBtn) playBtn.style.opacity = '';
+
+  // Reset any GSAP-applied transforms on canvas elements
+  if (_getElements) {
+    const elements = _getElements();
+    for (const el of elements) {
+      const node = document.querySelector(`#canvasContainer [data-element-id="${el.id}"]`);
+      if (!node) continue;
+
+      const enterPreset = el.animation?.enter?.type ? getEnterPreset(el.animation.enter.type) : null;
+      const exitPreset = el.animation?.exit?.type ? getExitPreset(el.animation.exit.type) : null;
+
+      const propsToReset = new Set();
+      if (enterPreset) {
+        (enterPreset.clearProps || Object.keys(enterPreset.vars).join(',')).split(',').forEach(p => propsToReset.add(p.trim()));
+      }
+      if (exitPreset) {
+        (exitPreset.clearProps || Object.keys(exitPreset.vars).join(',')).split(',').forEach(p => propsToReset.add(p.trim()));
+      }
+
+      if (propsToReset.size > 0) {
+        gsap.set(node, { clearProps: [...propsToReset].join(',') });
+      }
+    }
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ *  Playhead animation
+ * ------------------------------------------------------------------ */
+
+function _updatePlayhead(tl, inMs, holdMs, outMs) {
+  if (!_playheadEl || !_rulerTrack || !tl) return;
+
+  const totalWidth = _rulerTrack.clientWidth;
+  if (totalWidth <= 0) return;
+
+  const { inWidth, holdWidth, outWidth } = _phaseWidths(inMs, holdMs, outMs, totalWidth);
+  const sepWidth = 2;
+
+  const currentTime = tl.time() * 1000; // ms
+  const inEnd = inMs;
+  const holdEnd = inEnd + holdMs;
+  const totalMs = holdEnd + outMs;
+
+  let xPos = 0;
+
+  if (currentTime <= inEnd) {
+    // In the IN phase
+    xPos = LABEL_WIDTH + (currentTime / inMs) * inWidth;
+  } else if (currentTime <= holdEnd) {
+    // In the HOLD phase
+    const holdProgress = holdMs > 0 ? (currentTime - inEnd) / holdMs : 0.5;
+    xPos = LABEL_WIDTH + inWidth + sepWidth + holdProgress * holdWidth;
+  } else {
+    // In the OUT phase
+    const outProgress = (currentTime - holdEnd) / outMs;
+    xPos = LABEL_WIDTH + inWidth + sepWidth + holdWidth + sepWidth + outProgress * outWidth;
+  }
+
+  _playheadEl.style.left = `${xPos}px`;
+}
+
+/* ------------------------------------------------------------------ *
+ *  Helpers
+ * ------------------------------------------------------------------ */
+
+function _expandPanel() {
+  if (!_collapsed) return;
+  _collapsed = false;
+  if (_panelEl) _panelEl.classList.remove('collapsed');
+  const toggleBtn = document.getElementById('tlToggleBtn');
+  if (toggleBtn) toggleBtn.textContent = '\u25BC';
+  requestAnimationFrame(() => renderTimelinePanel());
 }

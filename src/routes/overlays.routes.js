@@ -282,6 +282,7 @@ router.post('/rundown/:itemId/take', requireRole('operator', 'admin'), (req, res
     let exitAnimation;
     let enterElementAnims = [];
     let exitElementAnims = [];
+    let timelineConfig = null;
     if (templateData) {
       try {
         const tData = typeof templateData.template_data === 'string'
@@ -290,6 +291,10 @@ router.post('/rundown/:itemId/take', requireRole('operator', 'admin'), (req, res
         if (tData && tData.animation) {
           enterAnimation = tData.animation.enter && tData.animation.enter.type;
           exitAnimation = tData.animation.exit && tData.animation.exit.type;
+        }
+        // Extract timeline config (hold duration, pause points)
+        if (tData && tData.timeline) {
+          timelineConfig = tData.timeline;
         }
         // Extract per-element animation configs
         if (tData && Array.isArray(tData.elements)) {
@@ -350,7 +355,7 @@ router.post('/rundown/:itemId/take', requireRole('operator', 'admin'), (req, res
         wsService.sendOverlayConfigUpdate(instanceId, configOverrides);
       }
 
-      wsService.sendOverlayVisibility(instanceId, true, enterAnimation, enterElementAnims);
+      wsService.sendOverlayVisibility(instanceId, true, enterAnimation, enterElementAnims, timelineConfig);
       overlayService.setRundownItemOnAir(itemId, true);
     } else {
       wsService.sendOverlayVisibility(instanceId, false, exitAnimation, exitElementAnims);

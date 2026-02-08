@@ -29,9 +29,10 @@ export class TemplateManager {
    * @param {string[]} groups - Array of group IDs
    * @param {number} canvasW - Canvas width in px
    * @param {number} canvasH - Canvas height in px
+   * @param {object} [timeline] - Timeline settings (holdDuration, pausePoints, loopRegion)
    * @returns {Promise<object>} Saved template data
    */
-  async save(name, type, elements, groups, canvasW = 1920, canvasH = 1080) {
+  async save(name, type, elements, groups, canvasW = 1920, canvasH = 1080, timeline = null) {
     const payload = {
       name,
       overlay_type: type,
@@ -39,6 +40,7 @@ export class TemplateManager {
         elements,
         groups,
         canvas: { width: canvasW, height: canvasH },
+        ...(timeline ? { timeline } : {}),
         version: 1,
       },
       canvas_width: canvasW,
@@ -107,6 +109,7 @@ export class TemplateManager {
       elements: templateData?.elements || [],
       groups: templateData?.groups || [],
       canvas: templateData?.canvas || { width: 1920, height: 1080 },
+      timeline: templateData?.timeline || null,
     };
   }
 
