@@ -358,8 +358,8 @@ function _playAll() {
     const preset = presetFn(anim.type);
     if (!preset) continue;
 
-    // Find the DOM node on canvas
-    const node = document.querySelector(`[data-element-id="${el.id}"]`);
+    // Find the DOM node on canvas (scope to canvas container to avoid layer panel matches)
+    const node = document.querySelector(`#canvasContainer [data-element-id="${el.id}"]`);
     if (!node) continue;
 
     const delay = (anim.delay || 0) / 1000;
