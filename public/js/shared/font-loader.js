@@ -2,9 +2,12 @@
  * Font loader — shared between builder and overlay.
  * Fetches font assets from the graphics library, registers @font-face rules,
  * and exposes the list of custom fonts for dropdown menus.
+ *
+ * Font family values are returned CSS-ready: "'FontName', sans-serif"
+ * so they always have proper quoting and a generic fallback.
  */
 
-/** @type {Array<{id: number, name: string, family: string, url: string}>} */
+/** @type {Array<{id: number, name: string, family: string, cssFamily: string, url: string}>} */
 let _customFonts = [];
 
 /** @type {Set<number>} Track which asset IDs have already been registered */
@@ -17,7 +20,7 @@ let _loaded = false;
  * Load all font assets from the library and register @font-face rules.
  * Safe to call multiple times — skips already-registered fonts.
  *
- * @returns {Promise<Array<{id: number, name: string, family: string, url: string}>>}
+ * @returns {Promise<Array<{id: number, name: string, family: string, cssFamily: string, url: string}>>}
  */
 export async function loadCustomFonts() {
   try {
@@ -43,6 +46,7 @@ export async function loadCustomFonts() {
       if (_registered.has(asset.id)) continue;
 
       const family = _deriveFontFamily(asset.original_name || asset.filename);
+      const cssFamily = `'${family}', sans-serif`;
       const url = `/api/library/assets/${asset.id}/file`;
 
       _registerFontFace(family, url, asset.original_name || asset.filename);
@@ -52,6 +56,7 @@ export async function loadCustomFonts() {
         id: asset.id,
         name: asset.original_name || asset.filename,
         family,
+        cssFamily,
         url,
       });
     }
@@ -69,29 +74,31 @@ export async function loadCustomFonts() {
  *
  * @param {number} assetId
  * @param {string} originalName - Original filename
- * @returns {{family: string, url: string}}
+ * @returns {{family: string, cssFamily: string, url: string}}
  */
 export function registerUploadedFont(assetId, originalName) {
   const family = _deriveFontFamily(originalName);
+  const cssFamily = `'${family}', sans-serif`;
   const url = `/api/library/assets/${assetId}/file`;
 
   if (!_registered.has(assetId)) {
     _registerFontFace(family, url, originalName);
     _registered.add(assetId);
-    _customFonts.push({ id: assetId, name: originalName, family, url });
+    _customFonts.push({ id: assetId, name: originalName, family, cssFamily, url });
   }
 
-  return { family, url };
+  return { family, cssFamily, url };
 }
 
 /**
  * Get the list of custom font options for select dropdowns.
+ * Values are CSS-ready: "'FontName', sans-serif"
  *
  * @returns {Array<{value: string, label: string}>}
  */
 export function getCustomFontOptions() {
   return _customFonts.map(f => ({
-    value: f.family,
+    value: f.cssFamily,
     label: f.name.replace(/\.[^.]+$/, ''),
   }));
 }
@@ -121,21 +128,23 @@ function _deriveFontFamily(filename) {
 
 /**
  * Create and inject a @font-face rule.
+ * Uses the raw family name (without fallback) for the @font-face declaration.
  */
 function _registerFontFace(family, url, filename) {
   const ext = (filename || '').match(/\.([^.]+)$/);
   const format = ext ? _fontFormat(ext[1].toLowerCase()) : '';
 
-  const rule = `
-@font-face {
-  font-family: "${family}";
-  src: url("${url}")${format ? ` format("${format}")` : ''};
+  const rule = `@font-face {
+  font-family: '${family}';
+  src: url('${url}')${format ? ` format('${format}')` : ''};
   font-display: swap;
 }`;
 
   const style = document.createElement('style');
   style.textContent = rule;
   document.head.appendChild(style);
+
+  console.log(`[font-loader] Registered @font-face: '${family}' from ${url}`);
 }
 
 /**

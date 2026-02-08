@@ -387,14 +387,14 @@ async function _triggerFontUpload() {
       const asset = data.assets && data.assets[0];
       if (!asset) throw new Error('No asset returned');
 
-      // Register the font and get its family name
-      const { family } = registerUploadedFont(asset.id, asset.original_name);
+      // Register the font and get its CSS-ready family name
+      const { family, cssFamily } = registerUploadedFont(asset.id, asset.original_name);
 
-      // Apply the new font to the current element
-      _emitProp({ fontFamily: family });
+      // Apply the new font to the current element (use cssFamily for proper quoting + fallback)
+      _emitProp({ fontFamily: cssFamily });
 
       if (currentElement) {
-        currentElement.props = { ...(currentElement.props || {}), fontFamily: family };
+        currentElement.props = { ...(currentElement.props || {}), fontFamily: cssFamily };
         updatePropertiesPanel(currentElement);
       }
 

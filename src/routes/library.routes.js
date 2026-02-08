@@ -167,24 +167,26 @@ router.post('/assets/upload', authenticateToken, requireRole('operator', 'admin'
 
     for (const file of req.files) {
       let storedKey;
+      // Resolve correct MIME type (multer may report application/octet-stream for fonts)
+      const mime = _resolveMimeType(file.originalname, file.mimetype);
 
       if (useS3) {
         // Upload to S3
         const ext = path.extname(file.originalname).toLowerCase();
         const base = path.basename(file.originalname, ext).replace(/[^a-zA-Z0-9_-]/g, '_');
         const fileName = `${base}_${Date.now()}${ext}`;
-        storedKey = await s3.uploadFile(fileName, file.buffer, file.mimetype);
+        storedKey = await s3.uploadFile(fileName, file.buffer, mime);
       } else {
         // Local disk — multer already saved it
         storedKey = file.filename;
       }
 
-      const result = insert.run(storedKey, file.originalname, file.mimetype, file.size, folder_id, now);
+      const result = insert.run(storedKey, file.originalname, mime, file.size, folder_id, now);
       results.push({
         id: result.lastInsertRowid,
         filename: storedKey,
         original_name: file.originalname,
-        mime_type: file.mimetype,
+        mime_type: mime,
         file_size: file.size,
         folder_id,
         tags: [],
@@ -292,7 +294,9 @@ router.get('/assets/:id/file', async (req, res) => {
       if (!fs.existsSync(filePath)) {
         return res.status(404).json({ error: 'File not found on disk' });
       }
-      if (asset.mime_type) res.setHeader('Content-Type', asset.mime_type);
+      // Override MIME type for fonts — multer often stores application/octet-stream
+      const contentType = _resolveMimeType(asset.filename, asset.mime_type);
+      if (contentType) res.setHeader('Content-Type', contentType);
       res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
       res.sendFile(filePath);
     }
@@ -301,5 +305,27 @@ router.get('/assets/:id/file', async (req, res) => {
     res.status(500).json({ error: 'Failed to serve file' });
   }
 });
+
+/**
+ * Resolve the correct MIME type for a file. Falls back to extension-based
+ * lookup when the stored type is generic (e.g. application/octet-stream).
+ */
+function _resolveMimeType(filename, storedMime) {
+  // If the stored MIME is specific enough, use it
+  if (storedMime && storedMime !== 'application/octet-stream') return storedMime;
+
+  const ext = (filename || '').match(/\.([^.]+)$/);
+  if (!ext) return storedMime;
+
+  const map = {
+    ttf: 'font/ttf',
+    otf: 'font/otf',
+    woff: 'font/woff',
+    woff2: 'font/woff2',
+    svg: 'image/svg+xml',
+    json: 'application/json',
+  };
+  return map[ext[1].toLowerCase()] || storedMime;
+}
 
 module.exports = router;
