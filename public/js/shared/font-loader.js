@@ -18,11 +18,16 @@ let _loaded = false;
 
 /**
  * Load all font assets from the library and register @font-face rules.
- * Safe to call multiple times — skips already-registered fonts.
+ * Safe to call multiple times — uses cached results after first successful fetch.
+ * Pass force=true to re-fetch from the server (e.g. after a new font upload).
  *
+ * @param {boolean} [force=false] - Force re-fetch from server
  * @returns {Promise<Array<{id: number, name: string, family: string, cssFamily: string, url: string}>>}
  */
-export async function loadCustomFonts() {
+export async function loadCustomFonts(force = false) {
+  // Return cached results if already loaded (fonts are registered via @font-face)
+  if (_loaded && !force) return _customFonts;
+
   try {
     const res = await fetch('/api/library/assets');
     if (!res.ok) return _customFonts;
@@ -50,6 +55,7 @@ export async function loadCustomFonts() {
       const url = `/api/library/assets/${asset.id}/file`;
 
       _registerFontFace(family, url, asset.original_name || asset.filename);
+      _preloadFont(url);
       _registered.add(asset.id);
 
       _customFonts.push({
@@ -83,6 +89,7 @@ export function registerUploadedFont(assetId, originalName) {
 
   if (!_registered.has(assetId)) {
     _registerFontFace(family, url, originalName);
+    _preloadFont(url);
     _registered.add(assetId);
     _customFonts.push({ id: assetId, name: originalName, family, cssFamily, url });
   }
@@ -145,6 +152,22 @@ function _registerFontFace(family, url, filename) {
   document.head.appendChild(style);
 
   console.log(`[font-loader] Registered @font-face: '${family}' from ${url}`);
+}
+
+/**
+ * Preload a font file so the browser caches it before it's needed.
+ * Uses a <link rel="preload"> tag for efficient loading.
+ */
+function _preloadFont(url) {
+  // Avoid duplicate preload links
+  if (document.querySelector(`link[href="${url}"]`)) return;
+
+  const link = document.createElement('link');
+  link.rel = 'preload';
+  link.href = url;
+  link.as = 'font';
+  link.crossOrigin = 'anonymous';
+  document.head.appendChild(link);
 }
 
 /**

@@ -138,7 +138,7 @@ function onMessage(event) {
 function processMessage(msg) {
   switch (msg.type) {
     case 'init':
-      initPromise = handleInit(msg).then(() => {
+      initPromise = handleInit(msg).finally(() => {
         initPromise = null;
         drainPendingMessages();
       });
@@ -159,10 +159,7 @@ function processMessage(msg) {
       break;
 
     case 'templateUpdate':
-      initPromise = handleTemplateUpdate(msg).then(() => {
-        initPromise = null;
-        drainPendingMessages();
-      });
+      handleTemplateUpdate(msg);
       break;
 
     case 'configUpdate':
@@ -392,13 +389,14 @@ function scheduleAutoExit(timeline, elementAnimations, rootAnimation) {
 // Template update (hot-reload)
 // ---------------------------------------------------------------------------
 
-async function handleTemplateUpdate(msg) {
+function handleTemplateUpdate(msg) {
   const { template, referenceData } = msg.data || {};
 
   console.log('[overlay] Template update received – rebuilding DOM');
 
-  // Reload custom fonts (picks up any newly uploaded fonts)
-  await loadCustomFonts();
+  // Reload custom fonts in background (picks up any newly uploaded fonts)
+  // Don't await — fonts from init are already registered
+  loadCustomFonts();
 
   // Normalize builder elements to flat format
   if (template && template.elements) {
