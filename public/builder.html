@@ -883,6 +883,45 @@
 
     .tl-header-btn svg { width: 10px; height: 10px; }
 
+    .tl-btn-take-on {
+      border-color: #4caf50;
+      color: #4caf50;
+      font-weight: 700;
+      font-size: 0.6rem;
+      letter-spacing: 0.04em;
+    }
+    .tl-btn-take-on:hover:not(:disabled) {
+      background: rgba(76, 175, 80, 0.15);
+      border-color: #4caf50;
+      color: #4caf50;
+    }
+
+    .tl-btn-resume {
+      border-color: #2196f3;
+      color: #2196f3;
+      font-weight: 700;
+      font-size: 0.6rem;
+      letter-spacing: 0.04em;
+    }
+    .tl-btn-resume:hover {
+      background: rgba(33, 150, 243, 0.15);
+      border-color: #2196f3;
+      color: #2196f3;
+    }
+
+    .tl-btn-take-off {
+      border-color: #f44336;
+      color: #f44336;
+      font-weight: 700;
+      font-size: 0.6rem;
+      letter-spacing: 0.04em;
+    }
+    .tl-btn-take-off:hover:not(:disabled) {
+      background: rgba(244, 67, 54, 0.15);
+      border-color: #f44336;
+      color: #f44336;
+    }
+
     .tl-hold-control {
       display: flex;
       align-items: center;
@@ -1300,14 +1339,9 @@
     <div class="tl-panel collapsed" id="timelinePanel">
       <div class="tl-header">
         <span class="tl-header-title">Timeline</span>
-        <button class="tl-header-btn" id="tlPlayBtn" title="Play">
-          <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6z"/></svg>
-          Play
-        </button>
-        <button class="tl-header-btn" id="tlStopBtn" title="Stop">
-          <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="3" width="10" height="10"/></svg>
-          Stop
-        </button>
+        <button class="tl-header-btn tl-btn-take-on" id="tlTakeOnBtn" title="Take On — play IN animations">TAKE ON</button>
+        <button class="tl-header-btn tl-btn-resume" id="tlResumeBtn" title="Resume past pause point" style="display:none">RESUME</button>
+        <button class="tl-header-btn tl-btn-take-off" id="tlTakeOffBtn" title="Take Off — play OUT animations" style="opacity:0.4" disabled>TAKE OFF</button>
         <button class="tl-header-btn" id="tlLoopBtn" title="Toggle loop">&#8635; Loop</button>
         <button class="tl-header-btn" id="tlAddPauseBtn" title="Add pause point">+ Pause</button>
         <div class="tl-hold-control">

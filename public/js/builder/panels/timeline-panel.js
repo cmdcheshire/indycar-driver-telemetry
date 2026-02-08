@@ -34,6 +34,8 @@ let _loopEnabled = false;
 /** @type {gsap.core.Timeline|null} */ let _masterTl = null;
 let _isPlaying = false;
 let _isScrubbing = false;
+let _currentPhase = 'idle'; // 'idle' | 'in' | 'hold' | 'out'
+let _holdTimer = null;
 
 const LABEL_WIDTH = 90;
 const TRACK_HEIGHT = 24;
@@ -79,13 +81,15 @@ export function initTimelinePanel(opts) {
     });
   }
 
-  // Play
-  const playBtn = document.getElementById('tlPlayBtn');
-  if (playBtn) playBtn.addEventListener('click', () => { _expandPanel(); _play(); });
+  // Transport: TAKE ON / RESUME / TAKE OFF
+  const takeOnBtn = document.getElementById('tlTakeOnBtn');
+  if (takeOnBtn) takeOnBtn.addEventListener('click', () => { _expandPanel(); _takeOn(); });
 
-  // Stop
-  const stopBtn = document.getElementById('tlStopBtn');
-  if (stopBtn) stopBtn.addEventListener('click', () => _stop());
+  const resumeBtn = document.getElementById('tlResumeBtn');
+  if (resumeBtn) resumeBtn.addEventListener('click', () => _resume());
+
+  const takeOffBtn = document.getElementById('tlTakeOffBtn');
+  if (takeOffBtn) takeOffBtn.addEventListener('click', () => _takeOff());
 
   // Loop toggle
   const loopBtn = document.getElementById('tlLoopBtn');
@@ -616,16 +620,11 @@ function _addPausePointDrag(marker, pp, inMs, inWidth) {
 }
 
 /* ------------------------------------------------------------------ *
- *  Transport: Play / Stop
+ *  Transport: TAKE ON / RESUME / TAKE OFF
  * ------------------------------------------------------------------ */
 
-function _play() {
-  // If paused (at pause point or from scrubbing), resume
-  if (_masterTl && _isPlaying && _masterTl.paused()) {
-    _masterTl.resume();
-    return;
-  }
-  if (_isPlaying) _stop();
+function _takeOn() {
+  if (_currentPhase !== 'idle') _hardReset();
   if (!_getElements || !_getTimeline) return;
 
   const elements = _getElements();
@@ -633,17 +632,24 @@ function _play() {
   const { inDuration, outDuration } = _computePhases(elements);
   const holdMs = timeline.holdDuration || 0;
 
-  // Build GSAP master timeline
-  _masterTl = gsap.timeline({
-    repeat: _loopEnabled ? -1 : 0,
-    onUpdate: () => _updatePlayhead(_masterTl, inDuration, holdMs, outDuration),
-    onComplete: () => { if (!_isScrubbing) _stop(); },
-  });
-
-  // IN phase: play enter animations
+  // Build IN-phase-only timeline
   const enterElements = elements.filter(el => {
     const a = el.animation?.enter;
     return a?.type && a.type !== 'none';
+  });
+
+  if (enterElements.length === 0) {
+    // No enter animations — go straight to hold
+    _currentPhase = 'in';
+    _isPlaying = true;
+    if (_playheadEl) _playheadEl.classList.add('active');
+    _enterHold(holdMs);
+    return;
+  }
+
+  _masterTl = gsap.timeline({
+    onUpdate: () => { if (!_isScrubbing) _updatePlayhead(); },
+    onComplete: () => { if (!_isScrubbing) _enterHold(holdMs); },
   });
 
   for (const el of enterElements) {
@@ -656,7 +662,7 @@ function _play() {
 
     const delay = (anim.delay || 0) / 1000;
     const duration = (anim.duration || 300) / 1000;
-    const easing = anim.easing || 'power2.out';
+    const easing = anim.easing || preset.defaultEase || 'power2.out';
     const safeClearProps = preset.clearProps || Object.keys(preset.vars).join(',');
 
     _masterTl.from(node, {
@@ -676,19 +682,84 @@ function _play() {
     }
   }
 
-  // HOLD phase: just a delay
-  const holdStart = inDuration / 1000;
-  if (holdMs > 0) {
-    _masterTl.to({}, { duration: holdMs / 1000 }, holdStart);
+  _currentPhase = 'in';
+  _isPlaying = true;
+  if (_playheadEl) _playheadEl.classList.add('active');
+  _updateTransportButtons();
+}
+
+function _enterHold(holdMs) {
+  // Kill IN timeline
+  if (_masterTl) {
+    _masterTl.kill();
+    _masterTl = null;
   }
 
-  // OUT phase: play exit animations
+  _currentPhase = 'hold';
+  _isPlaying = true;
+
+  // Position playhead at hold area
+  _updatePlayhead();
+  if (_playheadEl) _playheadEl.classList.add('active');
+  _updateTransportButtons();
+
+  // Auto take-off after holdDuration (unless loop or manual)
+  if (!_loopEnabled && holdMs > 0) {
+    _holdTimer = setTimeout(() => {
+      _holdTimer = null;
+      _takeOff();
+    }, holdMs);
+  }
+  // If loop or manual (holdMs === 0): stay on indefinitely until TAKE OFF
+}
+
+function _resume() {
+  if (_currentPhase === 'in' && _masterTl && _masterTl.paused()) {
+    _masterTl.resume();
+  }
+}
+
+function _takeOff() {
+  if (_currentPhase === 'idle') return;
+
+  // Clear hold timer
+  if (_holdTimer) {
+    clearTimeout(_holdTimer);
+    _holdTimer = null;
+  }
+
+  // Kill IN timeline if still active
+  if (_masterTl) {
+    _masterTl.kill();
+    _masterTl = null;
+  }
+
+  if (!_getElements) {
+    _hardReset();
+    return;
+  }
+
+  const elements = _getElements();
+  const { outDuration } = _computePhases(elements);
+
+  // Build OUT-phase-only timeline
   const exitElements = elements.filter(el => {
     const a = el.animation?.exit;
     return a?.type && a.type !== 'none';
   });
 
-  const outStart = holdStart + (holdMs > 0 ? holdMs / 1000 : 0.001);
+  if (exitElements.length === 0) {
+    _hardReset();
+    return;
+  }
+
+  _currentPhase = 'out';
+  _updateTransportButtons();
+
+  _masterTl = gsap.timeline({
+    onUpdate: () => { if (!_isScrubbing) _updatePlayhead(); },
+    onComplete: () => { if (!_isScrubbing) _hardReset(); },
+  });
 
   for (const el of exitElements) {
     const anim = el.animation.exit;
@@ -700,52 +771,34 @@ function _play() {
 
     const delay = (anim.delay || 0) / 1000;
     const duration = (anim.duration || 300) / 1000;
-    const easing = anim.easing || 'power2.in';
+    const easing = anim.easing || preset.defaultEase || 'power2.in';
 
     _masterTl.to(node, {
       ...preset.vars,
       duration,
       ease: easing,
-    }, outStart + delay);
+    }, delay);
   }
-
-  // After OUT, reset exit elements
-  if (exitElements.length > 0) {
-    const totalOutEnd = outStart + outDuration / 1000;
-    _masterTl.call(() => {
-      for (const el of exitElements) {
-        const node = document.querySelector(`#canvasContainer [data-element-id="${el.id}"]`);
-        if (!node) continue;
-        const anim = el.animation.exit;
-        const preset = getExitPreset(anim.type);
-        const props = preset ? (preset.clearProps || Object.keys(preset.vars).join(',')) : 'opacity';
-        gsap.set(node, { clearProps: props });
-      }
-    }, null, totalOutEnd + 0.05);
-  }
-
-  _isPlaying = true;
-  if (_playheadEl) _playheadEl.classList.add('active');
-
-  const playBtn = document.getElementById('tlPlayBtn');
-  if (playBtn) playBtn.style.opacity = '0.5';
 }
 
-function _stop() {
+function _hardReset() {
   _isScrubbing = false;
   if (_masterTl) {
     _masterTl.kill();
     _masterTl = null;
   }
 
+  if (_holdTimer) {
+    clearTimeout(_holdTimer);
+    _holdTimer = null;
+  }
+
+  _currentPhase = 'idle';
   _isPlaying = false;
   if (_playheadEl) {
     _playheadEl.classList.remove('active');
     _playheadEl.style.left = '0px';
   }
-
-  const playBtn = document.getElementById('tlPlayBtn');
-  if (playBtn) playBtn.style.opacity = '';
 
   // Reset any GSAP-applied transforms on canvas elements
   if (_getElements) {
@@ -770,6 +823,26 @@ function _stop() {
       }
     }
   }
+
+  _updateTransportButtons();
+}
+
+function _updateTransportButtons() {
+  const takeOnBtn = document.getElementById('tlTakeOnBtn');
+  const resumeBtn = document.getElementById('tlResumeBtn');
+  const takeOffBtn = document.getElementById('tlTakeOffBtn');
+
+  if (takeOnBtn) {
+    takeOnBtn.disabled = _currentPhase !== 'idle';
+    takeOnBtn.style.opacity = _currentPhase !== 'idle' ? '0.4' : '';
+  }
+  if (resumeBtn) {
+    resumeBtn.style.display = _currentPhase === 'in' ? '' : 'none';
+  }
+  if (takeOffBtn) {
+    takeOffBtn.disabled = _currentPhase === 'idle' || _currentPhase === 'out';
+    takeOffBtn.style.opacity = (_currentPhase === 'idle' || _currentPhase === 'out') ? '0.4' : '';
+  }
 }
 
 /* ------------------------------------------------------------------ *
@@ -779,13 +852,24 @@ function _stop() {
 function _initScrubbing() {
   const startScrub = (e, getX) => {
     e.preventDefault();
+
+    // Reset any active playout state
+    if (_currentPhase !== 'idle') {
+      if (_masterTl) { _masterTl.kill(); _masterTl = null; }
+      if (_holdTimer) { clearTimeout(_holdTimer); _holdTimer = null; }
+      _currentPhase = 'idle';
+      _isPlaying = false;
+      _updateTransportButtons();
+    }
+
     _isScrubbing = true;
     _expandPanel();
 
-    if (!_masterTl) _play();
-    if (_masterTl) _masterTl.pause();
-    if (_playheadEl) _playheadEl.classList.add('active');
+    // Build a full IN+HOLD+OUT scrub timeline
+    _masterTl = _buildScrubTimeline();
+    if (!_masterTl) { _isScrubbing = false; return; }
 
+    if (_playheadEl) _playheadEl.classList.add('active');
     _scrubToX(getX(e));
 
     const onMove = (ev) => {
@@ -795,6 +879,7 @@ function _initScrubbing() {
 
     const onUp = () => {
       _isScrubbing = false;
+      _hardReset();
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
     };
@@ -822,10 +907,85 @@ function _initScrubbing() {
   }
 }
 
+/**
+ * Build a full IN+HOLD+OUT timeline for scrub preview (paused).
+ */
+function _buildScrubTimeline() {
+  if (!_getElements || !_getTimeline) return null;
+
+  const elements = _getElements();
+  const timeline = _getTimeline();
+  const { inDuration, outDuration } = _computePhases(elements);
+  const holdMs = timeline.holdDuration || 0;
+
+  const tl = gsap.timeline({ paused: true });
+
+  // IN phase
+  const enterElements = elements.filter(el => {
+    const a = el.animation?.enter;
+    return a?.type && a.type !== 'none';
+  });
+
+  for (const el of enterElements) {
+    const anim = el.animation.enter;
+    const preset = getEnterPreset(anim.type);
+    if (!preset) continue;
+
+    const node = document.querySelector(`#canvasContainer [data-element-id="${el.id}"]`);
+    if (!node) continue;
+
+    const delay = (anim.delay || 0) / 1000;
+    const duration = (anim.duration || 300) / 1000;
+    const easing = anim.easing || preset.defaultEase || 'power2.out';
+
+    tl.from(node, {
+      ...preset.vars,
+      duration,
+      ease: easing,
+    }, delay);
+  }
+
+  // HOLD phase (empty tween to advance timeline)
+  const holdStart = inDuration / 1000;
+  if (holdMs > 0) {
+    tl.to({}, { duration: holdMs / 1000 }, holdStart);
+  }
+
+  // OUT phase
+  const exitElements = elements.filter(el => {
+    const a = el.animation?.exit;
+    return a?.type && a.type !== 'none';
+  });
+
+  const outStart = holdStart + (holdMs > 0 ? holdMs / 1000 : 0.001);
+
+  for (const el of exitElements) {
+    const anim = el.animation.exit;
+    const preset = getExitPreset(anim.type);
+    if (!preset) continue;
+
+    const node = document.querySelector(`#canvasContainer [data-element-id="${el.id}"]`);
+    if (!node) continue;
+
+    const delay = (anim.delay || 0) / 1000;
+    const duration = (anim.duration || 300) / 1000;
+    const easing = anim.easing || preset.defaultEase || 'power2.in';
+
+    tl.to(node, {
+      ...preset.vars,
+      duration,
+      ease: easing,
+    }, outStart + delay);
+  }
+
+  return tl;
+}
+
 function _scrubToX(xInTrack) {
   if (!_masterTl || !_rulerTrack) return;
   const timeSec = _positionToTime(xInTrack);
   _masterTl.seek(timeSec);
+  _updatePlayhead(); // Manual call — GSAP seek() suppresses onUpdate
 }
 
 function _positionToTime(xInTrack) {
@@ -858,33 +1018,48 @@ function _positionToTime(xInTrack) {
  *  Playhead animation
  * ------------------------------------------------------------------ */
 
-function _updatePlayhead(tl, inMs, holdMs, outMs) {
-  if (!_playheadEl || !_rulerTrack || !tl) return;
+function _updatePlayhead() {
+  if (!_playheadEl || !_rulerTrack || !_getElements || !_getTimeline) return;
 
   const totalWidth = _rulerTrack.clientWidth;
   if (totalWidth <= 0) return;
 
+  const elements = _getElements();
+  const timeline = _getTimeline();
+  const { inDuration: inMs, outDuration: outMs } = _computePhases(elements);
+  const holdMs = timeline.holdDuration || 0;
   const { inWidth, holdWidth, outWidth } = _phaseWidths(inMs, holdMs, outMs, totalWidth);
   const sepWidth = 2;
 
-  const currentTime = tl.time() * 1000; // ms
-  const inEnd = inMs;
-  const holdEnd = inEnd + holdMs;
-  const totalMs = holdEnd + outMs;
-
   let xPos = 0;
 
-  if (currentTime <= inEnd) {
-    // In the IN phase
-    xPos = LABEL_WIDTH + (currentTime / inMs) * inWidth;
-  } else if (currentTime <= holdEnd) {
-    // In the HOLD phase
-    const holdProgress = holdMs > 0 ? (currentTime - inEnd) / holdMs : 0.5;
-    xPos = LABEL_WIDTH + inWidth + sepWidth + holdProgress * holdWidth;
-  } else {
-    // In the OUT phase
-    const outProgress = (currentTime - holdEnd) / outMs;
-    xPos = LABEL_WIDTH + inWidth + sepWidth + holdWidth + sepWidth + outProgress * outWidth;
+  if (_isScrubbing && _masterTl) {
+    // Full three-phase position from scrub timeline
+    const currentTime = _masterTl.time() * 1000;
+    const inEnd = inMs;
+    const holdEnd = inEnd + holdMs;
+
+    if (currentTime <= inEnd) {
+      xPos = LABEL_WIDTH + (inMs > 0 ? (currentTime / inMs) * inWidth : 0);
+    } else if (currentTime <= holdEnd) {
+      const holdProgress = holdMs > 0 ? (currentTime - inEnd) / holdMs : 0.5;
+      xPos = LABEL_WIDTH + inWidth + sepWidth + holdProgress * holdWidth;
+    } else {
+      const outProgress = outMs > 0 ? (currentTime - holdEnd) / outMs : 0;
+      xPos = LABEL_WIDTH + inWidth + sepWidth + holdWidth + sepWidth + outProgress * outWidth;
+    }
+  } else if (_currentPhase === 'in' && _masterTl) {
+    // IN phase only — timeline covers 0..inDuration
+    const currentTime = _masterTl.time() * 1000;
+    xPos = LABEL_WIDTH + (inMs > 0 ? (currentTime / inMs) * inWidth : 0);
+  } else if (_currentPhase === 'hold') {
+    // Static position in middle of HOLD column
+    xPos = LABEL_WIDTH + inWidth + sepWidth + holdWidth * 0.5;
+  } else if (_currentPhase === 'out' && _masterTl) {
+    // OUT phase only — timeline covers 0..outDuration
+    const currentTime = _masterTl.time() * 1000;
+    xPos = LABEL_WIDTH + inWidth + sepWidth + holdWidth + sepWidth +
+      (outMs > 0 ? (currentTime / outMs) * outWidth : 0);
   }
 
   _playheadEl.style.left = `${xPos}px`;
