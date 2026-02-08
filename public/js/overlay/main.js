@@ -168,6 +168,9 @@ function handleInit(msg) {
   currentTemplate = template;
   currentConfig   = config;
 
+  // Kill previous animation engine (reverts gsap.context, frees GPU memory)
+  if (animationEngine) animationEngine.killAll();
+
   // Build the DOM from the template
   const rootEl = document.getElementById('overlay-root');
   rootEl.innerHTML = '';
@@ -301,6 +304,9 @@ function handleTemplateUpdate(msg) {
   }
 
   currentTemplate = template;
+
+  // Kill previous animation engine (reverts gsap.context, frees GPU memory)
+  if (animationEngine) animationEngine.killAll();
 
   // Hide root BEFORE clearing DOM to prevent flash during CUE
   const rootEl = document.getElementById('overlay-root');

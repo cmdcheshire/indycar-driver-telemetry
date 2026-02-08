@@ -35,6 +35,19 @@ const ENTER_PRESETS = {
   // Special
   flipInX:       { vars: { rotateX: -90, opacity: 0, transformPerspective: 600 } },
   flipInY:       { vars: { rotateY: -90, opacity: 0, transformPerspective: 600 } },
+
+  // Motorsport — wipe reveals (preferred for broadcast ingress)
+  wipeInLeft:    { vars: { clipPath: 'inset(0 100% 0 0)' }, clearProps: 'clipPath', defaultEase: 'wipeDrive' },
+  wipeInRight:   { vars: { clipPath: 'inset(0 0 0 100%)' }, clearProps: 'clipPath', defaultEase: 'wipeDrive' },
+  wipeInUp:      { vars: { clipPath: 'inset(100% 0 0 0)' }, clearProps: 'clipPath', defaultEase: 'wipeDrive' },
+  wipeInDown:    { vars: { clipPath: 'inset(0 0 100% 0)' }, clearProps: 'clipPath', defaultEase: 'wipeDrive' },
+  wipeInCenter:  { vars: { clipPath: 'inset(0 50% 0 50%)' }, clearProps: 'clipPath', defaultEase: 'wipeDrive' },
+
+  // Motorsport — snap-in (tower-style hard decel)
+  snapInLeft:    { vars: { x: -60, opacity: 0 }, defaultEase: 'towerSnap' },
+  snapInRight:   { vars: { x: 60, opacity: 0 }, defaultEase: 'towerSnap' },
+  snapInUp:      { vars: { y: 40, opacity: 0 }, defaultEase: 'towerSnap' },
+  snapInDown:    { vars: { y: -40, opacity: 0 }, defaultEase: 'towerSnap' },
 };
 
 // ─── Exit Presets ────────────────────────────────────────────────────────────
@@ -67,6 +80,19 @@ const EXIT_PRESETS = {
   // Special
   flipOutX:      { vars: { rotateX: 90, opacity: 0, transformPerspective: 600 } },
   flipOutY:      { vars: { rotateY: 90, opacity: 0, transformPerspective: 600 } },
+
+  // Motorsport — wipe exits (preferred for broadcast egress)
+  wipeOutLeft:   { vars: { clipPath: 'inset(0 0 0 100%)' }, defaultEase: 'exitAccel' },
+  wipeOutRight:  { vars: { clipPath: 'inset(0 100% 0 0)' }, defaultEase: 'exitAccel' },
+  wipeOutUp:     { vars: { clipPath: 'inset(0 0 100% 0)' }, defaultEase: 'exitAccel' },
+  wipeOutDown:   { vars: { clipPath: 'inset(100% 0 0 0)' }, defaultEase: 'exitAccel' },
+  wipeOutCenter: { vars: { clipPath: 'inset(0 50% 0 50%)' }, defaultEase: 'exitAccel' },
+
+  // Motorsport — snap exits (accelerate off screen)
+  snapOutLeft:   { vars: { x: -60, opacity: 0 }, defaultEase: 'exitAccel' },
+  snapOutRight:  { vars: { x: 60, opacity: 0 }, defaultEase: 'exitAccel' },
+  snapOutUp:     { vars: { y: -40, opacity: 0 }, defaultEase: 'exitAccel' },
+  snapOutDown:   { vars: { y: 40, opacity: 0 }, defaultEase: 'exitAccel' },
 };
 
 // ─── Emphasis Presets ────────────────────────────────────────────────────────
@@ -123,6 +149,87 @@ const EMPHASIS_PRESETS = {
       { scaleX: 1, scaleY: 1, duration: 0.1 },
     ],
   },
+
+  // ── Motorsport-specific emphasis ──
+
+  // Position gain — green flash (200ms, breatheSine)
+  gainFlash: {
+    keyframes: [
+      { backgroundColor: 'rgba(0, 208, 0, 0.3)', duration: 0.1, ease: 'sine.in' },
+      { backgroundColor: 'transparent', duration: 0.1, ease: 'sine.out' },
+    ],
+  },
+  // Position loss — red flash (200ms, breatheSine)
+  lossFlash: {
+    keyframes: [
+      { backgroundColor: 'rgba(255, 51, 51, 0.3)', duration: 0.1, ease: 'sine.in' },
+      { backgroundColor: 'transparent', duration: 0.1, ease: 'sine.out' },
+    ],
+  },
+  // Fastest sector — purple flash (150ms)
+  sectorFlash: {
+    keyframes: [
+      { backgroundColor: 'rgba(160, 32, 240, 0.4)', duration: 0.075, ease: 'sine.in' },
+      { backgroundColor: 'transparent', duration: 0.075, ease: 'sine.out' },
+    ],
+  },
+  // Data update — quick scale punch (dataPunch easing, 120ms)
+  dataUpdate: {
+    keyframes: [
+      { scale: 1.08, duration: 0.06, ease: 'dataPunch' },
+      { scale: 1, duration: 0.06, ease: 'springFirm' },
+    ],
+  },
+  // Celebration bounce — festive scale with overshoot
+  celebPop: {
+    keyframes: [
+      { scale: 1.35, duration: 0.1, ease: 'celebBounce' },
+      { scale: 1, duration: 0.15, ease: 'springFirm' },
+    ],
+  },
+  // Breathing pulse — continuous sine wave (use with repeat)
+  breathe: {
+    keyframes: [
+      { opacity: 0.6, duration: 0.25, ease: 'sine.in' },
+      { opacity: 1, duration: 0.25, ease: 'sine.out' },
+    ],
+  },
+  // Purple lap emphasis — scale up + purple glow (400ms)
+  purpleLap: {
+    keyframes: [
+      { scale: 1.15, textShadow: '0 0 12px #A020F0, 0 0 24px #A020F0', duration: 0.1, ease: 'springFirm' },
+      { scale: 1, textShadow: '0 0 6px #A020F0', duration: 0.15 },
+      { textShadow: 'none', duration: 0.15 },
+    ],
+  },
+  // Gold shimmer — fastest lap / lap record (300ms)
+  goldShimmer: {
+    keyframes: [
+      { textShadow: '0 0 10px #FFD700, 0 0 20px #FFD700', color: '#FFD700', duration: 0.1 },
+      { textShadow: '0 0 5px #FFD700', duration: 0.1 },
+      { textShadow: 'none', color: 'inherit', duration: 0.1 },
+    ],
+  },
+  // Pit stop alert — amber tint pulse (150ms)
+  pitAlert: {
+    keyframes: [
+      { backgroundColor: 'rgba(255, 140, 0, 0.25)', duration: 0.075 },
+      { backgroundColor: 'transparent', duration: 0.075 },
+    ],
+  },
+  // Flag pulse — generic flag color pulse (configurable via repeat)
+  flagPulse: {
+    keyframes: [
+      { opacity: 0.7, duration: 0.25, ease: 'sine.in' },
+      { opacity: 1, duration: 0.25, ease: 'sine.out' },
+    ],
+  },
+  // Retirement gray-out (400ms)
+  retirement: {
+    keyframes: [
+      { filter: 'grayscale(1)', opacity: 0.5, duration: 0.4, ease: 'sine.inOut' },
+    ],
+  },
 };
 
 // ─── Categorized Lists (for UI dropdowns) ────────────────────────────────────
@@ -171,6 +278,25 @@ export const ENTER_ANIMATION_CATEGORIES = [
       { value: 'flipInY', label: 'Flip In Y' },
     ],
   },
+  {
+    name: 'Motorsport — Wipe',
+    presets: [
+      { value: 'wipeInLeft', label: 'Wipe In Left' },
+      { value: 'wipeInRight', label: 'Wipe In Right' },
+      { value: 'wipeInUp', label: 'Wipe In Up' },
+      { value: 'wipeInDown', label: 'Wipe In Down' },
+      { value: 'wipeInCenter', label: 'Wipe In Center' },
+    ],
+  },
+  {
+    name: 'Motorsport — Snap',
+    presets: [
+      { value: 'snapInLeft', label: 'Snap In Left' },
+      { value: 'snapInRight', label: 'Snap In Right' },
+      { value: 'snapInUp', label: 'Snap In Up' },
+      { value: 'snapInDown', label: 'Snap In Down' },
+    ],
+  },
 ];
 
 export const EXIT_ANIMATION_CATEGORIES = [
@@ -217,6 +343,25 @@ export const EXIT_ANIMATION_CATEGORIES = [
       { value: 'flipOutY', label: 'Flip Out Y' },
     ],
   },
+  {
+    name: 'Motorsport — Wipe',
+    presets: [
+      { value: 'wipeOutLeft', label: 'Wipe Out Left' },
+      { value: 'wipeOutRight', label: 'Wipe Out Right' },
+      { value: 'wipeOutUp', label: 'Wipe Out Up' },
+      { value: 'wipeOutDown', label: 'Wipe Out Down' },
+      { value: 'wipeOutCenter', label: 'Wipe Out Center' },
+    ],
+  },
+  {
+    name: 'Motorsport — Snap',
+    presets: [
+      { value: 'snapOutLeft', label: 'Snap Out Left' },
+      { value: 'snapOutRight', label: 'Snap Out Right' },
+      { value: 'snapOutUp', label: 'Snap Out Up' },
+      { value: 'snapOutDown', label: 'Snap Out Down' },
+    ],
+  },
 ];
 
 export const EMPHASIS_ANIMATIONS = [
@@ -228,6 +373,18 @@ export const EMPHASIS_ANIMATIONS = [
   { value: 'glow', label: 'Glow' },
   { value: 'colorShift', label: 'Color Shift' },
   { value: 'rubberBand', label: 'Rubber Band' },
+  // Motorsport-specific emphasis
+  { value: 'gainFlash', label: 'Gain Flash (Green)' },
+  { value: 'lossFlash', label: 'Loss Flash (Red)' },
+  { value: 'sectorFlash', label: 'Sector Flash (Purple)' },
+  { value: 'dataUpdate', label: 'Data Update Punch' },
+  { value: 'celebPop', label: 'Celebration Pop' },
+  { value: 'breathe', label: 'Breathe Pulse' },
+  { value: 'purpleLap', label: 'Purple Lap Glow' },
+  { value: 'goldShimmer', label: 'Gold Shimmer' },
+  { value: 'pitAlert', label: 'Pit Alert (Amber)' },
+  { value: 'flagPulse', label: 'Flag Pulse' },
+  { value: 'retirement', label: 'Retirement Gray-Out' },
 ];
 
 // ─── GSAP Easings ────────────────────────────────────────────────────────────
@@ -256,6 +413,17 @@ export const GSAP_EASINGS = [
   { value: 'expo.in', label: 'Expo In', group: 'Circ / Expo' },
   { value: 'expo.out', label: 'Expo Out', group: 'Circ / Expo' },
   { value: 'expo.inOut', label: 'Expo InOut', group: 'Circ / Expo' },
+  // Motorsport-specific easings (registered via motorsport-easings.js)
+  { value: 'towerSnap', label: 'Tower Snap', group: 'Motorsport' },
+  { value: 'towerSettle', label: 'Tower Settle', group: 'Motorsport' },
+  { value: 'dataPunch', label: 'Data Punch', group: 'Motorsport' },
+  { value: 'wipeDrive', label: 'Wipe Drive', group: 'Motorsport' },
+  { value: 'exitAccel', label: 'Exit Accel', group: 'Motorsport' },
+  { value: 'telemetryLin', label: 'Telemetry Linear', group: 'Motorsport' },
+  { value: 'celebBounce', label: 'Celeb Bounce', group: 'Motorsport' },
+  { value: 'breatheSine', label: 'Breathe Sine', group: 'Motorsport' },
+  { value: 'springFirm', label: 'Spring Firm', group: 'Motorsport' },
+  { value: 'springLoose', label: 'Spring Loose', group: 'Motorsport' },
 ];
 
 // ─── CSS → GSAP Easing Migration Map ─────────────────────────────────────────

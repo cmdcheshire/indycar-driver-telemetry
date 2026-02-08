@@ -1,8 +1,13 @@
 /**
  * GSAP-based animation engine for the overlay runtime.
  *
- * Replaces the CSS @keyframes AnimationEngine with programmatic GSAP animations.
- * Provides show/hide/emphasis/value-transition/position animations.
+ * Integrates motorsport broadcast best practices:
+ *   - Channel-based animation management with auto-interruption
+ *   - overwrite:'auto' on all tweens for same-property conflict resolution
+ *   - gsap.context() scoping for clean teardown on overlay rebuild
+ *   - will-change management for GPU-accelerated animation performance
+ *   - Preset default easings (motorsport curves applied automatically)
+ *   - Motorsport easing resolver for custom cubic-bezier curves
  */
 
 import {
@@ -11,6 +16,7 @@ import {
   getEmphasisPreset,
   migrateEasing,
 } from '/js/shared/animation-presets.js';
+import { resolveEasing } from '/js/shared/motorsport-easings.js';
 
 export class GsapAnimationEngine {
   /**
@@ -20,8 +26,25 @@ export class GsapAnimationEngine {
     /** @type {Map<string, HTMLElement>} */
     this._domMap = domMap || new Map();
 
-    /** @type {Map<string, gsap.core.Tween>} Active tweens per element */
-    this._activeTweens = new Map();
+    /**
+     * Channel map: channelName -> gsap.core.Tween|Timeline
+     * Named channels auto-interrupt: starting a new animation on the same
+     * channel kills the previous one. Channel names default to elementId
+     * but can be custom (e.g. 'tower-ingress', 'flag-bar').
+     */
+    this._channels = new Map();
+
+    /**
+     * GSAP context scopes all tweens created by this engine.
+     * Calling revert() kills everything cleanly on overlay rebuild.
+     */
+    this._ctx = gsap.context ? gsap.context(() => {}) : null;
+
+    /**
+     * Track elements with will-change set so we can clean up after idle.
+     * elementId -> timeoutId
+     */
+    this._willChangeTimers = new Map();
   }
 
   // -----------------------------------------------------------------------
@@ -38,7 +61,7 @@ export class GsapAnimationEngine {
     const node = this._getNode(elementId);
     if (!node) return;
 
-    this._killTween(elementId);
+    this._killChannel(elementId);
 
     // Make visible
     node.style.display = '';
@@ -54,25 +77,41 @@ export class GsapAnimationEngine {
 
     const duration = (config.duration || 300) / 1000;
     const delay = (config.delay || 0) / 1000;
-    const easing = migrateEasing(config.easing) || 'power2.out';
+    // Use preset's default easing if no easing specified, then resolve motorsport aliases
+    const rawEasing = config.easing || preset.defaultEase || 'power2.out';
+    const easing = resolveEasing(migrateEasing(rawEasing));
 
-    const tween = gsap.from(node, {
-      ...preset.vars,
-      duration,
-      delay,
-      ease: easing,
-      onComplete: () => {
-        this._activeTweens.delete(elementId);
-        // Clear GSAP-set inline transforms so element returns to CSS-defined position
-        if (preset.clearProps) {
-          gsap.set(node, { clearProps: preset.clearProps });
-        } else {
-          gsap.set(node, { clearProps: 'transform,opacity' });
-        }
-      },
-    });
+    // Promote to GPU layer before animation starts
+    this._setWillChange(elementId, node);
 
-    this._activeTweens.set(elementId, tween);
+    const tweenFn = () => {
+      const tween = gsap.from(node, {
+        ...preset.vars,
+        duration,
+        delay,
+        ease: easing,
+        overwrite: 'auto',
+        onComplete: () => {
+          this._channels.delete(elementId);
+          // Clear GSAP-set inline transforms so element returns to CSS-defined position
+          if (preset.clearProps) {
+            gsap.set(node, { clearProps: preset.clearProps });
+          } else {
+            gsap.set(node, { clearProps: 'transform,opacity' });
+          }
+          this._clearWillChange(elementId, node);
+        },
+      });
+
+      this._channels.set(elementId, tween);
+    };
+
+    // Run inside GSAP context if available
+    if (this._ctx) {
+      this._ctx.add(tweenFn);
+    } else {
+      tweenFn();
+    }
   }
 
   /**
@@ -85,7 +124,7 @@ export class GsapAnimationEngine {
     const node = this._getNode(elementId);
     if (!node) return;
 
-    this._killTween(elementId);
+    this._killChannel(elementId);
 
     const config = animConfig || {};
     const presetName = config.type || 'fadeOut';
@@ -103,21 +142,34 @@ export class GsapAnimationEngine {
 
     const duration = (config.duration || 300) / 1000;
     const delay = (config.delay || 0) / 1000;
-    const easing = migrateEasing(config.easing) || 'power2.in';
+    const rawEasing = config.easing || preset.defaultEase || 'power2.in';
+    const easing = resolveEasing(migrateEasing(rawEasing));
 
-    const tween = gsap.to(node, {
-      ...preset.vars,
-      duration,
-      delay,
-      ease: easing,
-      onComplete: () => {
-        node.style.display = 'none';
-        this._activeTweens.delete(elementId);
-        gsap.set(node, { clearProps: 'transform,opacity,clipPath' });
-      },
-    });
+    this._setWillChange(elementId, node);
 
-    this._activeTweens.set(elementId, tween);
+    const tweenFn = () => {
+      const tween = gsap.to(node, {
+        ...preset.vars,
+        duration,
+        delay,
+        ease: easing,
+        overwrite: 'auto',
+        onComplete: () => {
+          node.style.display = 'none';
+          this._channels.delete(elementId);
+          gsap.set(node, { clearProps: 'transform,opacity,clipPath' });
+          this._clearWillChange(elementId, node);
+        },
+      });
+
+      this._channels.set(elementId, tween);
+    };
+
+    if (this._ctx) {
+      this._ctx.add(tweenFn);
+    } else {
+      tweenFn();
+    }
   }
 
   // -----------------------------------------------------------------------
@@ -153,6 +205,93 @@ export class GsapAnimationEngine {
 
     for (const config of elementConfigs) {
       this.hide(config.elementId, config);
+    }
+  }
+
+  // -----------------------------------------------------------------------
+  // Channel-based animation (named channels with auto-interruption)
+  // -----------------------------------------------------------------------
+
+  /**
+   * Run a tween on a named channel. If a tween is already running on
+   * this channel, it is killed before the new one starts.
+   *
+   * @param {string} channel - Channel name (e.g. 'tower-ingress', 'flag-bar')
+   * @param {HTMLElement} target - DOM element to animate
+   * @param {object} vars - GSAP vars object (to values)
+   * @param {object} [opts] - { duration, ease, onComplete, ... }
+   * @returns {gsap.core.Tween}
+   */
+  animate(channel, target, vars, opts = {}) {
+    this._killChannel(channel);
+
+    const tweenVars = {
+      ...vars,
+      duration: opts.duration || 0.3,
+      ease: resolveEasing(opts.ease || 'power2.out'),
+      overwrite: 'auto',
+      onComplete: () => {
+        this._channels.delete(channel);
+        if (opts.onComplete) opts.onComplete();
+      },
+    };
+
+    let tween;
+    const tweenFn = () => {
+      tween = gsap.to(target, tweenVars);
+      this._channels.set(channel, tween);
+    };
+
+    if (this._ctx) {
+      this._ctx.add(tweenFn);
+    } else {
+      tweenFn();
+    }
+
+    return tween;
+  }
+
+  /**
+   * Create a timeline on a named channel.
+   *
+   * @param {string} channel - Channel name
+   * @param {object} [opts] - Timeline options (onComplete, etc.)
+   * @returns {gsap.core.Timeline}
+   */
+  timeline(channel, opts = {}) {
+    this._killChannel(channel);
+
+    let tl;
+    const tlFn = () => {
+      tl = gsap.timeline({
+        ...opts,
+        onComplete: () => {
+          this._channels.delete(channel);
+          if (opts.onComplete) opts.onComplete();
+        },
+      });
+      this._channels.set(channel, tl);
+    };
+
+    if (this._ctx) {
+      this._ctx.add(tlFn);
+    } else {
+      tlFn();
+    }
+
+    return tl;
+  }
+
+  /**
+   * Immediately complete a channel's animation (snap to end state).
+   *
+   * @param {string} channel
+   */
+  snapToEnd(channel) {
+    const anim = this._channels.get(channel);
+    if (anim) {
+      anim.progress(1).kill();
+      this._channels.delete(channel);
     }
   }
 
@@ -199,8 +338,8 @@ export class GsapAnimationEngine {
     if (!preset) return;
 
     // Don't interrupt active enter/exit tweens
-    const activeTween = this._activeTweens.get(elementId);
-    if (activeTween && activeTween.isActive()) return;
+    const activeAnim = this._channels.get(elementId);
+    if (activeAnim && activeAnim.isActive()) return;
 
     const totalDuration = (config.duration || 400) / 1000;
     const repeat = config.repeat || 0;
@@ -211,15 +350,31 @@ export class GsapAnimationEngine {
     const scale = totalDuration / sumDurations;
     for (const kf of keyframes) {
       kf.duration = (kf.duration || 0.1) * scale;
+      // Resolve any motorsport easings in keyframe-level easing
+      if (kf.ease) kf.ease = resolveEasing(kf.ease);
     }
 
-    gsap.to(node, {
-      keyframes,
-      repeat,
-      onComplete: () => {
-        gsap.set(node, { clearProps: 'transform,opacity,textShadow,color' });
-      },
-    });
+    const emphasisChannel = `emphasis-${elementId}`;
+    this._killChannel(emphasisChannel);
+
+    const tweenFn = () => {
+      const tween = gsap.to(node, {
+        keyframes,
+        repeat,
+        overwrite: 'auto',
+        onComplete: () => {
+          this._channels.delete(emphasisChannel);
+          gsap.set(node, { clearProps: 'transform,opacity,textShadow,color,backgroundColor,filter' });
+        },
+      });
+      this._channels.set(emphasisChannel, tween);
+    };
+
+    if (this._ctx) {
+      this._ctx.add(tweenFn);
+    } else {
+      tweenFn();
+    }
   }
 
   // -----------------------------------------------------------------------
@@ -228,31 +383,49 @@ export class GsapAnimationEngine {
 
   /**
    * Animate an element's vertical position when its leaderboard rank changes.
+   * Uses towerSnap easing per the motorsport guide.
    *
    * @param {string} elementId
    * @param {number} fromRank
    * @param {number} toRank
    * @param {number} rowHeight - Pixel height of one row
-   * @param {number} [duration=400] - Duration in ms
+   * @param {number} [duration=200] - Duration in ms (guide: 200ms for position swaps)
    */
-  animatePosition(elementId, fromRank, toRank, rowHeight, duration = 400) {
+  animatePosition(elementId, fromRank, toRank, rowHeight, duration = 200) {
     const node = this._getNode(elementId);
     if (!node) return;
 
     const deltaY = (fromRank - toRank) * rowHeight;
     if (deltaY === 0) return;
 
-    gsap.fromTo(node,
-      { y: deltaY },
-      {
-        y: 0,
-        duration: duration / 1000,
-        ease: 'power2.inOut',
-        onComplete: () => {
-          gsap.set(node, { clearProps: 'transform' });
+    const posChannel = `pos-${elementId}`;
+    this._killChannel(posChannel);
+
+    this._setWillChange(elementId, node);
+
+    const tweenFn = () => {
+      const tween = gsap.fromTo(node,
+        { y: deltaY },
+        {
+          y: 0,
+          duration: duration / 1000,
+          ease: 'towerSnap',
+          overwrite: 'auto',
+          onComplete: () => {
+            this._channels.delete(posChannel);
+            gsap.set(node, { clearProps: 'transform' });
+            this._clearWillChange(elementId, node);
+          },
         },
-      },
-    );
+      );
+      this._channels.set(posChannel, tween);
+    };
+
+    if (this._ctx) {
+      this._ctx.add(tweenFn);
+    } else {
+      tweenFn();
+    }
   }
 
   // -----------------------------------------------------------------------
@@ -260,13 +433,41 @@ export class GsapAnimationEngine {
   // -----------------------------------------------------------------------
 
   /**
-   * Kill all active tweens.
+   * Kill all active animations and revert the GSAP context.
+   * Call this when rebuilding the overlay DOM.
    */
   killAll() {
-    for (const [id] of this._activeTweens) {
-      this._killTween(id);
+    // Revert GSAP context — kills all tweens/timelines created within it
+    if (this._ctx) {
+      this._ctx.revert();
+      this._ctx = gsap.context ? gsap.context(() => {}) : null;
     }
-    this._activeTweens.clear();
+
+    // Clear channel map
+    for (const [, anim] of this._channels) {
+      if (anim && typeof anim.kill === 'function') anim.kill();
+    }
+    this._channels.clear();
+
+    // Clear will-change timers
+    for (const [, timerId] of this._willChangeTimers) {
+      clearTimeout(timerId);
+    }
+    this._willChangeTimers.clear();
+  }
+
+  /**
+   * Diagnostic info: active channel count for performance monitoring.
+   */
+  get diagnostics() {
+    let active = 0;
+    for (const [, anim] of this._channels) {
+      if (anim && typeof anim.isActive === 'function' && anim.isActive()) active++;
+    }
+    return {
+      active,
+      channels: this._channels.size,
+    };
   }
 
   // -----------------------------------------------------------------------
@@ -284,23 +485,48 @@ export class GsapAnimationEngine {
   }
 
   /**
-   * Kill any active tween for an element.
+   * Kill any active animation on a channel.
    */
-  _killTween(elementId) {
-    const tween = this._activeTweens.get(elementId);
-    if (tween) {
-      tween.kill();
-      this._activeTweens.delete(elementId);
+  _killChannel(channel) {
+    const anim = this._channels.get(channel);
+    if (anim) {
+      if (typeof anim.kill === 'function') anim.kill();
+      this._channels.delete(channel);
     }
-    // Also kill any GSAP tweens targeting the node directly
-    const node = this._getNode(elementId);
+    // For element-id channels, also kill any GSAP tweens targeting the node directly
+    const node = this._getNode(channel);
     if (node) {
       gsap.killTweensOf(node);
     }
   }
 
   /**
+   * Set will-change on a node before animation starts.
+   * Cleared after 5s idle per the guide's GPU memory recommendation.
+   */
+  _setWillChange(elementId, node) {
+    // Clear any pending removal timer
+    const existing = this._willChangeTimers.get(elementId);
+    if (existing) clearTimeout(existing);
+
+    node.style.willChange = 'transform, opacity';
+  }
+
+  /**
+   * Schedule will-change removal after animation completes.
+   * 5s idle threshold frees GPU texture memory.
+   */
+  _clearWillChange(elementId, node) {
+    const timerId = setTimeout(() => {
+      node.style.willChange = '';
+      this._willChangeTimers.delete(elementId);
+    }, 5000);
+    this._willChangeTimers.set(elementId, timerId);
+  }
+
+  /**
    * Crossfade: fade out -> swap text -> fade in.
+   * Uses dataPunch easing for snappy data transitions.
    */
   _crossfadeValue(node, newValue, duration = 300) {
     const halfDur = (duration / 1000) / 2;
@@ -308,13 +534,15 @@ export class GsapAnimationEngine {
     gsap.to(node, {
       opacity: 0,
       duration: halfDur,
-      ease: 'power1.out',
+      ease: 'dataPunch',
+      overwrite: 'auto',
       onComplete: () => {
         node.textContent = newValue;
         gsap.to(node, {
           opacity: 1,
           duration: halfDur,
           ease: 'power1.in',
+          overwrite: 'auto',
         });
       },
     });

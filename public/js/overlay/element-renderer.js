@@ -40,6 +40,11 @@ export function renderElement(element, referenceData = {}) {
   // ── Overflow hidden by default ──
   wrapper.style.overflow = 'hidden';
 
+  // ── CSS containment for render performance (guide §18.1) ──
+  // Layout, style, and paint are independent of siblings — enables
+  // per-element rendering optimization at broadcast frame rates.
+  wrapper.style.contain = 'layout style paint';
+
   // ── Type-specific rendering ──
   switch (element.type) {
     case 'text':
@@ -149,6 +154,10 @@ function renderShape(wrapper, element) {
 function renderData(wrapper, element) {
   // Apply the same text styles as a text element
   applyTextStyles(wrapper, element);
+
+  // Tabular-nums for consistent digit widths in timing/telemetry data
+  // Prevents layout shift when numbers change (guide §10, §12)
+  wrapper.style.fontVariantNumeric = 'tabular-nums';
 
   // Data-binding attributes
   if (element.source)   wrapper.setAttribute('data-source', element.source);

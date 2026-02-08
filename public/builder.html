@@ -1450,6 +1450,11 @@
   </div>
 
   <script src="/js/vendor/gsap.min.js"></script>
+  <script type="module">
+    // Register motorsport easings before builder modules load
+    import { registerMotorsportEasings } from '/js/shared/motorsport-easings.js';
+    registerMotorsportEasings();
+  </script>
   <script type="module" src="/js/builder/main.js"></script>
 </body>
 </html>
