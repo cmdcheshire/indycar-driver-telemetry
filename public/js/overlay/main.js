@@ -155,7 +155,7 @@ function onMessage(event) {
 // ---------------------------------------------------------------------------
 
 function handleInit(msg) {
-  const { template, config, referenceData, snapshot } = msg;
+  const { template, config, referenceData, snapshot } = msg.data || {};
 
   console.log('[overlay] Received init – building overlay');
 
@@ -204,7 +204,7 @@ function handleDataUpdate(msg) {
 function handleVisibility(msg) {
   if (!animationEngine) return;
 
-  const { visible, elementId, animation } = msg;
+  const { visible, elementId, animation } = msg.data || {};
 
   if (elementId) {
     // Show/hide a specific element
@@ -240,7 +240,7 @@ function handleVisibility(msg) {
 // ---------------------------------------------------------------------------
 
 function handleTemplateUpdate(msg) {
-  const { template, referenceData } = msg;
+  const { template, referenceData } = msg.data || {};
 
   console.log('[overlay] Template update received – rebuilding DOM');
 
@@ -267,7 +267,7 @@ function handleTemplateUpdate(msg) {
 // ---------------------------------------------------------------------------
 
 function handleConfigUpdate(msg) {
-  const { config } = msg;
+  const config = msg.data || {};
   console.log('[overlay] Config update received');
 
   currentConfig = { ...currentConfig, ...config };

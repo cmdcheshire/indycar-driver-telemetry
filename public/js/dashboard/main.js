@@ -8,7 +8,7 @@ import { showToast } from '/js/modules/ui.js';
 import { WebSocketClient } from '/js/modules/websocket-client.js';
 
 import { initRaceStatus, setDriverMap, updateRaceState, updateTelemetry, updateLeaderboard } from '/js/dashboard/race-status.js';
-import { initConnectionStatus, updateTcpStatus, updateWsStatus } from '/js/dashboard/connection-status.js';
+import { initConnectionStatus, updateTcpStatus, updateWsStatus, updateSimulatorStatus } from '/js/dashboard/connection-status.js';
 import { initMetrics, updateMetrics } from '/js/dashboard/metrics.js';
 import { initControlPanel, updateControlState, loadDriverList, getDriverList } from '/js/dashboard/control-panel.js';
 import { initOverlayClients, updateOverlayClients, loadOverlayInstances } from '/js/dashboard/overlay-clients.js';
@@ -111,6 +111,11 @@ function connectWebSocket() {
     updateControlState(data);
   });
 
+  // Simulator status
+  wsClient.on('simulatorStatus', (data) => {
+    updateSimulatorStatus(data);
+  });
+
   // Overlay client connect/disconnect events
   wsClient.on('overlayClientChange', (data) => {
     updateOverlayClients(data);
@@ -157,7 +162,7 @@ async function init() {
   const drivers = getDriverList();
   const driverMap = new Map();
   for (const d of drivers) {
-    driverMap.set(String(d.car_number), d.driver_name || d.name || '');
+    driverMap.set(String(d.car_number), d.display_name || d.driver_name || d.name || '');
   }
   setDriverMap(driverMap);
 

@@ -10,6 +10,9 @@ let tcpBadgeEl = null;
 let wsDotEl = null;
 let wsDetailEl = null;
 let wsBadgeEl = null;
+let simDotEl = null;
+let simDetailEl = null;
+let simBadgeEl = null;
 
 /**
  * Initialize the connection status module and cache DOM elements.
@@ -21,6 +24,9 @@ export function initConnectionStatus() {
   wsDotEl = document.getElementById('wsDot');
   wsDetailEl = document.getElementById('wsDetail');
   wsBadgeEl = document.getElementById('wsBadge');
+  simDotEl = document.getElementById('simDot');
+  simDetailEl = document.getElementById('simDetail');
+  simBadgeEl = document.getElementById('simBadge');
 }
 
 /**
@@ -79,5 +85,44 @@ export function updateWsStatus(connected) {
     wsBadgeEl.classList.remove('connected', 'disconnected');
     wsBadgeEl.classList.add(connected ? 'connected' : 'disconnected');
     wsBadgeEl.textContent = connected ? 'Connected' : 'Offline';
+  }
+}
+
+/**
+ * Update the simulator status display.
+ *
+ * @param {Object} data - Simulator status from server.
+ *   { state: 'stopped'|'playing'|'paused', loadedFile: string|null, position: number, totalChunks: number, rate: number }
+ */
+export function updateSimulatorStatus(data) {
+  if (!data) return;
+
+  const isActive = data.state === 'playing';
+  const isPaused = data.state === 'paused';
+
+  // Dot indicator
+  if (simDotEl) {
+    simDotEl.classList.remove('online', 'offline', 'warning');
+    simDotEl.classList.add(isActive ? 'online' : isPaused ? 'warning' : 'offline');
+  }
+
+  // Detail text
+  if (simDetailEl) {
+    if (isActive && data.loadedFile) {
+      const pct = data.totalChunks ? Math.round((data.position / data.totalChunks) * 100) : 0;
+      simDetailEl.textContent = `${data.loadedFile} (${pct}%) ${data.rate}x`;
+    } else if (isPaused && data.loadedFile) {
+      const pct = data.totalChunks ? Math.round((data.position / data.totalChunks) * 100) : 0;
+      simDetailEl.textContent = `Paused at ${pct}%`;
+    } else {
+      simDetailEl.textContent = 'Stopped';
+    }
+  }
+
+  // Badge
+  if (simBadgeEl) {
+    simBadgeEl.classList.remove('connected', 'disconnected');
+    simBadgeEl.classList.add(isActive ? 'connected' : 'disconnected');
+    simBadgeEl.textContent = isActive ? 'Playing' : isPaused ? 'Paused' : 'Stopped';
   }
 }

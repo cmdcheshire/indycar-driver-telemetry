@@ -121,6 +121,11 @@ async function main() {
     reconnect: connectTcp,
   });
 
+  // Broadcast simulator status changes to dashboard clients
+  simulatorService.onStatusChange((status) => {
+    wsService.broadcastToDashboard('simulatorStatus', status);
+  });
+
   // TCP is not auto-started; use dashboard "Reconnect TCP" or simulator for data
 
   // Periodic session cleanup

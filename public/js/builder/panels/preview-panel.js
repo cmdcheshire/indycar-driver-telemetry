@@ -151,6 +151,13 @@ function _updateStatus(connected) {
   _render();
 }
 
+// Map WS event names to binding source names used in data-binding.js
+const SOURCE_NAME_MAP = {
+  lap: 'lapData',
+  pit: 'pitStatus',
+  flag: 'raceState',
+};
+
 /**
  * Apply live data to data-bound elements.
  * @param {string} sourceType - e.g. 'telemetry', 'leaderboard'
@@ -159,9 +166,10 @@ function _updateStatus(connected) {
 function _applyLiveData(sourceType, data) {
   if (!getElements || !onDataUpdate) return;
 
+  const bindingSource = SOURCE_NAME_MAP[sourceType] || sourceType;
   const elements = getElements();
   const dataElements = elements.filter(e =>
-    e.type === 'data' && e.props?.bindingSource === sourceType
+    e.type === 'data' && e.props?.bindingSource === bindingSource
   );
 
   for (const el of dataElements) {

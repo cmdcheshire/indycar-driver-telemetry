@@ -2,6 +2,7 @@ const path = require('path');
 const fs = require('fs');
 const constants = require('../config/constants');
 const { processMessage } = require('../telemetry/message-processor');
+const metricsService = require('./metrics.service');
 
 // ---------------------------------------------------------------------------
 // XML chunking (reused from tools/simulator.js)
@@ -300,6 +301,9 @@ class SimulatorService {
     // TCP control callbacks (set by server.js)
     this._tcpDisconnect = null;
     this._tcpReconnect = null;
+
+    // Status broadcast callback (set by server.js)
+    this._onStatusChange = null;
   }
 
   /**
@@ -309,6 +313,19 @@ class SimulatorService {
   setTcpControl({ disconnect, reconnect }) {
     this._tcpDisconnect = disconnect;
     this._tcpReconnect = reconnect;
+  }
+
+  /**
+   * Set a callback to be invoked whenever simulator state changes.
+   * @param {Function} fn - Called with getStatus() result
+   */
+  onStatusChange(fn) {
+    this._onStatusChange = fn;
+  }
+
+  /** Broadcast current status to listeners. */
+  _broadcastStatus() {
+    if (this._onStatusChange) this._onStatusChange(this.getStatus());
   }
 
   // ── File Management ──
@@ -448,6 +465,7 @@ class SimulatorService {
 
     this.state = 'playing';
     console.log(`[simulator] Playing from position ${this.position}/${this.chunks.length} at ${this.rate}x`);
+    this._broadcastStatus();
     this._playNext();
   }
 
@@ -463,6 +481,7 @@ class SimulatorService {
       this.playTimer = null;
     }
     console.log(`[simulator] Paused at position ${this.position}/${this.chunks.length}`);
+    this._broadcastStatus();
   }
 
   /**
@@ -477,6 +496,7 @@ class SimulatorService {
       this.playTimer = null;
     }
     console.log('[simulator] Stopped');
+    this._broadcastStatus();
 
     // Reconnect TCP when stopping simulator
     if (wasPlaying && this._tcpReconnect) this._tcpReconnect();
@@ -569,6 +589,7 @@ class SimulatorService {
       // Reached the end
       this.state = 'stopped';
       console.log('[simulator] Playback complete — end of file reached');
+      this._broadcastStatus();
       if (this._tcpReconnect) this._tcpReconnect();
       return;
     }
@@ -577,6 +598,7 @@ class SimulatorService {
 
     // Send to message processor if it has a mapped type (not metadata)
     if (chunk.msgType) {
+      metricsService.recordMessage(chunk.msgType);
       processMessage({ type: chunk.msgType, raw: chunk.xml });
     }
 
@@ -586,6 +608,7 @@ class SimulatorService {
     if (this.position >= this.chunks.length) {
       this.state = 'stopped';
       console.log('[simulator] Playback complete — end of file reached');
+      this._broadcastStatus();
       if (this._tcpReconnect) this._tcpReconnect();
       return;
     }
