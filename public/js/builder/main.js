@@ -32,7 +32,6 @@ import { getEnterPreset, getExitPreset, getEmphasisPreset } from '/js/shared/ani
 import { initToolsPanel, getActiveTool, setActiveTool, handleToolShortcut } from './panels/tools-panel.js';
 import { initLayerPanel, renderLayerPanel } from './panels/layer-panel.js';
 import { initPropertiesPanel, updatePropertiesPanel } from './panels/properties-panel.js';
-import { renderDataPanel } from './panels/data-panel.js';
 import { initDataPanel } from './panels/data-panel.js';
 import { initPreviewPanel, destroyPreviewPanel } from './panels/preview-panel.js';
 import { showPresetPicker, hidePresetPicker } from './panels/data-presets.js';
@@ -1193,21 +1192,6 @@ function _onSelectionChanged(selectedIds) {
     if (el && node) {
       selection.renderSelectionHandles(el, node);
       updatePropertiesPanel(el);
-
-      // Render data panel if it's a data element
-      const dataPanelContainer = document.getElementById('previewSection');
-      if (el.type === 'data' && dataPanelContainer) {
-        renderDataPanel(dataPanelContainer, el);
-      } else if (dataPanelContainer) {
-        // Reset preview section if not a data element
-        initPreviewPanel({
-          getElements: () => elements,
-          onDataUpdate: (id, changes) => {
-            _updateElementInPlace(id, changes);
-            canvas.updateElement(id, changes);
-          },
-        });
-      }
     }
   } else {
     updatePropertiesPanel(null);
