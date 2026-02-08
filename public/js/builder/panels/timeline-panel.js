@@ -33,6 +33,7 @@ let _loopEnabled = false;
 
 /** @type {gsap.core.Timeline|null} */ let _masterTl = null;
 let _isPlaying = false;
+let _isScrubbing = false;
 
 const LABEL_WIDTH = 90;
 const TRACK_HEIGHT = 24;
@@ -124,6 +125,9 @@ export function initTimelinePanel(opts) {
       renderTimelinePanel();
     });
   }
+
+  // Playhead scrubbing
+  _initScrubbing();
 }
 
 /**
@@ -545,6 +549,22 @@ function _renderPausePoints(pausePoints, inDuration) {
     ppLabel.textContent = pp.label || 'Pause';
     marker.appendChild(ppLabel);
 
+    // Delete button (visible on hover)
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'tl-pause-point-delete';
+    deleteBtn.textContent = '\u00d7';
+    deleteBtn.title = 'Delete pause point';
+    deleteBtn.addEventListener('mousedown', (e) => e.stopPropagation());
+    deleteBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!_getTimeline || !_onTimelineChange) return;
+      const tl = _getTimeline();
+      const newPoints = (tl.pausePoints || []).filter(p => p.id !== pp.id);
+      _onTimelineChange({ pausePoints: newPoints });
+      renderTimelinePanel();
+    });
+    marker.appendChild(deleteBtn);
+
     // Drag to reposition
     _addPausePointDrag(marker, pp, inMs, inWidth);
 
@@ -600,6 +620,11 @@ function _addPausePointDrag(marker, pp, inMs, inWidth) {
  * ------------------------------------------------------------------ */
 
 function _play() {
+  // If paused (at pause point or from scrubbing), resume
+  if (_masterTl && _isPlaying && _masterTl.paused()) {
+    _masterTl.resume();
+    return;
+  }
   if (_isPlaying) _stop();
   if (!_getElements || !_getTimeline) return;
 
@@ -612,7 +637,7 @@ function _play() {
   _masterTl = gsap.timeline({
     repeat: _loopEnabled ? -1 : 0,
     onUpdate: () => _updatePlayhead(_masterTl, inDuration, holdMs, outDuration),
-    onComplete: () => _stop(),
+    onComplete: () => { if (!_isScrubbing) _stop(); },
   });
 
   // IN phase: play enter animations
@@ -707,6 +732,7 @@ function _play() {
 }
 
 function _stop() {
+  _isScrubbing = false;
   if (_masterTl) {
     _masterTl.kill();
     _masterTl = null;
@@ -743,6 +769,88 @@ function _stop() {
         gsap.set(node, { clearProps: [...propsToReset].join(',') });
       }
     }
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ *  Playhead scrubbing
+ * ------------------------------------------------------------------ */
+
+function _initScrubbing() {
+  const startScrub = (e, getX) => {
+    e.preventDefault();
+    _isScrubbing = true;
+    _expandPanel();
+
+    if (!_masterTl) _play();
+    if (_masterTl) _masterTl.pause();
+    if (_playheadEl) _playheadEl.classList.add('active');
+
+    _scrubToX(getX(e));
+
+    const onMove = (ev) => {
+      if (!_isScrubbing || !_masterTl) return;
+      _scrubToX(getX(ev));
+    };
+
+    const onUp = () => {
+      _isScrubbing = false;
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  };
+
+  // Ruler track scrubbing
+  if (_rulerTrack) {
+    _rulerTrack.addEventListener('mousedown', (e) => {
+      if (e.target.closest('.tl-pause-point')) return;
+      const rect = _rulerTrack.getBoundingClientRect();
+      startScrub(e, (ev) => ev.clientX - rect.left);
+    });
+  }
+
+  // Body area scrubbing (empty space only)
+  if (_bodyEl) {
+    _bodyEl.addEventListener('mousedown', (e) => {
+      if (e.target.closest('.tl-bar, .tl-bar-resize, .tl-pause-point, .tl-pause-point-delete, .tl-track-label')) return;
+      const rect = _bodyEl.getBoundingClientRect();
+      startScrub(e, (ev) => ev.clientX - rect.left - LABEL_WIDTH);
+    });
+  }
+}
+
+function _scrubToX(xInTrack) {
+  if (!_masterTl || !_rulerTrack) return;
+  const timeSec = _positionToTime(xInTrack);
+  _masterTl.seek(timeSec);
+}
+
+function _positionToTime(xInTrack) {
+  if (!_rulerTrack) return 0;
+  const elements = _getElements ? _getElements() : [];
+  const timeline = _getTimeline ? _getTimeline() : {};
+  const { inDuration: inMs, outDuration: outMs } = _computePhases(elements);
+  const holdMs = timeline.holdDuration || 0;
+  const totalWidth = _rulerTrack.clientWidth;
+  if (totalWidth <= 0) return 0;
+
+  const { inWidth, holdWidth, outWidth } = _phaseWidths(inMs, holdMs, outMs, totalWidth);
+  const sepW = 2;
+  const x = Math.max(0, Math.min(xInTrack, totalWidth));
+
+  if (x <= inWidth) {
+    return inWidth > 0 ? (x / inWidth) * inMs / 1000 : 0;
+  } else if (x <= inWidth + sepW + holdWidth) {
+    const holdX = x - inWidth - sepW;
+    const holdProgress = holdWidth > 0 ? Math.max(0, holdX / holdWidth) : 0;
+    return (inMs + holdProgress * holdMs) / 1000;
+  } else {
+    const outX = x - inWidth - sepW - holdWidth - sepW;
+    const outProgress = outWidth > 0 ? Math.max(0, Math.min(1, outX / outWidth)) : 0;
+    return (inMs + holdMs + outProgress * outMs) / 1000;
   }
 }
 

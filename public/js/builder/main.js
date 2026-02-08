@@ -3,7 +3,7 @@
  * Initializes canvas, tools, panels, and wires together all subsystems.
  */
 
-import { initAuth, isAuthenticated, authenticatedFetch } from '/js/modules/auth.js';
+import { initAuth, isAuthenticated } from '/js/modules/auth.js';
 import { showToast } from '/js/modules/ui.js';
 
 import { CanvasEngine } from './canvas-engine.js';
@@ -965,86 +965,11 @@ async function _save() {
     // Update URL with template ID if new
     if (templateManager.currentId) {
       window.history.replaceState({}, '', `/builder/${templateManager.currentId}`);
-
-      // Ensure an overlay instance exists and show the link
-      await _ensureOverlayInstance(templateManager.currentId, name);
     }
   } catch (err) {
     showToast(`Save failed: ${err.message}`, 'error');
     console.error('Save error:', err);
   }
-}
-
-/**
- * Ensure an overlay instance exists for a template.
- * If not, auto-create one. Then update the overlay link section.
- */
-async function _ensureOverlayInstance(templateId, templateName) {
-  try {
-    // Check for existing instances
-    const res = await authenticatedFetch('/api/overlays/instances');
-    if (!res.ok) return;
-    const data = await res.json();
-    const instances = data.instances || [];
-
-    let instance = instances.find(i => i.template_id === parseInt(templateId, 10));
-
-    if (!instance) {
-      // Auto-create an instance
-      const createRes = await authenticatedFetch('/api/overlays/instances', {
-        method: 'POST',
-        body: JSON.stringify({ template_id: parseInt(templateId, 10), name: templateName }),
-      });
-      if (createRes.ok) {
-        const createData = await createRes.json();
-        instance = createData.instance;
-      }
-    }
-
-    if (instance && instance.access_token) {
-      const overlayUrl = `${window.location.origin}/overlay/${instance.access_token}`;
-      _showOverlayLink(overlayUrl);
-    }
-  } catch (err) {
-    console.error('Overlay instance check failed:', err);
-  }
-}
-
-/**
- * Show the overlay link in the sidebar section.
- */
-function _showOverlayLink(overlayUrl) {
-  const section = document.getElementById('overlayLinkSection');
-  const urlEl = document.getElementById('overlayLinkUrl');
-  const copyBtn = document.getElementById('overlayLinkCopy');
-  const openLink = document.getElementById('overlayLinkOpen');
-
-  if (!section || !urlEl) return;
-
-  section.style.display = '';
-  urlEl.textContent = overlayUrl;
-  urlEl.title = overlayUrl;
-  openLink.href = overlayUrl;
-
-  // Wire copy button (re-add listener to avoid duplicates)
-  const newCopyBtn = copyBtn.cloneNode(true);
-  copyBtn.parentNode.replaceChild(newCopyBtn, copyBtn);
-  newCopyBtn.addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(overlayUrl);
-      newCopyBtn.textContent = 'Copied!';
-      setTimeout(() => { newCopyBtn.textContent = 'Copy URL'; }, 2000);
-    } catch {
-      const input = document.createElement('input');
-      input.value = overlayUrl;
-      document.body.appendChild(input);
-      input.select();
-      document.execCommand('copy');
-      input.remove();
-      newCopyBtn.textContent = 'Copied!';
-      setTimeout(() => { newCopyBtn.textContent = 'Copy URL'; }, 2000);
-    }
-  });
 }
 
 async function _loadFromUrl() {
@@ -1075,7 +1000,6 @@ async function _loadFromUrl() {
     history.push(_snapshotState());
     _refreshPanels();
     showToast(`Loaded "${template.name}"`, 'success');
-    _ensureOverlayInstance(id, template.name);
   } catch (err) {
     showToast(`Failed to load template: ${err.message}`, 'error');
     console.error('Load error:', err);

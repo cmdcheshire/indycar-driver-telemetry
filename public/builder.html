@@ -682,46 +682,6 @@
       border-top: 1px solid var(--border);
     }
 
-    /* Overlay link section */
-    .overlay-link-section {
-      padding: 12px;
-      border-top: 1px solid var(--border);
-    }
-
-    .overlay-link-url {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      margin-top: 8px;
-    }
-
-    .overlay-link-url-text {
-      font-size: 0.7rem;
-      color: var(--text-dim);
-      font-family: monospace;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      flex: 1;
-      min-width: 0;
-      background: var(--card-bg);
-      padding: 4px 8px;
-      border-radius: var(--radius-sm);
-      border: 1px solid var(--border);
-    }
-
-    .overlay-link-actions {
-      display: flex;
-      gap: 4px;
-      margin-top: 6px;
-    }
-
-    .overlay-link-actions .btn {
-      flex: 1;
-      font-size: 0.7rem;
-      padding: 4px 8px;
-    }
-
     /* ================================================================ *
      *  Context Menu
      * ================================================================ */
@@ -980,6 +940,7 @@
       flex: 1;
       position: relative;
       display: flex;
+      cursor: pointer;
     }
 
     .tl-phase-ruler {
@@ -1190,6 +1151,33 @@
       pointer-events: none;
     }
 
+    .tl-pause-point-delete {
+      position: absolute;
+      top: -15px;
+      left: 16px;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 193, 7, 0.4);
+      background: var(--surface);
+      color: #ffc107;
+      font-size: 0.65rem;
+      line-height: 14px;
+      text-align: center;
+      cursor: pointer;
+      display: none;
+      padding: 0;
+    }
+
+    .tl-pause-point:hover .tl-pause-point-delete {
+      display: block;
+    }
+
+    .tl-pause-point-delete:hover {
+      background: rgba(255, 193, 7, 0.2);
+      border-color: #ffc107;
+    }
+
     /* Loop Region */
     .tl-loop-region {
       position: absolute;
@@ -1305,16 +1293,6 @@
       </div>
       <div class="preview-section" id="previewSection">
         <!-- Preview controls populated by preview-panel.js -->
-      </div>
-      <div class="overlay-link-section" id="overlayLinkSection" style="display:none;">
-        <div class="sidebar-section-title">Overlay Link</div>
-        <div class="overlay-link-url">
-          <span class="overlay-link-url-text" id="overlayLinkUrl" title=""></span>
-        </div>
-        <div class="overlay-link-actions">
-          <button class="btn btn-sm btn-primary" id="overlayLinkCopy">Copy URL</button>
-          <a class="btn btn-sm" id="overlayLinkOpen" href="#" target="_blank" rel="noopener">Open</a>
-        </div>
       </div>
     </div>
 
