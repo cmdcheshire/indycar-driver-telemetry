@@ -3,6 +3,8 @@
  * Manages element rendering, positioning, and zoom within a 16:9 canvas.
  */
 
+import { computeClipPath } from '/js/shared/clip-path.js';
+
 export class CanvasEngine {
   /** @type {HTMLElement} */
   #container;
@@ -69,6 +71,14 @@ export class CanvasEngine {
     }
     this.#applyStyles(entry.element, entry.node);
     this.#renderContent(entry.element, entry.node);
+
+    // When this element moves/resizes, refresh any elements using it as a clip mask
+    this.#refreshClipDependents(id);
+
+    // When clipMask changes, refresh mask visibility
+    if (props.clipMask !== undefined) {
+      this.#applyClipMaskVisibility();
+    }
   }
 
   /**
@@ -141,6 +151,8 @@ export class CanvasEngine {
     for (const el of elements) {
       this.addElement(el);
     }
+    // After all elements are added, recompute clip-paths (mask may have loaded after clipped element)
+    this.#recomputeAllClipPaths();
   }
 
   /* -------------------------------------------------- *
@@ -329,6 +341,67 @@ export class CanvasEngine {
     // Visibility / lock states (default to visible if field is undefined)
     node.classList.toggle('hidden-element', element.visible === false);
     node.classList.toggle('locked', !!element.locked);
+
+    // Clipping mask
+    if (element.clipMask?.elementId) {
+      const maskEntry = this.#elements.get(element.clipMask.elementId);
+      if (maskEntry) {
+        node.style.clipPath = computeClipPath(element, maskEntry.element) || '';
+      } else {
+        node.style.clipPath = '';
+      }
+    } else {
+      node.style.clipPath = '';
+    }
+  }
+
+  /**
+   * Refresh clip-path on all elements that use the given element as their clip mask.
+   * @param {string} maskId
+   */
+  #refreshClipDependents(maskId) {
+    for (const [, entry] of this.#elements) {
+      if (entry.element.clipMask?.elementId === maskId) {
+        const maskEntry = this.#elements.get(maskId);
+        if (maskEntry) {
+          entry.node.style.clipPath = computeClipPath(entry.element, maskEntry.element) || '';
+        }
+      }
+    }
+  }
+
+  /**
+   * Recompute all clip-paths and apply mask visibility. Used after loadElements().
+   */
+  #recomputeAllClipPaths() {
+    for (const [, entry] of this.#elements) {
+      if (entry.element.clipMask?.elementId) {
+        const maskEntry = this.#elements.get(entry.element.clipMask.elementId);
+        if (maskEntry) {
+          entry.node.style.clipPath = computeClipPath(entry.element, maskEntry.element) || '';
+        }
+      }
+    }
+    this.#applyClipMaskVisibility();
+  }
+
+  /**
+   * Scan all elements and hide mask elements that have hideMask: true.
+   */
+  #applyClipMaskVisibility() {
+    const hiddenMaskIds = new Set();
+    for (const [, entry] of this.#elements) {
+      if (entry.element.clipMask?.elementId && entry.element.clipMask.hideMask) {
+        hiddenMaskIds.add(entry.element.clipMask.elementId);
+      }
+    }
+    for (const [id, entry] of this.#elements) {
+      if (hiddenMaskIds.has(id)) {
+        entry.node.style.display = 'none';
+      } else if (entry.element.visible !== false) {
+        entry.node.style.display = '';
+      }
+    }
   }
 
   /**

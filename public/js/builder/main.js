@@ -147,8 +147,12 @@ function _initPanels() {
   initLayerPanel({
     getElements: () => elements,
     getSelectedIds: () => selection.getSelected(),
-    onSelect: (id) => {
-      selection.selectElement(id);
+    onSelect: (id, opts) => {
+      if (opts?.shiftKey) {
+        selection.toggleSelection(id);
+      } else {
+        selection.selectElement(id);
+      }
       setActiveTool('select');
     },
     onReorder: (elementId, newIndex) => {
@@ -216,6 +220,7 @@ function _initPanels() {
 
   // Properties
   initPropertiesPanel({
+    getElements: () => elements,
     onPropertyChange: (id, changes) => {
       _applyPropertyChange(id, changes);
     },
@@ -235,6 +240,7 @@ function _initPanels() {
           break;
         }
         case 'delete':
+          _clearClipMaskRefs(id);
           canvas.removeElement(id);
           elements = elements.filter(e => e.id !== id);
           selection.deselectAll();
@@ -686,6 +692,8 @@ function _deleteSelected() {
   if (selectedIds.length === 0) return;
 
   for (const id of selectedIds) {
+    // Clear clipMask references pointing to this element
+    _clearClipMaskRefs(id);
     canvas.removeElement(id);
     elements = elements.filter(e => e.id !== id);
   }
@@ -694,6 +702,16 @@ function _deleteSelected() {
   _pushHistory();
   _refreshPanels();
   showToast('Element(s) deleted', 'info', 2000);
+}
+
+/** Clear clipMask references to a deleted element across all remaining elements. */
+function _clearClipMaskRefs(deletedId) {
+  for (const el of elements) {
+    if (el.clipMask?.elementId === deletedId) {
+      el.clipMask = null;
+      canvas.updateElement(el.id, { clipMask: null });
+    }
+  }
 }
 
 function _duplicateSelected() {

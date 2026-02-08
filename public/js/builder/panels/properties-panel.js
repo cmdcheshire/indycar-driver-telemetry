@@ -22,6 +22,8 @@ import {
 let onPropertyChange = null;
 /** @type {Function} */
 let onQuickAction = null;
+/** @type {Function|null} */
+let getElements = null;
 
 /** @type {HTMLElement} */
 let panelEl = null;
@@ -42,6 +44,7 @@ const _sectionState = {};
 export function initPropertiesPanel(opts) {
   onPropertyChange = opts.onPropertyChange;
   onQuickAction = opts.onQuickAction || null;
+  getElements = opts.getElements || null;
   panelEl = document.getElementById('propertiesPanel');
 }
 
@@ -85,6 +88,9 @@ export function updatePropertiesPanel(element) {
       _numberInput('Opa', element.opacity ?? 1, 0, 1, 0.05, (v) => _emit({ opacity: v })),
     ]),
   ]);
+
+  // Clipping mask
+  _addClippingSection(element);
 
   // Type-specific properties
   const p = element.props || {};
@@ -407,6 +413,57 @@ function _addDataProps(p) {
 }
 
 /* ---- Animation Section ---- */
+
+/* ---- Clipping Mask Section ---- */
+
+function _addClippingSection(element) {
+  const allElements = getElements ? getElements() : [];
+
+  // Only shape elements can serve as masks; exclude self and circular refs
+  const candidates = allElements.filter(el =>
+    el.id !== element.id &&
+    el.type === 'shape' &&
+    el.clipMask?.elementId !== element.id
+  );
+
+  const currentMaskId = element.clipMask?.elementId || '';
+  const hideMask = element.clipMask?.hideMask || false;
+
+  const children = [];
+
+  const maskOptions = [
+    { value: '', label: '-- None --' },
+    ...candidates.map(c => ({
+      value: c.id,
+      label: c.name || `Shape (${c.id.substring(0, 6)})`,
+    })),
+  ];
+
+  children.push(
+    _selectInput('Mask Layer', currentMaskId, maskOptions, (v) => {
+      if (v) {
+        _emit({ clipMask: { elementId: v, hideMask: element.clipMask?.hideMask || false } });
+      } else {
+        _emit({ clipMask: null });
+      }
+      // Re-render to show/hide the hideMask checkbox
+      if (currentElement) {
+        currentElement.clipMask = v ? { elementId: v, hideMask: currentElement.clipMask?.hideMask || false } : null;
+        updatePropertiesPanel(currentElement);
+      }
+    })
+  );
+
+  if (currentMaskId) {
+    children.push(
+      _checkboxInput('Hide Mask Layer', hideMask, (v) => {
+        _emit({ clipMask: { elementId: currentMaskId, hideMask: v } });
+      })
+    );
+  }
+
+  _addCollapsibleGroup('Clipping', children, true);
+}
 
 function _addAnimationSection(element) {
   const anim = element.animation || {};

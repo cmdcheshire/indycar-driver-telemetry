@@ -582,6 +582,7 @@
       align-items: center;
       gap: 6px;
       flex: 1;
+      min-width: 0;
     }
 
     .prop-range-wrapper input[type="range"] {
@@ -605,7 +606,8 @@
     .prop-range-value {
       font-size: 0.7rem;
       color: var(--text-muted);
-      min-width: 32px;
+      min-width: 44px;
+      flex-shrink: 0;
       text-align: right;
       font-variant-numeric: tabular-nums;
     }

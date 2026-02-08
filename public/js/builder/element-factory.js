@@ -29,6 +29,7 @@ export function createTextElement(x = 10, y = 10) {
     locked: false,
     exposed: false,
     groupId: null,
+    clipMask: null,
     x,
     y,
     width: 15,
@@ -73,6 +74,7 @@ export function createImageElement(x = 10, y = 10) {
     locked: false,
     exposed: false,
     groupId: null,
+    clipMask: null,
     x,
     y,
     width: 10,
@@ -109,6 +111,7 @@ export function createShapeElement(x = 10, y = 10) {
     locked: false,
     exposed: false,
     groupId: null,
+    clipMask: null,
     x,
     y,
     width: 12,
@@ -148,6 +151,7 @@ export function createDataElement(x = 10, y = 10) {
     locked: false,
     exposed: false,
     groupId: null,
+    clipMask: null,
     x,
     y,
     width: 15,
@@ -200,5 +204,6 @@ export function cloneElement(element) {
   clone.name = `${element.name} Copy`;
   clone.x += 2;
   clone.y += 2;
+  clone.clipMask = null;
   return clone;
 }

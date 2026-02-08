@@ -179,8 +179,8 @@ export function renderLayerPanel() {
     item.appendChild(expBtn);
 
     // Click to select
-    item.addEventListener('click', () => {
-      if (onSelect) onSelect(el.id);
+    item.addEventListener('click', (e) => {
+      if (onSelect) onSelect(el.id, { shiftKey: e.shiftKey });
     });
 
     // Right-click for context menu

@@ -8,6 +8,7 @@
 
 import { renderElement } from './element-renderer.js';
 import { migrateEasing } from '/js/shared/animation-presets.js';
+import { computeClipPath } from '/js/shared/clip-path.js';
 
 /**
  * Normalize a builder element into the flat format the renderer/binder expect.
@@ -112,6 +113,62 @@ export function buildOverlay(rootEl, template, referenceData = {}) {
     }
   }
 
+  // Apply clip-paths after all elements are rendered
+  _applyClipPaths(template.elements, domMap);
+
   console.log(`[template-loader] Built ${domMap.size} elements`);
   return domMap;
+}
+
+/**
+ * Apply CSS clip-path to elements that have a clipMask reference.
+ * Also hide mask elements flagged with hideMask.
+ * @param {Object[]} elements - Normalized element definitions
+ * @param {Map<string, HTMLElement>} domMap - Element ID -> DOM node map
+ */
+function _applyClipPaths(elements, domMap) {
+  if (!Array.isArray(elements)) return;
+
+  const elementMap = new Map();
+  for (const el of elements) {
+    elementMap.set(el.id, el);
+  }
+
+  for (const el of elements) {
+    if (!el.clipMask?.elementId) continue;
+
+    const maskEl = elementMap.get(el.clipMask.elementId);
+    const domNode = domMap.get(el.id);
+    if (!maskEl || !domNode) continue;
+
+    // computeClipPath expects { x, y, width, height }
+    // Normalized elements use left/top, so map back to x/y
+    const clippedBounds = {
+      x: el.left ?? el.x,
+      y: el.top ?? el.y,
+      width: el.width,
+      height: el.height,
+    };
+    const maskBounds = {
+      x: maskEl.left ?? maskEl.x,
+      y: maskEl.top ?? maskEl.y,
+      width: maskEl.width,
+      height: maskEl.height,
+      shapeType: maskEl.shapeType,
+      borderRadius: maskEl.borderRadius,
+    };
+
+    const clipPath = computeClipPath(clippedBounds, maskBounds);
+    if (clipPath) {
+      domNode.style.clipPath = clipPath;
+    }
+
+    // Hide mask element if flagged
+    if (el.clipMask.hideMask) {
+      const maskDom = domMap.get(el.clipMask.elementId);
+      if (maskDom) {
+        maskDom.style.display = 'none';
+      }
+    }
+  }
 }
