@@ -25,6 +25,8 @@ let reconnectTimer = null;
 let currentTemplate = null;
 let currentConfig = null;
 let holdTimer = null;          // Auto-exit timer for hold duration
+let initPromise = null;        // Tracks async init to queue messages during await
+let pendingMessages = [];      // Messages queued while init is running
 
 const HEARTBEAT_INTERVAL_MS = 10_000;
 const RECONNECT_DELAY_MS    = 3_000;
@@ -123,9 +125,23 @@ function onMessage(event) {
     return;
   }
 
+  // If init or templateUpdate is in progress, queue non-init messages
+  // so they aren't dropped while awaiting loadCustomFonts()
+  if (initPromise && msg.type !== 'init' && msg.type !== 'templateUpdate') {
+    pendingMessages.push(msg);
+    return;
+  }
+
+  processMessage(msg);
+}
+
+function processMessage(msg) {
   switch (msg.type) {
     case 'init':
-      handleInit(msg);
+      initPromise = handleInit(msg).then(() => {
+        initPromise = null;
+        drainPendingMessages();
+      });
       break;
 
     // Live data feeds
@@ -143,7 +159,10 @@ function onMessage(event) {
       break;
 
     case 'templateUpdate':
-      handleTemplateUpdate(msg);
+      initPromise = handleTemplateUpdate(msg).then(() => {
+        initPromise = null;
+        drainPendingMessages();
+      });
       break;
 
     case 'configUpdate':
@@ -152,6 +171,14 @@ function onMessage(event) {
 
     default:
       console.log('[overlay] Unknown message type:', msg.type);
+  }
+}
+
+function drainPendingMessages() {
+  const queued = pendingMessages;
+  pendingMessages = [];
+  for (const msg of queued) {
+    processMessage(msg);
   }
 }
 

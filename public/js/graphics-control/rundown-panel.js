@@ -136,7 +136,45 @@ export function renderRundown(instanceId, items, overlayUrl) {
 
           const currentVal = override[settingKey] !== undefined ? override[settingKey] : (defaults[settingKey] || el.props?.[settingKey] || '');
 
-          if (def.inputType === 'color') {
+          if (def.inputType === 'carSelector') {
+            // Two-part car selector: mode dropdown + conditional secondary input
+            const rawVal = String(currentVal);
+            let carBase = rawVal;
+            let carSec = '';
+            const ci = rawVal.indexOf(':');
+            if (ci !== -1) { carBase = rawVal.substring(0, ci); carSec = rawVal.substring(ci + 1); }
+
+            const carBaseOptions = [
+              { value: '', label: '-- None --' },
+              { value: 'target1', label: 'Target 1 (Primary)' },
+              { value: 'target2', label: 'Target 2 (Secondary)' },
+              { value: 'target3', label: 'Target 3 (Tertiary)' },
+              { value: 'byRank', label: 'By Position' },
+              { value: 'byCar', label: 'By Car Number' },
+            ];
+            const carOpts = carBaseOptions.map(o =>
+              `<option value="${escapeHtml(o.value)}"${carBase === o.value ? ' selected' : ''}>${escapeHtml(o.label)}</option>`
+            ).join('');
+
+            let secHtml = '';
+            if (carBase === 'byRank') {
+              secHtml = `<input type="number" class="gc-car-secondary" min="1" max="40" step="1" value="${parseInt(carSec, 10) || 1}" style="width:56px;flex:none;padding:4px 6px;background:var(--surface-2,#2a2d35);border:1px solid var(--border,#3a3d45);border-radius:4px;color:var(--text,#e8eaed);font-size:0.8rem;">`;
+            } else if (carBase === 'byCar') {
+              secHtml = `<input type="text" class="gc-car-secondary" placeholder="Car #" value="${escapeHtml(carSec)}" style="width:56px;flex:none;padding:4px 6px;background:var(--surface-2,#2a2d35);border:1px solid var(--border,#3a3d45);border-radius:4px;color:var(--text,#e8eaed);font-size:0.8rem;">`;
+            }
+
+            exposedHtml += `
+              <div class="gc-config-row gc-car-selector-row" data-element-id="${el.id}" data-item-id="${item.id}">
+                <span class="gc-config-label">${escapeHtml(def.label)}</span>
+                <div style="display:flex;gap:4px;flex:1;align-items:center;">
+                  <select class="gc-car-base" style="flex:1;padding:4px 6px;background:var(--surface-2,#2a2d35);border:1px solid var(--border,#3a3d45);border-radius:4px;color:var(--text,#e8eaed);font-size:0.8rem;">${carOpts}</select>
+                  <span class="gc-car-secondary-wrap">${secHtml}</span>
+                  <input type="hidden" class="gc-exposed-input gc-car-combined"
+                         data-element-id="${el.id}" data-prop-key="${settingKey}" data-item-id="${item.id}"
+                         value="${escapeHtml(rawVal)}">
+                </div>
+              </div>`;
+          } else if (def.inputType === 'color') {
             exposedHtml += `
               <div class="gc-config-row">
                 <span class="gc-config-label">${escapeHtml(def.label)}</span>
@@ -240,6 +278,46 @@ export function renderRundown(instanceId, items, overlayUrl) {
       const itemId = parseInt(input.dataset.itemId, 10);
       saveConfigOverrides(itemId);
     });
+  });
+
+  // Wire up two-part car selector controls
+  listEl.querySelectorAll('.gc-car-selector-row').forEach(row => {
+    const baseSelect = row.querySelector('.gc-car-base');
+    const secondaryWrap = row.querySelector('.gc-car-secondary-wrap');
+    const hiddenInput = row.querySelector('.gc-car-combined');
+    const itemId = parseInt(row.dataset.itemId, 10);
+
+    function updateCombined() {
+      const base = baseSelect.value;
+      const secInput = secondaryWrap.querySelector('input');
+      const sec = secInput ? secInput.value.trim() : '';
+      hiddenInput.value = (base === 'byRank' || base === 'byCar') && sec ? `${base}:${sec}` : base;
+      saveConfigOverrides(itemId);
+    }
+
+    function wireSecondary() {
+      const secInput = secondaryWrap.querySelector('input');
+      if (secInput) {
+        secInput.addEventListener('change', updateCombined);
+        secInput.addEventListener('input', updateCombined);
+      }
+    }
+
+    baseSelect.addEventListener('change', () => {
+      const base = baseSelect.value;
+      if (base === 'byRank') {
+        secondaryWrap.innerHTML = `<input type="number" class="gc-car-secondary" min="1" max="40" step="1" value="1" style="width:56px;flex:none;padding:4px 6px;background:var(--surface-2,#2a2d35);border:1px solid var(--border,#3a3d45);border-radius:4px;color:var(--text,#e8eaed);font-size:0.8rem;">`;
+      } else if (base === 'byCar') {
+        secondaryWrap.innerHTML = `<input type="text" class="gc-car-secondary" placeholder="Car #" style="width:56px;flex:none;padding:4px 6px;background:var(--surface-2,#2a2d35);border:1px solid var(--border,#3a3d45);border-radius:4px;color:var(--text,#e8eaed);font-size:0.8rem;">`;
+      } else {
+        secondaryWrap.innerHTML = '';
+      }
+      wireSecondary();
+      updateCombined();
+    });
+
+    // Wire initial secondary input
+    wireSecondary();
   });
 
   // Wire up inline rename (double-click)

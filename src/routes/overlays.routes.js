@@ -295,6 +295,13 @@ router.put('/rundown/:itemId', requireRole('operator', 'admin'), (req, res) => {
   try {
     const item = overlayService.updateRundownItem(parseInt(req.params.itemId, 10), req.body);
     if (!item) return res.status(404).json({ error: 'Rundown item not found' });
+
+    // If this item is on-air, push config changes to the overlay in real-time
+    if (item.is_on_air && item.config_overrides && Object.keys(item.config_overrides).length > 0) {
+      const wsService = require('../services/websocket.service');
+      wsService.sendOverlayConfigUpdate(item.instance_id, item.config_overrides);
+    }
+
     res.json({ item });
   } catch (err) {
     console.error('Error updating rundown item:', err.message);
