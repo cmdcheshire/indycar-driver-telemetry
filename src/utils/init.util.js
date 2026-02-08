@@ -35,222 +35,373 @@ async function initializeFirstRun() {
 
 /**
  * Create example overlay templates for new installations.
+ * Uses the full animation system: motorsport wipes, snaps, clip reveals,
+ * staggered entrances, emphasis on data change, crossfade updates, and timelines.
  */
 function _seedExampleTemplates() {
-  const ANIM_FADE = { enter: { type: 'fadeIn', duration: 400, easing: 'ease' }, exit: { type: 'fadeOut', duration: 300, easing: 'ease' }, update: { type: 'none', duration: 300, easing: 'ease' } };
-  const ANIM_SLIDE_LEFT = { enter: { type: 'slideInLeft', duration: 500, easing: 'ease-out' }, exit: { type: 'slideOutLeft', duration: 400, easing: 'ease-in' }, update: { type: 'none', duration: 300, easing: 'ease' } };
-  const ANIM_SLIDE_UP = { enter: { type: 'slideInUp', duration: 400, easing: 'ease-out' }, exit: { type: 'slideOutDown', duration: 300, easing: 'ease-in' }, update: { type: 'none', duration: 300, easing: 'ease' } };
 
-  // Template 1: Driver Card
+  // ── Template 1: Driver Card — "Pit Lane Pop" ──
+  // Punchy layered reveal: background wipes in, position badge snaps,
+  // name does a dramatic center-wipe, data fades in staggered with crossfade updates.
   overlayService.createTemplate({
     name: 'Driver Card',
     overlay_type: 'driver_card',
-    description: 'Displays a single driver with name, car number, speed, and position.',
+    description: 'Sleek driver info card with layered wipe entrance and live data emphasis.',
     canvas_width: 1920,
     canvas_height: 1080,
     template_data: {
       elements: [
+        // Main panel — wipes in from left
         {
           id: 'dc-bg', type: 'shape', name: 'Background',
-          x: 2, y: 75, width: 28, height: 18,
-          opacity: 0.9, rotation: 0, groupId: null,
-          animation: ANIM_SLIDE_LEFT,
-          props: {
-            shapeType: 'rectangle', fill: 'rgba(10,10,30,0.85)',
-            strokeColor: '#3b82f6', strokeWidth: 2, borderRadius: 8,
-          },
-        },
-        {
-          id: 'dc-pos', type: 'data', name: 'Position',
-          x: 3, y: 76, width: 5, height: 6,
+          x: 2, y: 74, width: 30, height: 20,
           opacity: 1, rotation: 0, groupId: null,
-          animation: ANIM_FADE,
+          animation: {
+            enter: { type: 'wipeInLeft', duration: 500, delay: 0, easing: 'wipeDrive' },
+            exit: { type: 'wipeOutLeft', duration: 400, delay: 0, easing: 'exitAccel' },
+          },
           props: {
-            bindingSource: 'telemetry', bindingField: 'rank',
-            carSelector: 'target1', format: 'ordinal',
-            fontFamily: 'Oswald, sans-serif', fontSize: 48, fontWeight: '700',
-            color: '#3b82f6', textAlign: 'center', fallback: '--',
-            prefix: '', suffix: '',
+            shapeType: 'rectangle', fill: 'rgba(8,12,28,0.92)',
+            strokeColor: '', strokeWidth: 0, borderRadius: 6,
           },
         },
+        // Hot accent line across top edge
         {
-          id: 'dc-car', type: 'data', name: 'Car Number',
-          x: 9, y: 76, width: 6, height: 4,
+          id: 'dc-accent-top', type: 'shape', name: 'Top Accent',
+          x: 2, y: 74, width: 30, height: 0.4,
           opacity: 1, rotation: 0, groupId: null,
-          animation: ANIM_FADE,
-          props: {
-            bindingSource: 'telemetry', bindingField: 'carNumber',
-            carSelector: 'target1', format: 'raw',
-            fontFamily: 'Oswald, sans-serif', fontSize: 28, fontWeight: '700',
-            color: '#FFFFFF', textAlign: 'left', fallback: '#--',
-            prefix: '#', suffix: '',
+          animation: {
+            enter: { type: 'scaleInX', duration: 350, delay: 150, easing: 'springFirm' },
+            exit: { type: 'scaleOutX', duration: 200, delay: 0, easing: 'exitAccel' },
           },
-        },
-        {
-          id: 'dc-name', type: 'data', name: 'Driver Name',
-          x: 9, y: 80, width: 18, height: 4,
-          opacity: 1, rotation: 0, groupId: null,
-          animation: ANIM_FADE,
-          props: {
-            bindingSource: 'referenceData', bindingField: 'lastName',
-            carSelector: 'target1', format: 'raw',
-            fontFamily: 'Inter, sans-serif', fontSize: 22, fontWeight: '600',
-            color: '#FFFFFF', textAlign: 'left', fallback: 'DRIVER',
-            prefix: '', suffix: '',
-          },
-        },
-        {
-          id: 'dc-speed', type: 'data', name: 'Speed',
-          x: 9, y: 85, width: 10, height: 4,
-          opacity: 1, rotation: 0, groupId: null,
-          animation: ANIM_FADE,
-          props: {
-            bindingSource: 'telemetry', bindingField: 'speed',
-            carSelector: 'target1', format: 'speed',
-            fontFamily: 'Roboto Mono, monospace', fontSize: 20, fontWeight: '600',
-            color: '#10b981', textAlign: 'left', fallback: '--- mph',
-            prefix: '', suffix: ' mph',
-          },
-        },
-        {
-          id: 'dc-gap', type: 'data', name: 'Gap to Leader',
-          x: 20, y: 85, width: 8, height: 4,
-          opacity: 1, rotation: 0, groupId: null,
-          animation: ANIM_FADE,
-          props: {
-            bindingSource: 'leaderboard', bindingField: 'Time_Behind',
-            carSelector: 'target1', format: 'delta',
-            fontFamily: 'Roboto Mono, monospace', fontSize: 20, fontWeight: '500',
-            color: '#f59e0b', textAlign: 'right', fallback: '--',
-            prefix: '', suffix: '',
-          },
-        },
-      ],
-      groups: [],
-      version: 1,
-    },
-  }, null);
-
-  // Template 2: Timing Tower (Top 5 Leaderboard)
-  overlayService.createTemplate({
-    name: 'Timing Tower',
-    overlay_type: 'leaderboard',
-    description: 'Vertical timing tower showing top 5 positions with car number and gap.',
-    canvas_width: 1920,
-    canvas_height: 1080,
-    template_data: {
-      elements: [
-        {
-          id: 'tt-header-bg', type: 'shape', name: 'Header BG',
-          x: 1, y: 2, width: 14, height: 4,
-          opacity: 0.95, rotation: 0, groupId: null,
-          animation: ANIM_SLIDE_LEFT,
-          props: {
-            shapeType: 'rectangle', fill: '#3b82f6',
-            strokeColor: '', strokeWidth: 0, borderRadius: 4,
-          },
-        },
-        {
-          id: 'tt-header', type: 'text', name: 'Header Text',
-          x: 1.5, y: 2.5, width: 13, height: 3,
-          opacity: 1, rotation: 0, groupId: null,
-          animation: ANIM_FADE,
-          props: {
-            text: 'RACE STANDINGS',
-            fontFamily: 'Oswald, sans-serif', fontSize: 22, fontWeight: '700',
-            color: '#FFFFFF', textAlign: 'center',
-          },
-        },
-        ..._timingTowerRows(5),
-      ],
-      groups: [],
-      version: 1,
-    },
-  }, null);
-
-  // Template 3: Lower Third (L-Bar)
-  overlayService.createTemplate({
-    name: 'Lower Third',
-    overlay_type: 'lbar',
-    description: 'Lower-third bar with driver name, team, and gap to leader.',
-    canvas_width: 1920,
-    canvas_height: 1080,
-    template_data: {
-      elements: [
-        {
-          id: 'lt-bg', type: 'shape', name: 'Bar Background',
-          x: 5, y: 82, width: 40, height: 10,
-          opacity: 0.9, rotation: 0, groupId: null,
-          animation: ANIM_SLIDE_UP,
-          props: {
-            shapeType: 'rectangle', fill: 'rgba(10,10,30,0.9)',
-            strokeColor: '', strokeWidth: 0, borderRadius: 4,
-          },
-        },
-        {
-          id: 'lt-accent', type: 'shape', name: 'Accent Bar',
-          x: 5, y: 82, width: 0.4, height: 10,
-          opacity: 1, rotation: 0, groupId: null,
-          animation: ANIM_SLIDE_UP,
           props: {
             shapeType: 'rectangle', fill: '#3b82f6',
             strokeColor: '', strokeWidth: 0, borderRadius: 0,
           },
         },
+        // Position badge background
         {
-          id: 'lt-name', type: 'data', name: 'Driver Name',
-          x: 7, y: 83, width: 20, height: 5,
+          id: 'dc-pos-bg', type: 'shape', name: 'Position Badge',
+          x: 2, y: 74.5, width: 6, height: 11,
           opacity: 1, rotation: 0, groupId: null,
-          animation: ANIM_FADE,
+          animation: {
+            enter: { type: 'wipeInLeft', duration: 400, delay: 200, easing: 'wipeDrive' },
+            exit: { type: 'wipeOutLeft', duration: 300, delay: 0, easing: 'exitAccel' },
+          },
           props: {
-            bindingSource: 'referenceData', bindingField: 'lastName',
-            carSelector: 'target1', format: 'raw',
-            fontFamily: 'Oswald, sans-serif', fontSize: 36, fontWeight: '700',
-            color: '#FFFFFF', textAlign: 'left', fallback: 'DRIVER NAME',
-            prefix: '', suffix: '',
+            shapeType: 'rectangle', fill: '#3b82f6',
+            strokeColor: '', strokeWidth: 0, borderRadius: 0,
           },
         },
+        // Position number — big, bold, snaps in from below
         {
-          id: 'lt-team', type: 'data', name: 'Team Name',
-          x: 7, y: 88, width: 20, height: 3,
+          id: 'dc-pos', type: 'data', name: 'Position',
+          x: 2.2, y: 75, width: 5.5, height: 10,
           opacity: 1, rotation: 0, groupId: null,
-          animation: ANIM_FADE,
-          props: {
-            bindingSource: 'referenceData', bindingField: 'team',
-            carSelector: 'target1', format: 'raw',
-            fontFamily: 'Inter, sans-serif', fontSize: 16, fontWeight: '400',
-            color: '#94a3b8', textAlign: 'left', fallback: 'Team',
-            prefix: '', suffix: '',
+          animation: {
+            enter: { type: 'snapInUp', duration: 250, delay: 350, easing: 'towerSnap' },
+            exit: { type: 'snapOutDown', duration: 200, delay: 0, easing: 'exitAccel' },
+            update: { type: 'crossfade', duration: 300 },
+            emphasis: { type: 'celebPop', duration: 400, trigger: 'onChange', repeat: 0 },
           },
-        },
-        {
-          id: 'lt-gap', type: 'data', name: 'Gap',
-          x: 34, y: 83, width: 10, height: 5,
-          opacity: 1, rotation: 0, groupId: null,
-          animation: ANIM_FADE,
-          props: {
-            bindingSource: 'leaderboard', bindingField: 'Time_Behind',
-            carSelector: 'target1', format: 'delta',
-            fontFamily: 'Roboto Mono, monospace', fontSize: 32, fontWeight: '600',
-            color: '#f59e0b', textAlign: 'right', fallback: '--',
-            prefix: '', suffix: '',
-          },
-        },
-        {
-          id: 'lt-pos', type: 'data', name: 'Position',
-          x: 34, y: 88, width: 10, height: 3,
-          opacity: 1, rotation: 0, groupId: null,
-          animation: ANIM_FADE,
           props: {
             bindingSource: 'telemetry', bindingField: 'rank',
             carSelector: 'target1', format: 'ordinal',
-            fontFamily: 'Inter, sans-serif', fontSize: 16, fontWeight: '600',
-            color: '#3b82f6', textAlign: 'right', fallback: '--',
+            fontFamily: 'Oswald, sans-serif', fontSize: 56, fontWeight: '700',
+            color: '#FFFFFF', textAlign: 'center', verticalAlign: 'middle',
+            fallback: '--', prefix: '', suffix: '',
+          },
+        },
+        // Car number — snaps in from left
+        {
+          id: 'dc-car', type: 'data', name: 'Car Number',
+          x: 9, y: 75.5, width: 8, height: 4,
+          opacity: 1, rotation: 0, groupId: null,
+          animation: {
+            enter: { type: 'snapInLeft', duration: 200, delay: 400, easing: 'towerSnap' },
+            exit: { type: 'snapOutLeft', duration: 200, delay: 0, easing: 'exitAccel' },
+          },
+          props: {
+            bindingSource: 'telemetry', bindingField: 'carNumber',
+            carSelector: 'target1', format: 'raw',
+            fontFamily: 'Oswald, sans-serif', fontSize: 32, fontWeight: '700',
+            color: '#64748b', textAlign: 'left', fallback: '#--',
+            prefix: '#', suffix: '',
+          },
+        },
+        // Driver last name — dramatic center wipe (hero text)
+        {
+          id: 'dc-name', type: 'data', name: 'Driver Name',
+          x: 9, y: 79, width: 21, height: 6,
+          opacity: 1, rotation: 0, groupId: null,
+          animation: {
+            enter: { type: 'wipeInCenter', duration: 400, delay: 450, easing: 'wipeDrive' },
+            exit: { type: 'wipeOutCenter', duration: 300, delay: 0, easing: 'exitAccel' },
+          },
+          props: {
+            bindingSource: 'referenceData', bindingField: 'lastName',
+            carSelector: 'target1', format: 'raw',
+            fontFamily: 'Oswald, sans-serif', fontSize: 44, fontWeight: '800',
+            color: '#FFFFFF', textAlign: 'left', textTransform: 'uppercase',
+            fallback: 'DRIVER', prefix: '', suffix: '',
+          },
+        },
+        // Horizontal divider — draws across
+        {
+          id: 'dc-divider', type: 'shape', name: 'Divider',
+          x: 9, y: 85.5, width: 21, height: 0.15,
+          opacity: 1, rotation: 0, groupId: null,
+          animation: {
+            enter: { type: 'clipRevealLeft', duration: 300, delay: 500, easing: 'power2.out' },
+            exit: { type: 'clipHideLeft', duration: 200, delay: 0, easing: 'exitAccel' },
+          },
+          props: {
+            shapeType: 'rectangle', fill: 'rgba(255,255,255,0.15)',
+            strokeColor: '', strokeWidth: 0, borderRadius: 0,
+          },
+        },
+        // Speed — fades in from left, crossfade on update, emphasis punch
+        {
+          id: 'dc-speed', type: 'data', name: 'Speed',
+          x: 9, y: 86.5, width: 12, height: 4,
+          opacity: 1, rotation: 0, groupId: null,
+          animation: {
+            enter: { type: 'fadeInLeft', duration: 300, delay: 550, easing: 'power2.out' },
+            exit: { type: 'fadeOutLeft', duration: 250, delay: 0, easing: 'exitAccel' },
+            update: { type: 'crossfade', duration: 300 },
+            emphasis: { type: 'dataUpdate', duration: 200, trigger: 'onChange', repeat: 0 },
+          },
+          props: {
+            bindingSource: 'telemetry', bindingField: 'speed',
+            carSelector: 'target1', format: 'speed',
+            fontFamily: 'Roboto Mono, monospace', fontSize: 22, fontWeight: '600',
+            color: '#10b981', textAlign: 'left', fallback: '--- MPH',
+            prefix: '', suffix: ' MPH',
+          },
+        },
+        // Gap to leader — fades in from right, crossfade on update, gain flash
+        {
+          id: 'dc-gap', type: 'data', name: 'Gap to Leader',
+          x: 21, y: 86.5, width: 10, height: 4,
+          opacity: 1, rotation: 0, groupId: null,
+          animation: {
+            enter: { type: 'fadeInRight', duration: 300, delay: 600, easing: 'power2.out' },
+            exit: { type: 'fadeOutRight', duration: 250, delay: 0, easing: 'exitAccel' },
+            update: { type: 'crossfade', duration: 300 },
+            emphasis: { type: 'gainFlash', duration: 300, trigger: 'onChange', repeat: 0 },
+          },
+          props: {
+            bindingSource: 'leaderboard', bindingField: 'Time_Behind',
+            carSelector: 'target1', format: 'delta',
+            fontFamily: 'Roboto Mono, monospace', fontSize: 22, fontWeight: '500',
+            color: '#f59e0b', textAlign: 'right', fallback: '--',
             prefix: '', suffix: '',
           },
         },
       ],
       groups: [],
+      timeline: { holdDuration: 5000, pausePoints: [], loop: false },
+      version: 1,
+    },
+  }, null);
+
+  // ── Template 2: Timing Tower — "Tower Cascade" ──
+  // Rows cascade in with alternating wipe directions. Header bar scales open.
+  // Data elements snap in staggered with motorsport emphasis on updates.
+  overlayService.createTemplate({
+    name: 'Timing Tower',
+    overlay_type: 'leaderboard',
+    description: 'Cascading timing tower with alternating wipe reveals and live data emphasis.',
+    canvas_width: 1920,
+    canvas_height: 1080,
+    template_data: {
+      elements: [
+        // Header bar — scales open from left edge
+        {
+          id: 'tt-header-bg', type: 'shape', name: 'Header BG',
+          x: 1, y: 2, width: 15, height: 4.5,
+          opacity: 1, rotation: 0, groupId: null,
+          animation: {
+            enter: { type: 'scaleInX', duration: 400, delay: 0, easing: 'springFirm' },
+            exit: { type: 'scaleOutX', duration: 300, delay: 0, easing: 'exitAccel' },
+          },
+          props: {
+            shapeType: 'rectangle',
+            fill: '#1d4ed8',
+            gradient: '135deg, #3b82f6 0%, #1d4ed8 100%',
+            strokeColor: '', strokeWidth: 0, borderRadius: 4,
+          },
+        },
+        // Header text — fades in after bar opens
+        {
+          id: 'tt-header', type: 'text', name: 'Header Text',
+          x: 1.5, y: 2.2, width: 14, height: 4,
+          opacity: 1, rotation: 0, groupId: null,
+          animation: {
+            enter: { type: 'fadeIn', duration: 300, delay: 250, easing: 'power2.out' },
+            exit: { type: 'fadeOut', duration: 200, delay: 0, easing: 'power2.in' },
+          },
+          props: {
+            text: 'RACE STANDINGS',
+            fontFamily: 'Oswald, sans-serif', fontSize: 22, fontWeight: '700',
+            color: '#FFFFFF', textAlign: 'center', letterSpacing: 3,
+            textTransform: 'uppercase',
+          },
+        },
+        ..._timingTowerRows(5),
+      ],
+      groups: [],
+      timeline: { holdDuration: 0, pausePoints: [], loop: true },
+      version: 1,
+    },
+  }, null);
+
+  // ── Template 3: Lower Third — "Broadcast Sweep" ──
+  // Cinematic lower third: background sweeps up, accent bar scales in,
+  // separator draws across, text reveals staggered, data snaps in from right.
+  overlayService.createTemplate({
+    name: 'Lower Third',
+    overlay_type: 'lbar',
+    description: 'Cinematic lower third with sweep entrance, line draws, and data crossfade.',
+    canvas_width: 1920,
+    canvas_height: 1080,
+    template_data: {
+      elements: [
+        // Main background — sweeps up from bottom
+        {
+          id: 'lt-bg', type: 'shape', name: 'Bar Background',
+          x: 8, y: 80, width: 50, height: 14,
+          opacity: 1, rotation: 0, groupId: null,
+          animation: {
+            enter: { type: 'wipeInUp', duration: 450, delay: 0, easing: 'wipeDrive' },
+            exit: { type: 'wipeOutDown', duration: 400, delay: 100, easing: 'exitAccel' },
+          },
+          props: {
+            shapeType: 'rectangle', fill: 'rgba(8,12,28,0.94)',
+            strokeColor: '', strokeWidth: 0, borderRadius: 0,
+          },
+        },
+        // Left accent bar — scales in vertically (urgency stripe)
+        {
+          id: 'lt-accent-left', type: 'shape', name: 'Left Accent',
+          x: 8, y: 80, width: 0.4, height: 14,
+          opacity: 1, rotation: 0, groupId: null,
+          animation: {
+            enter: { type: 'scaleInY', duration: 300, delay: 200, easing: 'springFirm' },
+            exit: { type: 'scaleOutY', duration: 200, delay: 0, easing: 'exitAccel' },
+          },
+          props: {
+            shapeType: 'rectangle', fill: '#ef4444',
+            strokeColor: '', strokeWidth: 0, borderRadius: 0,
+          },
+        },
+        // Bottom accent line — draws across
+        {
+          id: 'lt-accent-bottom', type: 'shape', name: 'Bottom Line',
+          x: 8.5, y: 93.7, width: 49.5, height: 0.18,
+          opacity: 1, rotation: 0, groupId: null,
+          animation: {
+            enter: { type: 'clipRevealLeft', duration: 400, delay: 300, easing: 'power3.out' },
+            exit: { type: 'clipHideRight', duration: 300, delay: 0, easing: 'exitAccel' },
+          },
+          props: {
+            shapeType: 'rectangle', fill: '#ef4444',
+            strokeColor: '', strokeWidth: 0, borderRadius: 0,
+          },
+        },
+        // Driver name — dramatic center wipe (hero text)
+        {
+          id: 'lt-name', type: 'data', name: 'Driver Name',
+          x: 10, y: 81, width: 28, height: 7,
+          opacity: 1, rotation: 0, groupId: null,
+          animation: {
+            enter: { type: 'wipeInCenter', duration: 400, delay: 350, easing: 'wipeDrive' },
+            exit: { type: 'wipeOutCenter', duration: 300, delay: 50, easing: 'exitAccel' },
+          },
+          props: {
+            bindingSource: 'referenceData', bindingField: 'lastName',
+            carSelector: 'target1', format: 'raw',
+            fontFamily: 'Oswald, sans-serif', fontSize: 48, fontWeight: '800',
+            color: '#FFFFFF', textAlign: 'left', textTransform: 'uppercase',
+            fallback: 'DRIVER NAME', prefix: '', suffix: '',
+          },
+        },
+        // Team name — floats up softly after name
+        {
+          id: 'lt-team', type: 'data', name: 'Team Name',
+          x: 10, y: 88, width: 28, height: 4,
+          opacity: 1, rotation: 0, groupId: null,
+          animation: {
+            enter: { type: 'fadeInUp', duration: 300, delay: 500, easing: 'power2.out' },
+            exit: { type: 'fadeOutDown', duration: 250, delay: 0, easing: 'power2.in' },
+          },
+          props: {
+            bindingSource: 'referenceData', bindingField: 'team',
+            carSelector: 'target1', format: 'raw',
+            fontFamily: 'Inter, sans-serif', fontSize: 17, fontWeight: '400',
+            color: '#94a3b8', textAlign: 'left', fallback: 'Team',
+            prefix: '', suffix: '',
+          },
+        },
+        // Vertical separator — draws down between name area and data
+        {
+          id: 'lt-divider', type: 'shape', name: 'Vertical Divider',
+          x: 39, y: 81, width: 0.1, height: 12,
+          opacity: 1, rotation: 0, groupId: null,
+          animation: {
+            enter: { type: 'clipRevealDown', duration: 300, delay: 400, easing: 'power2.out' },
+            exit: { type: 'clipHideUp', duration: 200, delay: 0, easing: 'exitAccel' },
+          },
+          props: {
+            shapeType: 'rectangle', fill: 'rgba(255,255,255,0.12)',
+            strokeColor: '', strokeWidth: 0, borderRadius: 0,
+          },
+        },
+        // Gap delta — snaps in from right, crossfade update, pulse emphasis
+        {
+          id: 'lt-gap', type: 'data', name: 'Gap',
+          x: 40, y: 81, width: 17, height: 7,
+          opacity: 1, rotation: 0, groupId: null,
+          animation: {
+            enter: { type: 'snapInRight', duration: 250, delay: 500, easing: 'towerSnap' },
+            exit: { type: 'snapOutRight', duration: 200, delay: 0, easing: 'exitAccel' },
+            update: { type: 'crossfade', duration: 300 },
+            emphasis: { type: 'pulse', duration: 300, trigger: 'onChange', repeat: 0 },
+          },
+          props: {
+            bindingSource: 'leaderboard', bindingField: 'Time_Behind',
+            carSelector: 'target1', format: 'delta',
+            fontFamily: 'Roboto Mono, monospace', fontSize: 40, fontWeight: '700',
+            color: '#f59e0b', textAlign: 'center', verticalAlign: 'middle',
+            fallback: '--', prefix: '', suffix: '',
+          },
+        },
+        // Position — fades up below gap, crossfade update, dataUpdate emphasis
+        {
+          id: 'lt-pos', type: 'data', name: 'Position',
+          x: 40, y: 88, width: 17, height: 4,
+          opacity: 1, rotation: 0, groupId: null,
+          animation: {
+            enter: { type: 'fadeInUp', duration: 250, delay: 600, easing: 'power2.out' },
+            exit: { type: 'fadeOutDown', duration: 200, delay: 0, easing: 'power2.in' },
+            update: { type: 'crossfade', duration: 250 },
+            emphasis: { type: 'dataUpdate', duration: 200, trigger: 'onChange', repeat: 0 },
+          },
+          props: {
+            bindingSource: 'telemetry', bindingField: 'rank',
+            carSelector: 'target1', format: 'ordinal',
+            fontFamily: 'Inter, sans-serif', fontSize: 18, fontWeight: '600',
+            color: '#3b82f6', textAlign: 'center', fallback: '--',
+            prefix: '', suffix: '',
+          },
+        },
+      ],
+      groups: [],
+      timeline: {
+        holdDuration: 6000,
+        pausePoints: [{ id: 'pp1', time: 450, label: 'After sweep' }],
+        loop: false,
+      },
       version: 1,
     },
   }, null);
@@ -258,72 +409,106 @@ function _seedExampleTemplates() {
 
 /**
  * Generate timing tower row elements for positions 1..count.
- * Each row uses byRank selector to bind to that leaderboard position.
+ * Uses alternating wipe directions, staggered snap entrances, and motorsport emphasis.
  */
 function _timingTowerRows(count) {
-  const ANIM_FADE = { enter: { type: 'fadeIn', duration: 400, easing: 'ease' }, exit: { type: 'fadeOut', duration: 300, easing: 'ease' }, update: { type: 'none', duration: 300, easing: 'ease' } };
   const rows = [];
-  const startY = 7; // below header
-  const rowH = 4.5;
+  const startY = 7.5;
+  const rowH = 4.8;
 
   for (let i = 0; i < count; i++) {
     const rank = i + 1;
     const y = startY + i * rowH;
-    const rowBg = (i % 2 === 0) ? 'rgba(10,10,30,0.85)' : 'rgba(20,20,45,0.85)';
+    const isEven = i % 2 === 0;
+    const rowBg = isEven ? 'rgba(8,12,28,0.88)' : 'rgba(16,20,40,0.88)';
+    const stagger = 350 + i * 100;
 
-    // Row background
+    // Row background — alternating wipe direction for visual rhythm
     rows.push({
       id: `tt-row${rank}-bg`, type: 'shape', name: `P${rank} BG`,
-      x: 1, y, width: 14, height: rowH - 0.5,
-      opacity: 0.9, rotation: 0, groupId: null,
-      animation: { enter: { type: 'slideInLeft', duration: 400 + i * 80, easing: 'ease-out' }, exit: { type: 'slideOutLeft', duration: 300, easing: 'ease-in' }, update: { type: 'none', duration: 300, easing: 'ease' } },
+      x: 1, y, width: 15, height: rowH - 0.6,
+      opacity: 1, rotation: 0, groupId: null,
+      animation: {
+        enter: {
+          type: isEven ? 'wipeInLeft' : 'wipeInRight',
+          duration: 350,
+          delay: stagger,
+          easing: 'wipeDrive',
+        },
+        exit: {
+          type: isEven ? 'wipeOutLeft' : 'wipeOutRight',
+          duration: 280,
+          delay: i * 40,
+          easing: 'exitAccel',
+        },
+      },
       props: {
         shapeType: 'rectangle', fill: rowBg,
-        strokeColor: '', strokeWidth: 0, borderRadius: 2,
+        strokeColor: '', strokeWidth: 0, borderRadius: 3,
       },
     });
 
-    // Position number
+    // Position number — snaps up, gold shimmer for P1
     rows.push({
       id: `tt-row${rank}-pos`, type: 'data', name: `P${rank} Pos`,
-      x: 1.5, y: y + 0.3, width: 3, height: rowH - 1,
+      x: 1.5, y: y + 0.4, width: 3, height: rowH - 1.4,
       opacity: 1, rotation: 0, groupId: null,
-      animation: ANIM_FADE,
+      animation: {
+        enter: { type: 'snapInUp', duration: 200, delay: stagger + 150, easing: 'towerSnap' },
+        exit: { type: 'snapOutDown', duration: 180, delay: 0, easing: 'exitAccel' },
+        update: { type: 'crossfade', duration: 250 },
+        emphasis: {
+          type: rank === 1 ? 'goldShimmer' : 'dataUpdate',
+          duration: rank === 1 ? 400 : 200,
+          trigger: 'onChange', repeat: 0,
+        },
+      },
       props: {
         bindingSource: 'telemetry', bindingField: 'rank',
         carSelector: `byRank:${rank}`, format: 'raw',
-        fontFamily: 'Oswald, sans-serif', fontSize: 22, fontWeight: '700',
+        fontFamily: 'Oswald, sans-serif', fontSize: 24, fontWeight: '700',
         color: rank === 1 ? '#f59e0b' : '#FFFFFF', textAlign: 'center',
+        verticalAlign: 'middle',
         fallback: `${rank}`, prefix: '', suffix: '',
       },
     });
 
-    // Car number
+    // Car number — clip reveals in
     rows.push({
       id: `tt-row${rank}-car`, type: 'data', name: `P${rank} Car`,
-      x: 5, y: y + 0.3, width: 4, height: rowH - 1,
+      x: 5, y: y + 0.4, width: 4, height: rowH - 1.4,
       opacity: 1, rotation: 0, groupId: null,
-      animation: ANIM_FADE,
+      animation: {
+        enter: { type: 'clipRevealLeft', duration: 250, delay: stagger + 200, easing: 'power2.out' },
+        exit: { type: 'clipHideLeft', duration: 200, delay: 0, easing: 'exitAccel' },
+        emphasis: { type: 'pulse', duration: 300, trigger: 'onChange', repeat: 0 },
+      },
       props: {
         bindingSource: 'telemetry', bindingField: 'carNumber',
         carSelector: `byRank:${rank}`, format: 'raw',
         fontFamily: 'Oswald, sans-serif', fontSize: 20, fontWeight: '600',
-        color: '#3b82f6', textAlign: 'left',
+        color: '#3b82f6', textAlign: 'left', verticalAlign: 'middle',
         fallback: '--', prefix: '#', suffix: '',
       },
     });
 
-    // Gap
+    // Gap — fades in from right, crossfade updates, gain flash
     rows.push({
       id: `tt-row${rank}-gap`, type: 'data', name: `P${rank} Gap`,
-      x: 9.5, y: y + 0.3, width: 5, height: rowH - 1,
+      x: 9.5, y: y + 0.4, width: 6, height: rowH - 1.4,
       opacity: 1, rotation: 0, groupId: null,
-      animation: ANIM_FADE,
+      animation: {
+        enter: { type: 'fadeInRight', duration: 250, delay: stagger + 250, easing: 'power2.out' },
+        exit: { type: 'fadeOutRight', duration: 200, delay: 0, easing: 'power2.in' },
+        update: { type: 'crossfade', duration: 300 },
+        emphasis: { type: 'gainFlash', duration: 250, trigger: 'onChange', repeat: 0 },
+      },
       props: {
         bindingSource: 'leaderboard', bindingField: 'Time_Behind',
         carSelector: `byRank:${rank}`, format: 'delta',
         fontFamily: 'Roboto Mono, monospace', fontSize: 18, fontWeight: '500',
-        color: '#94a3b8', textAlign: 'right',
+        color: rank === 1 ? '#f59e0b' : '#94a3b8', textAlign: 'right',
+        verticalAlign: 'middle',
         fallback: rank === 1 ? 'Leader' : '--',
         prefix: '', suffix: '',
       },
