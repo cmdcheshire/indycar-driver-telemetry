@@ -60,6 +60,10 @@ export function initTimelinePanel(opts) {
       _collapsed = !_collapsed;
       _panelEl.classList.toggle('collapsed', _collapsed);
       toggleBtn.textContent = _collapsed ? '\u25B2' : '\u25BC';
+      // Re-render after expanding so clientWidth is available for ruler
+      if (!_collapsed) {
+        requestAnimationFrame(() => renderTimelinePanel());
+      }
     });
   }
 
@@ -134,9 +138,6 @@ function _renderRuler(timelineMs) {
   if (!_rulerEl) return;
   _rulerEl.innerHTML = '';
 
-  const trackWidth = _tracksEl ? _tracksEl.clientWidth - LABEL_WIDTH : 400;
-  const msPerPx = timelineMs / trackWidth;
-
   // Calculate a nice tick interval
   const targetTicks = 8;
   const rawInterval = timelineMs / targetTicks;
@@ -145,10 +146,9 @@ function _renderRuler(timelineMs) {
   for (let ms = 0; ms <= timelineMs; ms += niceInterval) {
     const tick = document.createElement('div');
     tick.className = 'timeline-tick';
+    // Position ticks using calc: offset by label width, then percentage of remaining space
     const pct = (ms / timelineMs) * 100;
-    tick.style.left = `calc(${LABEL_WIDTH}px + ${pct}% * (1 - ${LABEL_WIDTH}px / 100%))`;
-    // Simpler: use calc based on track area
-    tick.style.left = `${LABEL_WIDTH + ((trackWidth * ms) / timelineMs)}px`;
+    tick.style.left = `calc(${LABEL_WIDTH}px + (100% - ${LABEL_WIDTH}px) * ${pct / 100})`;
     tick.textContent = ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms}ms`;
     _rulerEl.appendChild(tick);
   }
