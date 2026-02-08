@@ -3,6 +3,14 @@
  * Features: quick actions bar, collapsible sections, color swatches, animation controls.
  */
 
+import {
+  BINDING_SOURCES,
+  CAR_SELECTORS,
+  FORMATTERS,
+  getFieldsForSource,
+  resolveBindingPreview,
+} from '../data-binding.js';
+
 /** @type {Function} */
 let onPropertyChange = null;
 /** @type {Function} */
@@ -301,10 +309,115 @@ function _addShapeProps(p) {
 function _addDataProps(p) {
   _addTextProps(p);
 
+  // Parse car selector: 'byRank:3' -> base='byRank', secondary='3'
+  const rawSelector = p.carSelector || '';
+  let selectorBase = rawSelector;
+  let selectorSecondary = '';
+  const colonIdx = rawSelector.indexOf(':');
+  if (colonIdx !== -1) {
+    selectorBase = rawSelector.substring(0, colonIdx);
+    selectorSecondary = rawSelector.substring(colonIdx + 1);
+  }
+
+  // Source dropdown
+  const sourceSelect = _selectInput('Source', p.bindingSource || '', [
+    { value: '', label: '-- Select --' },
+    ...BINDING_SOURCES.map(s => ({ value: s.source, label: s.label })),
+  ], (v) => {
+    _emitProp({ bindingSource: v, bindingField: '' });
+    // Re-render to refresh field options
+    if (currentElement) {
+      currentElement.props = { ...(currentElement.props || {}), bindingSource: v, bindingField: '' };
+      updatePropertiesPanel(currentElement);
+    }
+  });
+
+  // Field dropdown (filtered by source)
+  const fields = p.bindingSource ? getFieldsForSource(p.bindingSource) : [];
+  const fieldSelect = _selectInput('Field', p.bindingField || '', [
+    { value: '', label: '-- Select --' },
+    ...fields.map(f => ({ value: f.field, label: f.label })),
+  ], (v) => {
+    _emitProp({ bindingField: v });
+    if (currentElement) {
+      currentElement.props = { ...(currentElement.props || {}), bindingField: v };
+      // Update preview value on canvas
+      const preview = resolveBindingPreview({
+        bindingSource: currentElement.props.bindingSource,
+        bindingField: v,
+        format: currentElement.props.format,
+      });
+      _emitProp({ _previewValue: preview });
+    }
+  });
+
+  // Car selector dropdown + secondary input
+  const selectorChildren = [];
+
+  const selectorSelect = _selectInput('Car', selectorBase, [
+    { value: '', label: '-- None --' },
+    ...CAR_SELECTORS.map(s => ({ value: s.value, label: s.label })),
+  ], (v) => {
+    if (v === 'byRank' || v === 'byCar') {
+      // Set with default secondary value
+      const defaultSec = v === 'byRank' ? '1' : '';
+      const fullValue = defaultSec ? `${v}:${defaultSec}` : v;
+      _emitProp({ carSelector: fullValue });
+      if (currentElement) {
+        currentElement.props = { ...(currentElement.props || {}), carSelector: fullValue };
+        updatePropertiesPanel(currentElement);
+      }
+    } else {
+      _emitProp({ carSelector: v });
+      if (currentElement) {
+        currentElement.props = { ...(currentElement.props || {}), carSelector: v };
+        updatePropertiesPanel(currentElement);
+      }
+    }
+  });
+  selectorChildren.push(selectorSelect);
+
+  // Secondary input for byRank/byCar
+  if (selectorBase === 'byRank') {
+    selectorChildren.push(_numberInput('Rank', parseInt(selectorSecondary, 10) || 1, 1, 40, 1, (v) => {
+      const fullValue = `byRank:${v}`;
+      _emitProp({ carSelector: fullValue });
+      if (currentElement) {
+        currentElement.props = { ...(currentElement.props || {}), carSelector: fullValue };
+      }
+    }));
+  } else if (selectorBase === 'byCar') {
+    selectorChildren.push(_textInput('Car #', selectorSecondary, (v) => {
+      const fullValue = v ? `byCar:${v}` : 'byCar';
+      _emitProp({ carSelector: fullValue });
+      if (currentElement) {
+        currentElement.props = { ...(currentElement.props || {}), carSelector: fullValue };
+      }
+    }));
+  }
+
+  // Format dropdown
+  const formatSelect = _selectInput('Format', p.format || 'raw',
+    FORMATTERS.map(f => ({ value: f.value, label: f.label })),
+    (v) => {
+      _emitProp({ format: v });
+      if (currentElement) {
+        currentElement.props = { ...(currentElement.props || {}), format: v };
+        const preview = resolveBindingPreview({
+          bindingSource: currentElement.props.bindingSource,
+          bindingField: currentElement.props.bindingField,
+          format: v,
+        });
+        _emitProp({ _previewValue: preview });
+      }
+    }
+  );
+
   _addCollapsibleGroup('Data Binding', [
-    _readonlyInput('Source', p.bindingSource || '(none)'),
-    _readonlyInput('Field', p.bindingField || '(none)'),
-    _readonlyInput('Selector', p.carSelector || '(none)'),
+    sourceSelect,
+    fieldSelect,
+    ...selectorChildren,
+    formatSelect,
     _textInput('Prefix', p.prefix || '', (v) => _emitProp({ prefix: v })),
     _textInput('Suffix', p.suffix || '', (v) => _emitProp({ suffix: v })),
     _textInput('Fallback', p.fallback || '---', (v) => _emitProp({ fallback: v })),
@@ -459,7 +572,7 @@ function _numberInput(label, value, min, max, step, onChange) {
   input.min = String(min);
   input.max = String(max);
   input.step = String(step);
-  input.addEventListener('change', () => {
+  input.addEventListener('input', () => {
     const v = parseFloat(input.value);
     if (!isNaN(v)) onChange(v);
   });
@@ -480,7 +593,7 @@ function _textInput(label, value, onChange) {
   input.className = 'input';
   input.style.flex = '1';
   input.value = value;
-  input.addEventListener('change', () => onChange(input.value));
+  input.addEventListener('input', () => onChange(input.value));
   wrapper.appendChild(input);
   return wrapper;
 }
@@ -501,7 +614,7 @@ function _textareaInput(label, value, onChange) {
   textarea.style.minHeight = '60px';
   textarea.style.resize = 'vertical';
   textarea.value = value;
-  textarea.addEventListener('change', () => onChange(textarea.value));
+  textarea.addEventListener('input', () => onChange(textarea.value));
   wrapper.appendChild(textarea);
   return wrapper;
 }

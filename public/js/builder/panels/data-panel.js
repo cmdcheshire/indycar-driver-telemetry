@@ -80,11 +80,66 @@ export function renderDataPanel(container, element) {
     }
   }));
 
-  // Car selector
-  container.appendChild(_dropdown('Car Selector', p.carSelector || '', [
+  // Car selector - parse 'byRank:3' into base + secondary
+  const rawSelector = p.carSelector || '';
+  let selectorBase = rawSelector;
+  let selectorSecondary = '';
+  const colonIdx = rawSelector.indexOf(':');
+  if (colonIdx !== -1) {
+    selectorBase = rawSelector.substring(0, colonIdx);
+    selectorSecondary = rawSelector.substring(colonIdx + 1);
+  }
+
+  container.appendChild(_dropdown('Car Selector', selectorBase, [
     { value: '', label: '-- Default --' },
     ...CAR_SELECTORS.map(s => ({ value: s.value, label: s.label })),
-  ], (v) => _emitProp({ carSelector: v })));
+  ], (v) => {
+    if (v === 'byRank' || v === 'byCar') {
+      const defaultSec = v === 'byRank' ? '1' : '';
+      const fullValue = defaultSec ? `${v}:${defaultSec}` : v;
+      _emitProp({ carSelector: fullValue });
+      if (currentElement) {
+        currentElement.props.carSelector = fullValue;
+        renderDataPanel(panelEl, currentElement);
+      }
+    } else {
+      _emitProp({ carSelector: v });
+      if (currentElement) {
+        currentElement.props.carSelector = v;
+      }
+    }
+  }));
+
+  // Secondary input for byRank/byCar
+  if (selectorBase === 'byRank') {
+    const rankInput = document.createElement('div');
+    rankInput.className = 'prop-row';
+    rankInput.style.marginBottom = '8px';
+    const rankLabel = document.createElement('label');
+    rankLabel.textContent = 'Rank Position';
+    rankLabel.style.minWidth = '60px';
+    rankInput.appendChild(rankLabel);
+    const rankNum = document.createElement('input');
+    rankNum.type = 'number';
+    rankNum.className = 'input';
+    rankNum.style.flex = '1';
+    rankNum.min = '1';
+    rankNum.max = '40';
+    rankNum.value = selectorSecondary || '1';
+    rankNum.addEventListener('change', () => {
+      const fullValue = `byRank:${rankNum.value}`;
+      _emitProp({ carSelector: fullValue });
+      if (currentElement) currentElement.props.carSelector = fullValue;
+    });
+    rankInput.appendChild(rankNum);
+    container.appendChild(rankInput);
+  } else if (selectorBase === 'byCar') {
+    container.appendChild(_textInput('Car Number', selectorSecondary, (v) => {
+      const fullValue = v ? `byCar:${v}` : 'byCar';
+      _emitProp({ carSelector: fullValue });
+      if (currentElement) currentElement.props.carSelector = fullValue;
+    }));
+  }
 
   // Format
   container.appendChild(_dropdown('Format', p.format || 'raw',

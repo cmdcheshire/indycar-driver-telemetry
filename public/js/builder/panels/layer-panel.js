@@ -123,7 +123,7 @@ export function renderLayerPanel() {
     // Name (editable on double-click)
     const nameEl = document.createElement('span');
     nameEl.className = 'layer-name';
-    nameEl.textContent = el.name || el.type;
+    nameEl.textContent = _getDisplayName(el);
     nameEl.addEventListener('dblclick', (e) => {
       e.stopPropagation();
       _startRename(item, el);
@@ -340,6 +340,28 @@ function _triggerRenameFromContextMenu(elementId) {
   if (!el) return;
 
   _startRename(itemEl, el);
+}
+
+/* ---- Display Name ---- */
+
+function _getDisplayName(el) {
+  // If element has a custom name that differs from default, use it
+  if (el.name && el.name !== el.type && !el.name.startsWith('Element')) {
+    return el.name;
+  }
+
+  // For data elements, show binding info
+  if (el.type === 'data' && el.props) {
+    const source = el.props.bindingSource;
+    const field = el.props.bindingField;
+    if (source && field) {
+      // Capitalize first letter of field name and camelCase to readable
+      const readable = field.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()).trim();
+      return readable;
+    }
+  }
+
+  return el.name || el.type;
 }
 
 /* ---- Type Icons ---- */
