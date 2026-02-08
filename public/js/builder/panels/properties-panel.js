@@ -84,9 +84,10 @@ export function updatePropertiesPanel(element) {
   // Quick actions bar
   _addQuickActions(element);
 
-  // Element name
+  // Element name + exposed toggle
   _addCollapsibleGroup('Element', [
     _textInput('Name', element.name, (v) => _emit({ name: v })),
+    _checkboxInput('Expose to Operator', !!element.exposed, (v) => _emit({ exposed: v })),
   ]);
 
   // Transform
@@ -209,6 +210,7 @@ function _addTextProps(p) {
       { value: 'center', label: 'Center' },
       { value: 'right', label: 'Right' },
     ], (v) => _emitProp({ textAlign: v })),
+    _checkboxInput('Fit Text', !!p.fitText, (v) => _emitProp({ fitText: v })),
   ]);
 
   _addCollapsibleGroup('Text Content', [
@@ -715,6 +717,22 @@ function _rangeInput(label, value, min, max, step, unit, onChange) {
   });
 
   wrapper.appendChild(rangeWrapper);
+  return wrapper;
+}
+
+function _checkboxInput(label, checked, onChange) {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'prop-row';
+
+  const lbl = document.createElement('label');
+  lbl.textContent = label;
+  wrapper.appendChild(lbl);
+
+  const input = document.createElement('input');
+  input.type = 'checkbox';
+  input.checked = checked;
+  input.addEventListener('change', () => onChange(input.checked));
+  wrapper.appendChild(input);
   return wrapper;
 }
 

@@ -102,8 +102,8 @@ export function renderRundown(instanceId, items, overlayUrl) {
   let html = '';
   sorted.forEach((item, index) => {
     const isOnAir = item.is_on_air === true || item.is_on_air === 1;
-    const typeBadge = item.overlay_type
-      ? `<span class="gc-type-badge">${escapeHtml(item.overlay_type)}</span>`
+    const typeBadge = item.template_name
+      ? `<span class="gc-type-badge">${escapeHtml(item.template_name)}</span>`
       : '';
 
     // Use displayName from config_overrides if set, otherwise template_name
@@ -112,6 +112,32 @@ export function renderRundown(instanceId, items, overlayUrl) {
 
     // Target cars from config
     const targetCars = config.targetCars || {};
+
+    // Exposed element overrides
+    const elementOverrides = config.elementOverrides || {};
+    const exposedElements = item.exposed_elements || [];
+
+    // Build exposed element rows
+    let exposedHtml = '';
+    if (exposedElements.length > 0) {
+      exposedHtml = '<div class="gc-config-divider">Exposed Elements</div>';
+      for (const el of exposedElements) {
+        const override = elementOverrides[el.id] || {};
+        const currentValue = _getOverrideValue(override, el) || el.defaultValue || '';
+        const inputType = el.type === 'shape' ? 'color' : 'text';
+        const placeholder = el.type === 'image' ? 'Image URL' : el.defaultValue || '';
+
+        exposedHtml += `
+          <div class="gc-config-row">
+            <span class="gc-config-label" title="${escapeHtml(el.name)}">${escapeHtml(el.name)}</span>
+            <input type="${inputType}" class="gc-config-input gc-exposed-input"
+                   data-element-id="${el.id}" data-element-type="${el.type}" data-item-id="${item.id}"
+                   placeholder="${escapeHtml(placeholder)}" value="${escapeHtml(currentValue)}"
+                   ${inputType === 'text' ? 'style="flex:1;width:auto;"' : ''}>
+          </div>
+        `;
+      }
+    }
 
     html += `
       <div class="gc-rundown-item-wrapper" data-item-id="${item.id}">
@@ -149,6 +175,7 @@ export function renderRundown(instanceId, items, overlayUrl) {
             <span class="gc-config-label">Target Car 3</span>
             <input type="text" class="gc-config-input" data-config-field="target3" data-item-id="${item.id}" placeholder="e.g. 12" value="${escapeHtml(targetCars.target3 || '')}">
           </div>
+          ${exposedHtml}
         </div>
       </div>
     `;
@@ -227,8 +254,8 @@ function handleToggleConfig(itemId, btn) {
 }
 
 async function saveConfigOverrides(itemId) {
-  // Gather all config inputs for this item
-  const inputs = document.querySelectorAll(`.gc-config-input[data-item-id="${itemId}"]`);
+  // Gather target car inputs
+  const inputs = document.querySelectorAll(`.gc-config-input[data-item-id="${itemId}"][data-config-field]`);
   const targetCars = {};
 
   inputs.forEach(input => {
@@ -239,12 +266,28 @@ async function saveConfigOverrides(itemId) {
     }
   });
 
+  // Gather exposed element overrides
+  const elementOverrides = {};
+  const exposedInputs = document.querySelectorAll(`.gc-exposed-input[data-item-id="${itemId}"]`);
+  exposedInputs.forEach(input => {
+    const elId = input.dataset.elementId;
+    const elType = input.dataset.elementType;
+    const value = input.value.trim();
+    if (elId && value) {
+      const propKey = _getEditablePropKey(elType);
+      elementOverrides[elId] = { [propKey]: value };
+    }
+  });
+
   // Also preserve any existing displayName
   const nameEl = document.querySelector(`.gc-rundown-template-name[data-item-id="${itemId}"]`);
   const currentName = nameEl ? nameEl.textContent.trim() : '';
   const originalName = nameEl ? nameEl.dataset.originalName : '';
 
   const configOverrides = { targetCars };
+  if (Object.keys(elementOverrides).length > 0) {
+    configOverrides.elementOverrides = elementOverrides;
+  }
   if (currentName && currentName !== originalName) {
     configOverrides.displayName = currentName;
   }
@@ -320,7 +363,7 @@ async function saveDisplayName(itemId, displayName) {
   // Read existing config_overrides first, then merge
   try {
     // Get current config inputs to preserve target cars
-    const inputs = document.querySelectorAll(`.gc-config-input[data-item-id="${itemId}"]`);
+    const inputs = document.querySelectorAll(`.gc-config-input[data-item-id="${itemId}"][data-config-field]`);
     const targetCars = {};
     inputs.forEach(input => {
       const value = input.value.trim();
@@ -329,7 +372,23 @@ async function saveDisplayName(itemId, displayName) {
       }
     });
 
+    // Preserve exposed element overrides
+    const elementOverrides = {};
+    const exposedInputs = document.querySelectorAll(`.gc-exposed-input[data-item-id="${itemId}"]`);
+    exposedInputs.forEach(input => {
+      const elId = input.dataset.elementId;
+      const elType = input.dataset.elementType;
+      const value = input.value.trim();
+      if (elId && value) {
+        const propKey = _getEditablePropKey(elType);
+        elementOverrides[elId] = { [propKey]: value };
+      }
+    });
+
     const configOverrides = { targetCars, displayName };
+    if (Object.keys(elementOverrides).length > 0) {
+      configOverrides.elementOverrides = elementOverrides;
+    }
 
     const res = await authenticatedFetch(`/api/overlays/rundown/${itemId}`, {
       method: 'PUT',
@@ -498,6 +557,26 @@ function setupDragAndDrop(listEl, items) {
       dragSourceIndex = null;
     });
   });
+}
+
+// ── Exposed Element Helpers ──
+
+/** Get the primary editable property key for an element type. */
+function _getEditablePropKey(type) {
+  switch (type) {
+    case 'text': return 'text';
+    case 'image': return 'src';
+    case 'shape': return 'fill';
+    case 'data': return 'text';
+    default: return 'text';
+  }
+}
+
+/** Get the current override value for an exposed element. */
+function _getOverrideValue(override, el) {
+  if (!override || !Object.keys(override).length) return '';
+  const key = _getEditablePropKey(el.type);
+  return override[key] || '';
 }
 
 // ── Utilities ──

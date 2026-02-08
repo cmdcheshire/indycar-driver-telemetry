@@ -6,6 +6,7 @@
  */
 
 import { buildOverlay, normalizeElements } from './template-loader.js';
+import { updateElementText, updateElementStyle } from './element-renderer.js';
 import { DataBinder } from './data-binder.js';
 import { AnimationEngine } from './animation-engine.js';
 
@@ -197,6 +198,11 @@ function handleInit(msg) {
     }
     dataBinder.resolveBindings();
   }
+
+  // Apply element overrides from config
+  if (config && config.elementOverrides && domMap) {
+    applyElementOverrides(config.elementOverrides);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -325,5 +331,34 @@ function handleConfigUpdate(msg) {
   if (dataBinder && config.targetCars) {
     dataBinder.setTargetCars(config.targetCars);
     dataBinder.resolveBindings();
+  }
+
+  // Apply element overrides from exposed elements
+  if (domMap && config.elementOverrides) {
+    applyElementOverrides(config.elementOverrides);
+  }
+}
+
+/**
+ * Apply per-element overrides from the rundown config.
+ * @param {Object} overrides - Map of elementId -> { text, src, fill, ... }
+ */
+function applyElementOverrides(overrides) {
+  for (const [elementId, props] of Object.entries(overrides)) {
+    const node = domMap.get(elementId);
+    if (!node) continue;
+
+    if (props.text !== undefined) {
+      updateElementText(node, props.text);
+    }
+    if (props.src !== undefined) {
+      const img = node.querySelector('img');
+      if (img) {
+        img.src = props.src;
+      }
+    }
+    if (props.fill !== undefined) {
+      updateElementStyle(node, { backgroundColor: props.fill });
+    }
   }
 }

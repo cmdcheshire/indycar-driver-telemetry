@@ -243,15 +243,52 @@ function deleteFolder(id) {
 
 function getRundownItems(instanceId) {
   return getDb().prepare(
-    `SELECT ri.*, ot.name as template_name, ot.overlay_type
+    `SELECT ri.*, ot.name as template_name, ot.overlay_type, ot.template_data
      FROM rundown_items ri
      JOIN overlay_templates ot ON ri.template_id = ot.id
      WHERE ri.instance_id = ?
      ORDER BY ri.sort_order ASC`
-  ).all(instanceId).map(r => ({
-    ...r,
-    config_overrides: JSON.parse(r.config_overrides || '{}'),
-  }));
+  ).all(instanceId).map(r => {
+    const configOverrides = JSON.parse(r.config_overrides || '{}');
+
+    // Extract exposed elements from template_data
+    let exposedElements = [];
+    if (r.template_data) {
+      try {
+        const td = JSON.parse(r.template_data);
+        const elems = td.elements || [];
+        exposedElements = elems
+          .filter(el => el.exposed)
+          .map(el => ({
+            id: el.id,
+            name: el.name || el.type,
+            type: el.type,
+            defaultValue: _getDefaultEditableValue(el),
+          }));
+      } catch (_) { /* ignore parse errors */ }
+    }
+
+    // Don't send raw template_data to the client
+    delete r.template_data;
+
+    return {
+      ...r,
+      config_overrides: configOverrides,
+      exposed_elements: exposedElements,
+    };
+  });
+}
+
+/** Get the default editable value for an exposed element based on its type. */
+function _getDefaultEditableValue(el) {
+  const p = el.props || {};
+  switch (el.type) {
+    case 'text': return p.text || '';
+    case 'image': return p.src || '';
+    case 'shape': return p.fill || '';
+    case 'data': return p.fallback || '---';
+    default: return '';
+  }
 }
 
 function addRundownItem(instanceId, templateId, sortOrder) {

@@ -163,6 +163,13 @@ function _initPanels() {
         _refreshPanels();
       }
     },
+    onExposedToggle: (id) => {
+      const el = _getElementById(id);
+      if (el) {
+        el.exposed = !el.exposed;
+        _refreshPanels();
+      }
+    },
     onDelete: (id) => {
       canvas.removeElement(id);
       elements = elements.filter(e => e.id !== id);
@@ -381,6 +388,29 @@ function _initKeyboardShortcuts() {
       return;
     }
 
+    // Arrow keys: Move selected elements
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+      const selectedIds = selection.getSelected();
+      if (selectedIds.length > 0) {
+        e.preventDefault();
+        const step = e.shiftKey ? 1 : 0.1; // 1% with shift, 0.1% without
+        const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
+        const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0;
+
+        for (const id of selectedIds) {
+          const el = _getElementById(id);
+          if (el && !el.locked) {
+            el.x = Math.round((el.x + dx) * 10) / 10;
+            el.y = Math.round((el.y + dy) * 10) / 10;
+            canvas.updateElement(id, { x: el.x, y: el.y });
+          }
+        }
+        _refreshPanels();
+        _pushHistory();
+        return;
+      }
+    }
+
     // Tool shortcuts (single letter keys)
     if (!e.ctrlKey && !e.metaKey && !e.altKey) {
       handleToolShortcut(e.key.toLowerCase());
@@ -457,6 +487,67 @@ function _initCanvasInteractions() {
       _updateZoomDisplay(z);
     }
   }, { passive: false });
+
+  // Spacebar-to-pan: hold spacebar + drag to scroll the canvas area
+  _initSpacebarPan();
+}
+
+/* ================================================================ *
+ *  Spacebar Pan
+ * ================================================================ */
+
+function _initSpacebarPan() {
+  const canvasArea = document.getElementById('canvasArea');
+  let isPanning = false;
+  let spaceHeld = false;
+  let panStart = { x: 0, y: 0 };
+  let scrollStart = { x: 0, y: 0 };
+
+  document.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' && !e.repeat && !_isInputFocused()) {
+      e.preventDefault();
+      spaceHeld = true;
+      canvasArea.style.cursor = 'grab';
+    }
+  });
+
+  document.addEventListener('keyup', (e) => {
+    if (e.code === 'Space') {
+      spaceHeld = false;
+      isPanning = false;
+      canvasArea.style.cursor = '';
+    }
+  });
+
+  canvasArea.addEventListener('mousedown', (e) => {
+    if (spaceHeld) {
+      e.preventDefault();
+      e.stopPropagation();
+      isPanning = true;
+      panStart = { x: e.clientX, y: e.clientY };
+      scrollStart = { x: canvasArea.scrollLeft, y: canvasArea.scrollTop };
+      canvasArea.style.cursor = 'grabbing';
+    }
+  }, true); // capture phase to intercept before element interactions
+
+  document.addEventListener('mousemove', (e) => {
+    if (isPanning) {
+      canvasArea.scrollLeft = scrollStart.x - (e.clientX - panStart.x);
+      canvasArea.scrollTop = scrollStart.y - (e.clientY - panStart.y);
+    }
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (isPanning) {
+      isPanning = false;
+      canvasArea.style.cursor = spaceHeld ? 'grab' : '';
+    }
+  });
+}
+
+function _isInputFocused() {
+  const el = document.activeElement;
+  return el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.contentEditable === 'true');
 }
 
 /* ================================================================ *

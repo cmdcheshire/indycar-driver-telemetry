@@ -62,6 +62,14 @@ export function renderElement(element, referenceData = {}) {
       console.warn(`[element-renderer] Unknown element type: "${element.type}"`);
   }
 
+  // ── Fit text (auto-shrink) ──
+  if (element.fitText && (element.type === 'text' || element.type === 'data')) {
+    wrapper.dataset.fitText = 'true';
+    wrapper.dataset.maxFontSize = String(element.fontSize || 24);
+    // Run fit after DOM insertion via MutationObserver or rAF
+    requestAnimationFrame(() => fitTextToElement(wrapper));
+  }
+
   // ── Enter animation ──
   if (element.enterAnimation) {
     wrapper.classList.add(`anim-${element.enterAnimation}`);
@@ -260,6 +268,11 @@ function mapTextAlign(val) {
 export function updateElementText(domNode, value) {
   if (!domNode) return;
   domNode.textContent = value;
+
+  // Re-run fit text if enabled
+  if (domNode.dataset.fitText === 'true') {
+    fitTextToElement(domNode);
+  }
 }
 
 /**
@@ -278,6 +291,23 @@ export function updateElementStyle(domNode, styles) {
 // ---------------------------------------------------------------------------
 // Tiny helpers
 // ---------------------------------------------------------------------------
+
+/**
+ * Shrink font size until text fits within the element bounds.
+ * @param {HTMLElement} el
+ */
+function fitTextToElement(el) {
+  const maxSize = parseInt(el.dataset.maxFontSize, 10) || 24;
+  let size = maxSize;
+  el.style.fontSize = `${size}px`;
+  el.style.overflow = 'hidden';
+  el.style.whiteSpace = 'nowrap';
+
+  while (size > 6 && (el.scrollWidth > el.clientWidth || el.scrollHeight > el.clientHeight)) {
+    size--;
+    el.style.fontSize = `${size}px`;
+  }
+}
 
 /**
  * Convert a numeric value to a percentage string. Passes through strings as-is.

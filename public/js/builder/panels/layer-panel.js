@@ -31,6 +31,8 @@ let onMoveForward = null;
 /** @type {Function} */
 let onMoveBackward = null;
 /** @type {Function} */
+let onExposedToggle = null;
+/** @type {Function} */
 let onGroup = null;
 /** @type {Function} */
 let onUngroup = null;
@@ -61,6 +63,7 @@ let contextMenuTargetId = null;
  * @param {Function} [opts.onMoveToBack] - Called with element ID
  * @param {Function} [opts.onMoveForward] - Called with element ID
  * @param {Function} [opts.onMoveBackward] - Called with element ID
+ * @param {Function} [opts.onExposedToggle] - Called with element ID
  * @param {Function} [opts.onGroup] - Called when group is requested
  * @param {Function} [opts.onUngroup] - Called when ungroup is requested
  */
@@ -78,6 +81,7 @@ export function initLayerPanel(opts) {
   onMoveToBack = opts.onMoveToBack || null;
   onMoveForward = opts.onMoveForward || null;
   onMoveBackward = opts.onMoveBackward || null;
+  onExposedToggle = opts.onExposedToggle || null;
   onGroup = opts.onGroup || null;
   onUngroup = opts.onUngroup || null;
 
@@ -162,6 +166,17 @@ export function renderLayerPanel() {
       if (onLockToggle) onLockToggle(el.id);
     });
     item.appendChild(lockBtn);
+
+    // Exposed toggle
+    const expBtn = document.createElement('button');
+    expBtn.className = `layer-ctrl-btn${el.exposed ? '' : ' off'}`;
+    expBtn.innerHTML = _exposedIcon();
+    expBtn.title = el.exposed ? 'Hide from operator' : 'Expose to operator';
+    expBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (onExposedToggle) onExposedToggle(el.id);
+    });
+    item.appendChild(expBtn);
 
     // Click to select
     item.addEventListener('click', () => {
@@ -397,4 +412,8 @@ function _lockIcon() {
 
 function _unlockIcon() {
   return '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="7" width="10" height="7" rx="1"/><path d="M5 7V5a3 3 0 0 1 6 0"/></svg>';
+}
+
+function _exposedIcon() {
+  return '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M6 3h8v8"/><path d="M14 3L6 11"/><path d="M2 13h4v-4"/></svg>';
 }

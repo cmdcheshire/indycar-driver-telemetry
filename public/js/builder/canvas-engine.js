@@ -241,8 +241,10 @@ export class CanvasEngine {
         node.style.lineHeight = p.lineHeight || '1.3';
         node.style.display = 'flex';
         node.style.alignItems = 'center';
+        node.style.overflow = p.fitText ? 'hidden' : '';
         if (p.textShadow) node.style.textShadow = p.textShadow;
         if (p.textStroke) node.style.webkitTextStroke = p.textStroke;
+        if (p.fitText) this.#applyFitText(node, p);
         break;
       }
 
@@ -293,8 +295,10 @@ export class CanvasEngine {
         node.style.lineHeight = p.lineHeight || '1.3';
         node.style.display = 'flex';
         node.style.alignItems = 'center';
+        node.style.overflow = p.fitText ? 'hidden' : '';
         if (p.textShadow) node.style.textShadow = p.textShadow;
         if (p.textStroke) node.style.webkitTextStroke = p.textStroke;
+        if (p.fitText) this.#applyFitText(node, p);
         break;
       }
 
@@ -325,5 +329,23 @@ export class CanvasEngine {
     // Visibility / lock states
     node.classList.toggle('hidden-element', !element.visible);
     node.classList.toggle('locked', !!element.locked);
+  }
+
+  /**
+   * Shrink font size until text fits within the element bounds.
+   * @param {HTMLElement} node
+   * @param {object} props
+   */
+  #applyFitText(node, props) {
+    const maxSize = props.fontSize || 24;
+    let size = maxSize;
+
+    // Use requestAnimationFrame to ensure the node is laid out
+    requestAnimationFrame(() => {
+      while (size > 6 && (node.scrollWidth > node.clientWidth || node.scrollHeight > node.clientHeight)) {
+        size--;
+        node.style.fontSize = `${size}px`;
+      }
+    });
   }
 }
