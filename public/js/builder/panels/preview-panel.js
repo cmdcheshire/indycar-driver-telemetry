@@ -200,28 +200,24 @@ function _applyLiveData(sourceType, data) {
  * @returns {*}
  */
 function _resolveValue(data, field, carSelector) {
-  // If data is an array (e.g. leaderboard entries), use car selector to pick entry
+  // If data is an array (e.g. telemetry, leaderboard entries), use car selector to pick entry
   if (Array.isArray(data)) {
     let entry = null;
-    switch (carSelector) {
-      case 'target1':
-      case 'target2':
-      case 'target3': {
-        // Target slots are 0-indexed from the selector
-        const idx = parseInt(carSelector.replace('target', ''), 10) - 1;
-        entry = data[idx];
-        break;
-      }
-      case 'byRank':
-        // Already sorted by position typically; use first
-        entry = data[0];
-        break;
-      case 'byCar':
-        // Would need a car number filter; fallback to first for preview
-        entry = data[0];
-        break;
-      default:
-        entry = data[0];
+    const selectorStr = String(carSelector || '');
+
+    if (selectorStr.match(/^target\d+$/)) {
+      const idx = parseInt(selectorStr.replace('target', ''), 10) - 1;
+      entry = data[idx];
+    } else if (selectorStr.startsWith('byRank:')) {
+      const rank = selectorStr.split(':')[1];
+      entry = data.find(item => String(item.Rank || item.rank) === rank);
+    } else if (selectorStr.startsWith('byCar:')) {
+      const car = selectorStr.split(':')[1];
+      entry = data.find(item =>
+        String(item.carNumber || item.Car || item.car) === car
+      );
+    } else {
+      entry = data[0];
     }
     return entry ? entry[field] : undefined;
   }

@@ -202,11 +202,21 @@ const DATA_TYPE_MAP = {
   flag: 'raceState',
 };
 
+// Single-car event types that need to be merged into existing arrays
+const SINGLE_CAR_TYPES = new Set(['lap', 'pit', 'carStatus']);
+
 function handleDataUpdate(msg) {
   if (!dataBinder) return;
 
   const dataType = DATA_TYPE_MAP[msg.type] || msg.type;
-  dataBinder.updateData(dataType, msg.data);
+
+  // Single-car events send one car object; merge into array instead of replacing
+  if (SINGLE_CAR_TYPES.has(msg.type)) {
+    dataBinder.mergeCarData(dataType, msg.data);
+  } else {
+    dataBinder.updateData(dataType, msg.data);
+  }
+
   dataBinder.resolveBindings();
 }
 

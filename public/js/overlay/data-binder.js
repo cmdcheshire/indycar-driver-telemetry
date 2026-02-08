@@ -101,6 +101,37 @@ export class DataBinder {
   }
 
   /**
+   * Merge a single-car data object into the existing array for a given type.
+   * Used for events (lap, pit, carStatus) that emit one car at a time.
+   *
+   * @param {string} type - Data type key.
+   * @param {Object} carData - Single car data object.
+   */
+  mergeCarData(type, carData) {
+    if (!carData) return;
+
+    const carNumber = String(carData.carNumber || carData.Car || carData.car || '');
+    if (!carNumber) {
+      this._dataStore[type] = carData;
+      return;
+    }
+
+    const existing = this._dataStore[type];
+    if (Array.isArray(existing)) {
+      const idx = existing.findIndex(item =>
+        String(item.carNumber || item.Car || item.car) === carNumber
+      );
+      if (idx !== -1) {
+        existing[idx] = carData;
+      } else {
+        existing.push(carData);
+      }
+    } else {
+      this._dataStore[type] = [carData];
+    }
+  }
+
+  /**
    * Set target car numbers (used to resolve selectors like target1, target2).
    *
    * @param {Array<string|number>} cars - Array of car numbers.
@@ -174,7 +205,7 @@ export class DataBinder {
 
       // Find the entry matching the car number
       const entry = data.find(item =>
-        String(item.Car || item.car) === String(carNumber)
+        String(item.carNumber || item.Car || item.car) === String(carNumber)
       );
 
       return entry ? entry[field] : undefined;
@@ -373,14 +404,14 @@ export class DataBinder {
     const leaderboard = this._dataStore.leaderboard;
     if (Array.isArray(leaderboard)) {
       const entry = leaderboard.find(item => String(item.Rank || item.rank) === targetRank);
-      if (entry) return String(entry.Car || entry.car);
+      if (entry) return String(entry.carNumber || entry.Car || entry.car);
     }
 
     // Fall back to telemetry
     const telemetry = this._dataStore.telemetry;
     if (Array.isArray(telemetry)) {
       const entry = telemetry.find(item => String(item.Rank || item.rank) === targetRank);
-      if (entry) return String(entry.Car || entry.car);
+      if (entry) return String(entry.carNumber || entry.Car || entry.car);
     }
 
     return undefined;
