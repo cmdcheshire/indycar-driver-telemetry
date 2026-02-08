@@ -165,7 +165,7 @@ export class CanvasEngine {
    */
   setZoom(level) {
     this.#zoom = Math.max(0.25, Math.min(4.0, level));
-    this.#wrapper.style.transform = `scale(${this.#zoom})`;
+    this.#wrapper.style.zoom = this.#zoom;
     return this.#zoom;
   }
 

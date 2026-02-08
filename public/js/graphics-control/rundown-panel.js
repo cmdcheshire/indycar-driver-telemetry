@@ -111,9 +111,6 @@ export function renderRundown(instanceId, items, overlayUrl) {
     const config = item.config_overrides || {};
     const displayName = config.displayName || item.template_name || 'Unknown Template';
 
-    // Target cars from config
-    const targetCars = config.targetCars || {};
-
     // Exposed element overrides
     const elementOverrides = config.elementOverrides || {};
     const exposedElements = item.exposed_elements || [];
@@ -127,80 +124,66 @@ export function renderRundown(instanceId, items, overlayUrl) {
         const settings = el.exposedSettings || [];
         const defaults = el.defaults || {};
 
-        // If element has specific exposed settings, render each one
-        if (settings.length > 0) {
-          exposedHtml += `<div class="gc-exposed-group"><span class="gc-exposed-group-label">${escapeHtml(el.name)}</span>`;
-          for (const settingKey of settings) {
-            const def = getSettingDef(el.type, settingKey);
-            if (!def) continue;
+        // If no explicit exposed settings, fall back to all available settings for the type
+        const effectiveSettings = settings.length > 0
+          ? settings
+          : (EXPOSABLE_SETTINGS[el.type] || []).map(s => s.key);
 
-            const currentVal = override[settingKey] !== undefined ? override[settingKey] : (defaults[settingKey] || '');
+        exposedHtml += `<div class="gc-exposed-group"><span class="gc-exposed-group-label">${escapeHtml(el.name)}</span>`;
+        for (const settingKey of effectiveSettings) {
+          const def = getSettingDef(el.type, settingKey);
+          if (!def) continue;
 
-            if (def.inputType === 'color') {
-              exposedHtml += `
-                <div class="gc-config-row">
-                  <span class="gc-config-label">${escapeHtml(def.label)}</span>
-                  <input type="color" class="gc-config-input gc-exposed-input"
-                         data-element-id="${el.id}" data-prop-key="${settingKey}" data-item-id="${item.id}"
-                         value="${escapeHtml(String(currentVal || '#ffffff'))}">
-                </div>`;
-            } else if (def.inputType === 'number') {
-              exposedHtml += `
-                <div class="gc-config-row">
-                  <span class="gc-config-label">${escapeHtml(def.label)}</span>
-                  <input type="number" class="gc-config-input gc-exposed-input"
-                         data-element-id="${el.id}" data-prop-key="${settingKey}" data-item-id="${item.id}"
-                         min="${def.min || 0}" max="${def.max || 999}" step="${def.step || 1}"
-                         value="${currentVal}" style="flex:1;width:auto;">
-                </div>`;
-            } else if (def.inputType === 'select' && def.options) {
-              const opts = def.options.map(o =>
-                `<option value="${escapeHtml(o.value)}"${String(currentVal) === String(o.value) ? ' selected' : ''}>${escapeHtml(o.label)}</option>`
-              ).join('');
-              exposedHtml += `
-                <div class="gc-config-row">
-                  <span class="gc-config-label">${escapeHtml(def.label)}</span>
-                  <select class="gc-config-input gc-exposed-input"
+          const currentVal = override[settingKey] !== undefined ? override[settingKey] : (defaults[settingKey] || el.props?.[settingKey] || '');
+
+          if (def.inputType === 'color') {
+            exposedHtml += `
+              <div class="gc-config-row">
+                <span class="gc-config-label">${escapeHtml(def.label)}</span>
+                <input type="color" class="gc-config-input gc-exposed-input"
+                       data-element-id="${el.id}" data-prop-key="${settingKey}" data-item-id="${item.id}"
+                       value="${escapeHtml(String(currentVal || '#ffffff'))}">
+              </div>`;
+          } else if (def.inputType === 'number') {
+            exposedHtml += `
+              <div class="gc-config-row">
+                <span class="gc-config-label">${escapeHtml(def.label)}</span>
+                <input type="number" class="gc-config-input gc-exposed-input"
+                       data-element-id="${el.id}" data-prop-key="${settingKey}" data-item-id="${item.id}"
+                       min="${def.min || 0}" max="${def.max || 999}" step="${def.step || 1}"
+                       value="${currentVal}" style="flex:1;width:auto;">
+              </div>`;
+          } else if (def.inputType === 'select' && def.options) {
+            const opts = def.options.map(o =>
+              `<option value="${escapeHtml(o.value)}"${String(currentVal) === String(o.value) ? ' selected' : ''}>${escapeHtml(o.label)}</option>`
+            ).join('');
+            exposedHtml += `
+              <div class="gc-config-row">
+                <span class="gc-config-label">${escapeHtml(def.label)}</span>
+                <select class="gc-config-input gc-exposed-input"
+                        data-element-id="${el.id}" data-prop-key="${settingKey}" data-item-id="${item.id}"
+                        style="flex:1;width:auto;">${opts}</select>
+              </div>`;
+          } else if (def.inputType === 'textarea') {
+            exposedHtml += `
+              <div class="gc-config-row" style="align-items:flex-start">
+                <span class="gc-config-label">${escapeHtml(def.label)}</span>
+                <textarea class="gc-config-input gc-exposed-input"
                           data-element-id="${el.id}" data-prop-key="${settingKey}" data-item-id="${item.id}"
-                          style="flex:1;width:auto;">${opts}</select>
-                </div>`;
-            } else if (def.inputType === 'textarea') {
-              exposedHtml += `
-                <div class="gc-config-row" style="align-items:flex-start">
-                  <span class="gc-config-label">${escapeHtml(def.label)}</span>
-                  <textarea class="gc-config-input gc-exposed-input"
-                            data-element-id="${el.id}" data-prop-key="${settingKey}" data-item-id="${item.id}"
-                            rows="2" style="flex:1;width:auto;resize:vertical;">${escapeHtml(String(currentVal))}</textarea>
-                </div>`;
-            } else {
-              exposedHtml += `
-                <div class="gc-config-row">
-                  <span class="gc-config-label">${escapeHtml(def.label)}</span>
-                  <input type="text" class="gc-config-input gc-exposed-input"
-                         data-element-id="${el.id}" data-prop-key="${settingKey}" data-item-id="${item.id}"
-                         placeholder="${escapeHtml(String(defaults[settingKey] || ''))}"
-                         value="${escapeHtml(String(currentVal))}" style="flex:1;width:auto;">
-                </div>`;
-            }
+                          rows="2" style="flex:1;width:auto;resize:vertical;">${escapeHtml(String(currentVal))}</textarea>
+              </div>`;
+          } else {
+            exposedHtml += `
+              <div class="gc-config-row">
+                <span class="gc-config-label">${escapeHtml(def.label)}</span>
+                <input type="text" class="gc-config-input gc-exposed-input"
+                       data-element-id="${el.id}" data-prop-key="${settingKey}" data-item-id="${item.id}"
+                       placeholder="${escapeHtml(String(defaults[settingKey] || ''))}"
+                       value="${escapeHtml(String(currentVal))}" style="flex:1;width:auto;">
+              </div>`;
           }
-          exposedHtml += '</div>';
-        } else {
-          // Legacy fallback: single input per element (no exposedSettings defined)
-          const currentValue = _getOverrideValue(override, el) || el.defaultValue || '';
-          const inputType = el.type === 'shape' ? 'color' : 'text';
-          const placeholder = el.type === 'image' ? 'Image URL' : el.defaultValue || '';
-          const legacyKey = _getEditablePropKey(el.type);
-
-          exposedHtml += `
-            <div class="gc-config-row">
-              <span class="gc-config-label" title="${escapeHtml(el.name)}">${escapeHtml(el.name)}</span>
-              <input type="${inputType}" class="gc-config-input gc-exposed-input"
-                     data-element-id="${el.id}" data-prop-key="${legacyKey}" data-item-id="${item.id}"
-                     placeholder="${escapeHtml(placeholder)}" value="${escapeHtml(currentValue)}"
-                     ${inputType === 'text' ? 'style="flex:1;width:auto;"' : ''}>
-            </div>
-          `;
         }
+        exposedHtml += '</div>';
       }
     }
 
@@ -228,18 +211,6 @@ export function renderRundown(instanceId, items, overlayUrl) {
           </div>
         </div>
         <div class="gc-item-config" data-config-for="${item.id}">
-          <div class="gc-config-row">
-            <span class="gc-config-label">Target Car 1</span>
-            <input type="text" class="gc-config-input" data-config-field="target1" data-item-id="${item.id}" placeholder="e.g. 28" value="${escapeHtml(targetCars.target1 || '')}">
-          </div>
-          <div class="gc-config-row">
-            <span class="gc-config-label">Target Car 2</span>
-            <input type="text" class="gc-config-input" data-config-field="target2" data-item-id="${item.id}" placeholder="e.g. 5" value="${escapeHtml(targetCars.target2 || '')}">
-          </div>
-          <div class="gc-config-row">
-            <span class="gc-config-label">Target Car 3</span>
-            <input type="text" class="gc-config-input" data-config-field="target3" data-item-id="${item.id}" placeholder="e.g. 12" value="${escapeHtml(targetCars.target3 || '')}">
-          </div>
           ${exposedHtml}
         </div>
       </div>
@@ -319,18 +290,6 @@ function handleToggleConfig(itemId, btn) {
 }
 
 async function saveConfigOverrides(itemId) {
-  // Gather target car inputs
-  const inputs = document.querySelectorAll(`.gc-config-input[data-item-id="${itemId}"][data-config-field]`);
-  const targetCars = {};
-
-  inputs.forEach(input => {
-    const field = input.dataset.configField;
-    const value = input.value.trim();
-    if (value) {
-      targetCars[field] = value;
-    }
-  });
-
   // Gather exposed element overrides (supports multiple settings per element)
   const elementOverrides = {};
   const exposedInputs = document.querySelectorAll(`.gc-exposed-input[data-item-id="${itemId}"]`);
@@ -354,7 +313,7 @@ async function saveConfigOverrides(itemId) {
   const currentName = nameEl ? nameEl.textContent.trim() : '';
   const originalName = nameEl ? nameEl.dataset.originalName : '';
 
-  const configOverrides = { targetCars };
+  const configOverrides = {};
   if (Object.keys(elementOverrides).length > 0) {
     configOverrides.elementOverrides = elementOverrides;
   }
@@ -430,32 +389,25 @@ function startInlineRename(nameEl) {
 }
 
 async function saveDisplayName(itemId, displayName) {
-  // Read existing config_overrides first, then merge
   try {
-    // Get current config inputs to preserve target cars
-    const inputs = document.querySelectorAll(`.gc-config-input[data-item-id="${itemId}"][data-config-field]`);
-    const targetCars = {};
-    inputs.forEach(input => {
-      const value = input.value.trim();
-      if (value) {
-        targetCars[input.dataset.configField] = value;
-      }
-    });
-
     // Preserve exposed element overrides
     const elementOverrides = {};
     const exposedInputs = document.querySelectorAll(`.gc-exposed-input[data-item-id="${itemId}"]`);
     exposedInputs.forEach(input => {
       const elId = input.dataset.elementId;
-      const elType = input.dataset.elementType;
+      const propKey = input.dataset.propKey;
       const value = input.value.trim();
-      if (elId && value) {
-        const propKey = _getEditablePropKey(elType);
-        elementOverrides[elId] = { [propKey]: value };
+      if (elId && propKey && value) {
+        if (!elementOverrides[elId]) elementOverrides[elId] = {};
+        if (input.type === 'number') {
+          elementOverrides[elId][propKey] = parseFloat(value);
+        } else {
+          elementOverrides[elId][propKey] = value;
+        }
       }
     });
 
-    const configOverrides = { targetCars, displayName };
+    const configOverrides = { displayName };
     if (Object.keys(elementOverrides).length > 0) {
       configOverrides.elementOverrides = elementOverrides;
     }
@@ -627,26 +579,6 @@ function setupDragAndDrop(listEl, items) {
       dragSourceIndex = null;
     });
   });
-}
-
-// ── Exposed Element Helpers ──
-
-/** Get the primary editable property key for an element type. */
-function _getEditablePropKey(type) {
-  switch (type) {
-    case 'text': return 'text';
-    case 'image': return 'src';
-    case 'shape': return 'fill';
-    case 'data': return 'text';
-    default: return 'text';
-  }
-}
-
-/** Get the current override value for an exposed element. */
-function _getOverrideValue(override, el) {
-  if (!override || !Object.keys(override).length) return '';
-  const key = _getEditablePropKey(el.type);
-  return override[key] || '';
 }
 
 // ── Utilities ──

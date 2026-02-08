@@ -11,10 +11,9 @@ import { initRaceStatus, setDriverMap, updateRaceState, updateTelemetry, updateL
 import { initConnectionStatus, updateTcpStatus, updateWsStatus, updateSimulatorStatus } from '/js/dashboard/connection-status.js';
 import { initMetrics, updateMetrics } from '/js/dashboard/metrics.js';
 import { initControlPanel, updateControlState, loadDriverList, getDriverList } from '/js/dashboard/control-panel.js';
-import { initOverlayClients, updateOverlayClients, updateCacheStatus, loadOverlayInstances } from '/js/dashboard/overlay-clients.js';
+import { initOverlayClients, updateOverlayClients, loadOverlayInstances } from '/js/dashboard/overlay-clients.js';
 
 let wsClient = null;
-let overlayClientCache = {};  // instanceId -> client data (including cacheStatus)
 
 /**
  * Build the WebSocket URL for the dashboard channel.
@@ -120,16 +119,6 @@ function connectWebSocket() {
   // Overlay client connect/disconnect events
   wsClient.on('overlayClientChange', (data) => {
     updateOverlayClients(data);
-
-    // Build cache status lookup for chiclets
-    overlayClientCache = {};
-    for (const client of (data.clients || [])) {
-      const existing = overlayClientCache[client.instanceId];
-      if (!existing || (client.cacheStatus && (!existing.cacheStatus || client.cacheStatus.loaded < existing.cacheStatus.loaded))) {
-        overlayClientCache[client.instanceId] = client;
-      }
-    }
-    updateCacheStatus(overlayClientCache);
   });
 
   // Lap, pit, carStatus -- forwarded to race status for potential UI use

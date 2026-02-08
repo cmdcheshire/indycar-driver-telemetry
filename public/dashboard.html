@@ -446,20 +446,6 @@
       gap: 2px;
     }
 
-    /* Cache status chiclet */
-    .cache-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      flex-shrink: 0;
-      display: none;
-      margin-left: 6px;
-    }
-    .cache-dot.loading { display: inline-block; background: var(--accent); animation: cache-pulse 1s infinite; }
-    .cache-dot.ready   { display: inline-block; background: var(--success); box-shadow: 0 0 4px var(--success); }
-    .cache-dot.warn    { display: inline-block; background: var(--warning); }
-    @keyframes cache-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-
     .overlay-instance-controls {
       display: flex;
       align-items: center;

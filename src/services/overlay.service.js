@@ -267,6 +267,7 @@ function getRundownItems(instanceId) {
             exposedSettings: el.exposedSettings || [],
             defaultValue: _getDefaultEditableValue(el),
             defaults: _getExposedDefaults(el),
+            props: el.props || {},
           }));
       } catch (_) { /* ignore parse errors */ }
     }
