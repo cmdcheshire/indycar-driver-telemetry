@@ -55,7 +55,7 @@ export async function loadCustomFonts(force = false) {
       const url = `/api/library/assets/${asset.id}/file`;
 
       _registerFontFace(family, url, asset.original_name || asset.filename);
-      _preloadFont(url);
+      _preloadFont(family);
       _registered.add(asset.id);
 
       _customFonts.push({
@@ -89,7 +89,7 @@ export function registerUploadedFont(assetId, originalName) {
 
   if (!_registered.has(assetId)) {
     _registerFontFace(family, url, originalName);
-    _preloadFont(url);
+    _preloadFont(family);
     _registered.add(assetId);
     _customFonts.push({ id: assetId, name: originalName, family, cssFamily, url });
   }
@@ -155,19 +155,14 @@ function _registerFontFace(family, url, filename) {
 }
 
 /**
- * Preload a font file so the browser caches it before it's needed.
- * Uses a <link rel="preload"> tag for efficient loading.
+ * Trigger eager font loading via the FontFace API.
+ * Uses document.fonts.load() which respects @font-face rules and follows
+ * redirects properly (unlike <link rel="preload"> which fails on S3 CORS redirects).
  */
-function _preloadFont(url) {
-  // Avoid duplicate preload links
-  if (document.querySelector(`link[href="${url}"]`)) return;
-
-  const link = document.createElement('link');
-  link.rel = 'preload';
-  link.href = url;
-  link.as = 'font';
-  link.crossOrigin = 'anonymous';
-  document.head.appendChild(link);
+function _preloadFont(family) {
+  if (document.fonts && document.fonts.load) {
+    document.fonts.load(`16px '${family}'`).catch(() => {});
+  }
 }
 
 /**

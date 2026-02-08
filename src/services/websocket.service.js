@@ -135,109 +135,124 @@ function handleOverlayUpgrade(request, socket, head, query) {
     return;
   }
 
-  const instance = overlayService.getInstanceByToken(token);
+  let instance;
+  try {
+    instance = overlayService.getInstanceByToken(token);
+  } catch (err) {
+    console.error('Overlay WS upgrade failed (getInstanceByToken):', err.message);
+    socket.write('HTTP/1.1 500 Internal Server Error\r\n\r\n');
+    socket.destroy();
+    return;
+  }
+
   if (!instance) {
+    console.warn(`Overlay WS rejected: no instance for token ${token.substring(0, 8)}...`);
     socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
     socket.destroy();
     return;
   }
 
   wss.handleUpgrade(request, socket, head, (ws) => {
-    const delayMs = (instance.delay_seconds || 0) * 1000;
-    const delayBuffer = new DelayBuffer(delayMs);
+    try {
+      const delayMs = (instance.delay_seconds || 0) * 1000;
+      const delayBuffer = new DelayBuffer(delayMs);
 
-    delayBuffer.onDrain = (message) => {
-      if (ws.readyState === 1) { // WebSocket.OPEN
-        ws.send(message);
-      }
-    };
-
-    overlayClients.set(ws, {
-      instanceId: instance.id,
-      name: instance.name,
-      accessToken: token,
-      delayBuffer,
-      connectedAt: new Date().toISOString(),
-    });
-
-    console.log(`Overlay WS connected: "${instance.name}" (${overlayClients.size} total)`);
-    broadcastOverlayClientChange();
-
-    ws.on('message', (raw) => {
-      try {
-        const msg = JSON.parse(raw.toString());
-        if (msg.type === 'heartbeat') {
-          const client = overlayClients.get(ws);
-          if (client) client.lastHeartbeat = Date.now();
-        } else if (msg.type === 'cacheStatus') {
-          const client = overlayClients.get(ws);
-          if (client) {
-            client.cacheStatus = msg.data;
-            broadcastOverlayClientChange();
-          }
+      delayBuffer.onDrain = (message) => {
+        if (ws.readyState === 1) { // WebSocket.OPEN
+          ws.send(message);
         }
-      } catch (e) { /* ignore */ }
-    });
+      };
 
-    ws.on('close', () => {
-      const client = overlayClients.get(ws);
-      if (client) client.delayBuffer.clear();
-      overlayClients.delete(ws);
-      console.log(`Overlay WS disconnected (${overlayClients.size} remaining)`);
+      overlayClients.set(ws, {
+        instanceId: instance.id,
+        name: instance.name,
+        accessToken: token,
+        delayBuffer,
+        connectedAt: new Date().toISOString(),
+      });
+
+      console.log(`Overlay WS connected: "${instance.name}" (${overlayClients.size} total)`);
       broadcastOverlayClientChange();
-    });
 
-    ws.on('error', () => {
-      const client = overlayClients.get(ws);
-      if (client) client.delayBuffer.clear();
-      overlayClients.delete(ws);
-      broadcastOverlayClientChange();
-    });
+      ws.on('message', (raw) => {
+        try {
+          const msg = JSON.parse(raw.toString());
+          if (msg.type === 'heartbeat') {
+            const client = overlayClients.get(ws);
+            if (client) client.lastHeartbeat = Date.now();
+          } else if (msg.type === 'cacheStatus') {
+            const client = overlayClients.get(ws);
+            if (client) {
+              client.cacheStatus = msg.data;
+              broadcastOverlayClientChange();
+            }
+          }
+        } catch (e) { /* ignore */ }
+      });
 
-    // Check for on-air rundown item — send its template instead of the
-    // instance's base template so overlay reconnects resume the active graphic
-    const onAirItem = overlayService.getOnAirItemForInstance(instance.id);
-    let initTemplate = instance.template_data;
-    let initVisible = false;
-    let initConfigOverrides = {};
+      ws.on('close', () => {
+        const client = overlayClients.get(ws);
+        if (client) client.delayBuffer.clear();
+        overlayClients.delete(ws);
+        console.log(`Overlay WS disconnected (${overlayClients.size} remaining)`);
+        broadcastOverlayClientChange();
+      });
 
-    if (onAirItem && onAirItem.template_data) {
-      initTemplate = onAirItem.template_data;
-      initVisible = true;
-      initConfigOverrides = onAirItem.config_overrides || {};
-    }
+      ws.on('error', () => {
+        const client = overlayClients.get(ws);
+        if (client) client.delayBuffer.clear();
+        overlayClients.delete(ws);
+        broadcastOverlayClientChange();
+      });
 
-    const initPayload = JSON.stringify({
-      type: 'init',
-      timestamp: Date.now(),
-      data: {
-        template: initTemplate,
-        config: {
-          delay: instance.delay_seconds,
-          visible: initVisible,
-          instanceId: instance.id,
-          targetCars: state.targetCarNumbers,
-          ...instance.instance_config,
-          ...initConfigOverrides,
-        },
-        referenceData: state.referenceData,
-        snapshot: {
-          telemetry: state.telemetry,
-          leaderboard: state.leaderboard,
-          lapData: state.lapData,
-          carStatus: state.carStatus,
-          pitStatus: state.pitStatus,
-          raceState: {
-            flagColor: state.flagColor,
-            currentLap: state.currentLap,
-            timeElapsed: state.timeElapsed,
-            lapsCompleted: state.lapsCompleted,
+      // Check for on-air rundown item — send its template instead of the
+      // instance's base template so overlay reconnects resume the active graphic
+      const onAirItem = overlayService.getOnAirItemForInstance(instance.id);
+      let initTemplate = instance.template_data;
+      let initVisible = false;
+      let initConfigOverrides = {};
+
+      if (onAirItem && onAirItem.template_data) {
+        initTemplate = onAirItem.template_data;
+        initVisible = true;
+        initConfigOverrides = onAirItem.config_overrides || {};
+      }
+
+      const initPayload = JSON.stringify({
+        type: 'init',
+        timestamp: Date.now(),
+        data: {
+          template: initTemplate,
+          config: {
+            delay: instance.delay_seconds,
+            visible: initVisible,
+            instanceId: instance.id,
+            targetCars: state.targetCarNumbers,
+            ...instance.instance_config,
+            ...initConfigOverrides,
+          },
+          referenceData: state.referenceData,
+          snapshot: {
+            telemetry: state.telemetry,
+            leaderboard: state.leaderboard,
+            lapData: state.lapData,
+            carStatus: state.carStatus,
+            pitStatus: state.pitStatus,
+            raceState: {
+              flagColor: state.flagColor,
+              currentLap: state.currentLap,
+              timeElapsed: state.timeElapsed,
+              lapsCompleted: state.lapsCompleted,
+            },
           },
         },
-      },
-    });
+      });
 
-    ws.send(initPayload);
+      ws.send(initPayload);
+    } catch (err) {
+      console.error('Overlay WS init error:', err.message);
+      try { ws.close(); } catch (_) { /* ignore */ }
+    }
   });
 }
 

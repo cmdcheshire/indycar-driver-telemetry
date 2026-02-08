@@ -32,6 +32,32 @@ const HEARTBEAT_INTERVAL_MS = 10_000;
 const RECONNECT_DELAY_MS    = 3_000;
 
 // ---------------------------------------------------------------------------
+// Connection status indicator
+// ---------------------------------------------------------------------------
+
+const statusEl = document.getElementById('overlay-status');
+const statusTextEl = statusEl ? statusEl.querySelector('.status-text') : null;
+let statusHideTimer = null;
+
+function setConnectionStatus(state, text) {
+  if (!statusEl) return;
+  statusEl.className = `${state} visible`;
+  if (statusTextEl) statusTextEl.textContent = text;
+
+  clearTimeout(statusHideTimer);
+
+  // Auto-hide "connected" indicator after 3 seconds
+  if (state === 'connected') {
+    statusHideTimer = setTimeout(() => {
+      statusEl.classList.remove('visible');
+    }, 3000);
+  }
+}
+
+// Show initial connecting state
+setConnectionStatus('connecting', 'Connecting...');
+
+// ---------------------------------------------------------------------------
 // Bootstrap
 // ---------------------------------------------------------------------------
 
@@ -72,22 +98,26 @@ function onOpen() {
   clearTimeout(reconnectTimer);
   startHeartbeat();
   initAssetCache(ws);
+  setConnectionStatus('connected', 'Connected');
 }
 
 function onClose(event) {
   console.warn('[overlay] WebSocket closed', event.code, event.reason);
   stopHeartbeat();
+  setConnectionStatus('disconnected', 'Disconnected — Reconnecting...');
   scheduleReconnect();
 }
 
 function onError(err) {
   console.error('[overlay] WebSocket error', err);
+  setConnectionStatus('disconnected', 'Connection Error');
 }
 
 function scheduleReconnect() {
   clearTimeout(reconnectTimer);
   reconnectTimer = setTimeout(() => {
     console.log('[overlay] Attempting reconnect...');
+    setConnectionStatus('connecting', 'Reconnecting...');
     connect();
   }, RECONNECT_DELAY_MS);
 }
