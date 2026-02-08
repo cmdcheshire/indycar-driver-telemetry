@@ -280,6 +280,8 @@ router.post('/rundown/:itemId/take', requireRole('operator', 'admin'), (req, res
     // Parse animation config from template_data
     let enterAnimation;
     let exitAnimation;
+    let enterElementAnims = [];
+    let exitElementAnims = [];
     if (templateData) {
       try {
         const tData = typeof templateData.template_data === 'string'
@@ -288,6 +290,31 @@ router.post('/rundown/:itemId/take', requireRole('operator', 'admin'), (req, res
         if (tData && tData.animation) {
           enterAnimation = tData.animation.enter && tData.animation.enter.type;
           exitAnimation = tData.animation.exit && tData.animation.exit.type;
+        }
+        // Extract per-element animation configs
+        if (tData && Array.isArray(tData.elements)) {
+          for (const el of tData.elements) {
+            if (!el.animation) continue;
+            const anim = el.animation;
+            if (anim.enter && anim.enter.type && anim.enter.type !== 'none') {
+              enterElementAnims.push({
+                elementId: el.id,
+                type: anim.enter.type,
+                duration: anim.enter.duration || 300,
+                delay: anim.enter.delay || 0,
+                easing: anim.enter.easing || 'power2.out',
+              });
+            }
+            if (anim.exit && anim.exit.type && anim.exit.type !== 'none') {
+              exitElementAnims.push({
+                elementId: el.id,
+                type: anim.exit.type,
+                duration: anim.exit.duration || 300,
+                delay: anim.exit.delay || 0,
+                easing: anim.exit.easing || 'power2.in',
+              });
+            }
+          }
         }
       } catch (_) { /* ignore parse errors, defaults will be used */ }
     }
@@ -312,7 +339,7 @@ router.post('/rundown/:itemId/take', requireRole('operator', 'admin'), (req, res
       ).all(instanceId, itemId);
 
       for (const onAirItem of onAirItems) {
-        wsService.sendOverlayVisibility(instanceId, false, exitAnimation);
+        wsService.sendOverlayVisibility(instanceId, false, exitAnimation, exitElementAnims);
         overlayService.setRundownItemOnAir(onAirItem.id, false);
       }
 
@@ -323,10 +350,10 @@ router.post('/rundown/:itemId/take', requireRole('operator', 'admin'), (req, res
         wsService.sendOverlayConfigUpdate(instanceId, configOverrides);
       }
 
-      wsService.sendOverlayVisibility(instanceId, true, enterAnimation);
+      wsService.sendOverlayVisibility(instanceId, true, enterAnimation, enterElementAnims);
       overlayService.setRundownItemOnAir(itemId, true);
     } else {
-      wsService.sendOverlayVisibility(instanceId, false, exitAnimation);
+      wsService.sendOverlayVisibility(instanceId, false, exitAnimation, exitElementAnims);
       overlayService.setRundownItemOnAir(itemId, false);
     }
 

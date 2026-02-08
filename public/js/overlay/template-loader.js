@@ -7,6 +7,7 @@
  */
 
 import { renderElement } from './element-renderer.js';
+import { migrateEasing } from '/js/shared/animation-presets.js';
 
 /**
  * Normalize a builder element into the flat format the renderer/binder expect.
@@ -40,17 +41,24 @@ function normalizeElement(el) {
     if (anim.enter) {
       if (anim.enter.type)     flat.enterAnimation         = anim.enter.type;
       if (anim.enter.duration) flat.enterAnimationDuration  = anim.enter.duration;
-      if (anim.enter.delay)    flat.enterAnimationDelay     = anim.enter.delay;
-      if (anim.enter.easing)   flat.enterAnimationEasing    = anim.enter.easing;
+      if (anim.enter.delay != null) flat.enterAnimationDelay = anim.enter.delay;
+      if (anim.enter.easing)   flat.enterAnimationEasing    = migrateEasing(anim.enter.easing);
     }
     if (anim.exit) {
       if (anim.exit.type)     flat.exitAnimation         = anim.exit.type;
       if (anim.exit.duration) flat.exitAnimationDuration  = anim.exit.duration;
-      if (anim.exit.easing)   flat.exitAnimationEasing    = anim.exit.easing;
+      if (anim.exit.delay != null) flat.exitAnimationDelay = anim.exit.delay;
+      if (anim.exit.easing)   flat.exitAnimationEasing    = migrateEasing(anim.exit.easing);
     }
     if (anim.update) {
       if (anim.update.type)     flat.updateAnimation         = anim.update.type;
       if (anim.update.duration) flat.updateAnimationDuration  = anim.update.duration;
+    }
+    if (anim.emphasis) {
+      if (anim.emphasis.type)     flat.emphasisType     = anim.emphasis.type;
+      if (anim.emphasis.duration) flat.emphasisDuration  = anim.emphasis.duration;
+      if (anim.emphasis.trigger)  flat.emphasisTrigger   = anim.emphasis.trigger;
+      if (anim.emphasis.repeat != null) flat.emphasisRepeat = anim.emphasis.repeat;
     }
   }
 

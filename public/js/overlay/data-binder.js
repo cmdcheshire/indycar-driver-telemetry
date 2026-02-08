@@ -6,7 +6,7 @@
  */
 
 import { updateElementText, updateElementStyle } from './element-renderer.js';
-import { AnimationEngine } from './animation-engine.js';
+import { GsapAnimationEngine } from './gsap-animation-engine.js';
 
 // ---------------------------------------------------------------------------
 // Formatting utilities
@@ -93,8 +93,8 @@ export class DataBinder {
      */
     this._previousRanks = new Map();
 
-    /** Animation engine instance for position transitions */
-    this._animationEngine = new AnimationEngine(domMap);
+    /** Animation engine instance for position transitions and emphasis */
+    this._animationEngine = new GsapAnimationEngine(domMap);
   }
 
   // -----------------------------------------------------------------------
@@ -194,6 +194,18 @@ export class DataBinder {
 
         // Evaluate conditional styles
         this.evaluateConditionalStyles(element, rawValue, domNode);
+
+        // Trigger emphasis animation on value change
+        if (element.emphasisType && element.emphasisType !== 'none') {
+          const trigger = element.emphasisTrigger || 'onChange';
+          if (trigger === 'onChange') {
+            this._animationEngine.playEmphasis(element.id, {
+              type: element.emphasisType,
+              duration: element.emphasisDuration || 400,
+              repeat: element.emphasisRepeat || 0,
+            });
+          }
+        }
       }
     }
   }

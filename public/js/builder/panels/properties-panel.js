@@ -11,6 +11,13 @@ import {
   resolveBindingPreview,
 } from '../data-binding.js';
 
+import {
+  ENTER_ANIMATION_CATEGORIES,
+  EXIT_ANIMATION_CATEGORIES,
+  EMPHASIS_ANIMATIONS,
+  GSAP_EASINGS,
+} from '/js/shared/animation-presets.js';
+
 /** @type {Function} */
 let onPropertyChange = null;
 /** @type {Function} */
@@ -25,33 +32,6 @@ let currentElement = null;
 /** Persisted collapsed state for sections */
 const _sectionState = {};
 
-const ENTER_ANIMATIONS = [
-  { value: 'none', label: 'None' },
-  { value: 'fadeIn', label: 'Fade In' },
-  { value: 'slideInLeft', label: 'Slide In Left' },
-  { value: 'slideInRight', label: 'Slide In Right' },
-  { value: 'slideInUp', label: 'Slide In Up' },
-  { value: 'slideInDown', label: 'Slide In Down' },
-  { value: 'scaleIn', label: 'Scale In' },
-];
-
-const EXIT_ANIMATIONS = [
-  { value: 'none', label: 'None' },
-  { value: 'fadeOut', label: 'Fade Out' },
-  { value: 'slideOutLeft', label: 'Slide Out Left' },
-  { value: 'slideOutRight', label: 'Slide Out Right' },
-  { value: 'slideOutUp', label: 'Slide Out Up' },
-  { value: 'slideOutDown', label: 'Slide Out Down' },
-  { value: 'scaleOut', label: 'Scale Out' },
-];
-
-const EASINGS = [
-  { value: 'ease', label: 'Ease' },
-  { value: 'ease-in', label: 'Ease In' },
-  { value: 'ease-out', label: 'Ease Out' },
-  { value: 'ease-in-out', label: 'Ease In-Out' },
-  { value: 'linear', label: 'Linear' },
-];
 
 /**
  * Initialize the properties panel.
@@ -430,13 +410,14 @@ function _addDataProps(p) {
 
 function _addAnimationSection(element) {
   const anim = element.animation || {};
-  const enter = anim.enter || { type: 'none', duration: 300, easing: 'ease' };
-  const exit = anim.exit || { type: 'none', duration: 300, easing: 'ease' };
-  const update = anim.update || { type: 'none', duration: 300, easing: 'ease' };
+  const enter = anim.enter || { type: 'none', duration: 300, delay: 0, easing: 'power2.out' };
+  const exit = anim.exit || { type: 'none', duration: 300, delay: 0, easing: 'power2.in' };
+  const update = anim.update || { type: 'none', duration: 300, easing: 'power1.inOut' };
+  const emphasis = anim.emphasis || { type: 'none', duration: 400, trigger: 'onChange', repeat: 0 };
 
   const children = [
-    // Enter animation
-    _selectInput('Enter', enter.type, ENTER_ANIMATIONS, (v) => {
+    // ── Enter ──
+    _groupedSelectInput('Enter', enter.type, ENTER_ANIMATION_CATEGORIES, (v) => {
       _emitAnimation({ enter: { ...enter, type: v } });
     }),
     _row([
@@ -444,15 +425,19 @@ function _addAnimationSection(element) {
         _emitAnimation({ enter: { ...enter, duration: v } });
       }),
     ]),
-    _selectInput('Easing', enter.easing, EASINGS, (v) => {
+    _row([
+      _rangeInput('Delay', enter.delay || 0, 0, 2000, 50, 'ms', (v) => {
+        _emitAnimation({ enter: { ...enter, delay: v } });
+      }),
+    ]),
+    _groupedEasingSelect('Easing', enter.easing, (v) => {
       _emitAnimation({ enter: { ...enter, easing: v } });
     }),
 
-    // Separator
     _separator(),
 
-    // Exit animation
-    _selectInput('Exit', exit.type, EXIT_ANIMATIONS, (v) => {
+    // ── Exit ──
+    _groupedSelectInput('Exit', exit.type, EXIT_ANIMATION_CATEGORIES, (v) => {
       _emitAnimation({ exit: { ...exit, type: v } });
     }),
     _row([
@@ -460,12 +445,17 @@ function _addAnimationSection(element) {
         _emitAnimation({ exit: { ...exit, duration: v } });
       }),
     ]),
-    _selectInput('Easing', exit.easing, EASINGS, (v) => {
+    _row([
+      _rangeInput('Delay', exit.delay || 0, 0, 2000, 50, 'ms', (v) => {
+        _emitAnimation({ exit: { ...exit, delay: v } });
+      }),
+    ]),
+    _groupedEasingSelect('Easing', exit.easing, (v) => {
       _emitAnimation({ exit: { ...exit, easing: v } });
     }),
   ];
 
-  // Update animation (for data elements)
+  // ── Update transition (data elements only) ──
   if (element.type === 'data') {
     children.push(
       _separator(),
@@ -478,18 +468,67 @@ function _addAnimationSection(element) {
       _rangeInput('Duration', update.duration, 50, 1000, 25, 'ms', (v) => {
         _emitAnimation({ update: { ...update, duration: v } });
       }),
+
+      // ── Emphasis (data elements only) ──
+      _separator(),
+      _selectInput('Emphasis', emphasis.type, EMPHASIS_ANIMATIONS, (v) => {
+        _emitAnimation({ emphasis: { ...emphasis, type: v } });
+      }),
     );
+
+    // Only show emphasis options if an emphasis type is selected
+    if (emphasis.type && emphasis.type !== 'none') {
+      children.push(
+        _rangeInput('Duration', emphasis.duration, 100, 2000, 50, 'ms', (v) => {
+          _emitAnimation({ emphasis: { ...emphasis, duration: v } });
+        }),
+        _selectInput('Trigger', emphasis.trigger || 'onChange', [
+          { value: 'onChange', label: 'On Value Change' },
+          { value: 'always', label: 'Always (loop)' },
+        ], (v) => {
+          _emitAnimation({ emphasis: { ...emphasis, trigger: v } });
+        }),
+        _numberInput('Repeat', emphasis.repeat || 0, 0, 10, 1, (v) => {
+          _emitAnimation({ emphasis: { ...emphasis, repeat: v } });
+        }),
+      );
+    }
   }
 
-  // Preview button
-  const previewBtn = document.createElement('button');
-  previewBtn.className = 'anim-preview-btn';
-  previewBtn.title = 'Preview enter animation';
-  previewBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6z"/></svg>';
-  previewBtn.addEventListener('click', () => {
+  // ── Preview buttons ──
+  const previewRow = document.createElement('div');
+  previewRow.style.cssText = 'display:flex; gap:4px; margin-top:4px;';
+
+  const enterPreviewBtn = document.createElement('button');
+  enterPreviewBtn.className = 'anim-preview-btn';
+  enterPreviewBtn.title = 'Preview enter animation';
+  enterPreviewBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6z"/></svg> Enter';
+  enterPreviewBtn.addEventListener('click', () => {
     if (onQuickAction) onQuickAction(element.id, 'previewAnimation');
   });
-  children.push(previewBtn);
+  previewRow.appendChild(enterPreviewBtn);
+
+  const exitPreviewBtn = document.createElement('button');
+  exitPreviewBtn.className = 'anim-preview-btn';
+  exitPreviewBtn.title = 'Preview exit animation';
+  exitPreviewBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M12 2L2 8l10 6z"/></svg> Exit';
+  exitPreviewBtn.addEventListener('click', () => {
+    if (onQuickAction) onQuickAction(element.id, 'previewExitAnimation');
+  });
+  previewRow.appendChild(exitPreviewBtn);
+
+  if (element.type === 'data' && emphasis.type && emphasis.type !== 'none') {
+    const emphPreviewBtn = document.createElement('button');
+    emphPreviewBtn.className = 'anim-preview-btn';
+    emphPreviewBtn.title = 'Preview emphasis animation';
+    emphPreviewBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="8" r="5"/></svg> Emphasis';
+    emphPreviewBtn.addEventListener('click', () => {
+      if (onQuickAction) onQuickAction(element.id, 'previewEmphasis');
+    });
+    previewRow.appendChild(emphPreviewBtn);
+  }
+
+  children.push(previewRow);
 
   _addCollapsibleGroup('Animation', children, true);
 }
@@ -645,6 +684,89 @@ function _selectInput(label, value, options, onChange) {
   return wrapper;
 }
 
+/**
+ * Grouped select input using <optgroup> for categorized animation presets.
+ * categories: [{ name: string, presets: [{ value, label }] }]
+ */
+function _groupedSelectInput(label, value, categories, onChange) {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'prop-row';
+  wrapper.style.flex = '1';
+
+  const lbl = document.createElement('label');
+  lbl.textContent = label;
+  wrapper.appendChild(lbl);
+
+  const select = document.createElement('select');
+  select.className = 'select';
+  select.style.flex = '1';
+
+  // Always have a "None" option first
+  const noneOpt = document.createElement('option');
+  noneOpt.value = 'none';
+  noneOpt.textContent = 'None';
+  if (value === 'none' || !value) noneOpt.selected = true;
+  select.appendChild(noneOpt);
+
+  for (const cat of categories) {
+    const group = document.createElement('optgroup');
+    group.label = cat.name;
+    for (const preset of cat.presets) {
+      const opt = document.createElement('option');
+      opt.value = preset.value;
+      opt.textContent = preset.label;
+      if (preset.value === value) opt.selected = true;
+      group.appendChild(opt);
+    }
+    select.appendChild(group);
+  }
+
+  select.addEventListener('change', () => onChange(select.value));
+  wrapper.appendChild(select);
+  return wrapper;
+}
+
+/**
+ * Grouped easing select with optgroups based on the `group` field in GSAP_EASINGS.
+ */
+function _groupedEasingSelect(label, value, onChange) {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'prop-row';
+  wrapper.style.flex = '1';
+
+  const lbl = document.createElement('label');
+  lbl.textContent = label;
+  wrapper.appendChild(lbl);
+
+  const select = document.createElement('select');
+  select.className = 'select';
+  select.style.flex = '1';
+
+  // Group easings by their group field
+  const groups = new Map();
+  for (const e of GSAP_EASINGS) {
+    if (!groups.has(e.group)) groups.set(e.group, []);
+    groups.get(e.group).push(e);
+  }
+
+  for (const [groupName, easings] of groups) {
+    const group = document.createElement('optgroup');
+    group.label = groupName;
+    for (const easing of easings) {
+      const opt = document.createElement('option');
+      opt.value = easing.value;
+      opt.textContent = easing.label;
+      if (easing.value === value) opt.selected = true;
+      group.appendChild(opt);
+    }
+    select.appendChild(group);
+  }
+
+  select.addEventListener('change', () => onChange(select.value));
+  wrapper.appendChild(select);
+  return wrapper;
+}
+
 function _colorInputWithSwatch(label, value, onChange) {
   const wrapper = document.createElement('div');
   wrapper.className = 'color-swatch-wrapper';
@@ -778,9 +900,10 @@ function _emitProp(propChanges) {
 function _emitAnimation(animChanges) {
   if (!currentElement) return;
   const current = currentElement.animation || {
-    enter: { type: 'none', duration: 300, easing: 'ease' },
-    exit: { type: 'none', duration: 300, easing: 'ease' },
-    update: { type: 'none', duration: 300, easing: 'ease' },
+    enter: { type: 'none', duration: 300, delay: 0, easing: 'power2.out' },
+    exit: { type: 'none', duration: 300, delay: 0, easing: 'power2.in' },
+    update: { type: 'none', duration: 300, easing: 'power1.inOut' },
+    emphasis: { type: 'none', duration: 400, trigger: 'onChange', repeat: 0 },
   };
   const merged = { ...current };
   for (const [key, val] of Object.entries(animChanges)) {

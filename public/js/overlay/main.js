@@ -8,7 +8,7 @@
 import { buildOverlay, normalizeElements } from './template-loader.js';
 import { updateElementText, updateElementStyle } from './element-renderer.js';
 import { DataBinder } from './data-binder.js';
-import { AnimationEngine } from './animation-engine.js';
+import { GsapAnimationEngine } from './gsap-animation-engine.js';
 
 // ---------------------------------------------------------------------------
 // State
@@ -176,7 +176,7 @@ function handleInit(msg) {
 
   // Create binder + animation engine
   dataBinder      = new DataBinder(template.elements, domMap);
-  animationEngine = new AnimationEngine(domMap);
+  animationEngine = new GsapAnimationEngine(domMap);
 
   // Apply target cars from config
   if (config && config.targetCars) {
@@ -241,30 +241,44 @@ function handleDataUpdate(msg) {
 function handleVisibility(msg) {
   if (!animationEngine) return;
 
-  const { visible, elementId, animation } = msg.data || {};
+  const { visible, elementId, animation, elementAnimations } = msg.data || {};
 
   if (elementId) {
     // Show/hide a specific element
     if (visible) {
-      animationEngine.show(elementId, animation);
+      animationEngine.show(elementId, { type: animation });
     } else {
-      animationEngine.hide(elementId, animation);
+      animationEngine.hide(elementId, { type: animation });
+    }
+  } else if (elementAnimations && elementAnimations.length > 0) {
+    // Per-element orchestrated animation
+    const rootEl = document.getElementById('overlay-root');
+    if (visible) {
+      rootEl.style.display = '';
+      animationEngine.showAll(elementAnimations);
+    } else {
+      animationEngine.hideAll(elementAnimations);
+      // Hide root after the longest animation completes
+      const maxDuration = elementAnimations.reduce(
+        (max, ea) => Math.max(max, (ea.delay || 0) + (ea.duration || 300)), 0
+      );
+      setTimeout(() => { rootEl.style.display = 'none'; }, maxDuration + 50);
     }
   } else {
-    // Show/hide the entire overlay
+    // Show/hide the entire overlay with a single animation
     const rootEl = document.getElementById('overlay-root');
     if (visible) {
       rootEl.style.display = '';
       if (animation) {
-        rootEl.className = `anim-${animation}`;
+        animationEngine.show('__root__', { type: animation, duration: 400, easing: 'power2.out' });
       }
     } else {
       if (animation) {
-        rootEl.className = `anim-${animation}`;
-        rootEl.addEventListener('animationend', () => {
-          rootEl.style.display = 'none';
-          rootEl.className = '';
-        }, { once: true });
+        animationEngine.hide('__root__', {
+          type: animation, duration: 300, easing: 'power2.in',
+        });
+        // Delay hiding the root until animation completes
+        setTimeout(() => { rootEl.style.display = 'none'; }, 350);
       } else {
         rootEl.style.display = 'none';
       }
@@ -297,7 +311,7 @@ function handleTemplateUpdate(msg) {
   domMap = buildOverlay(rootEl, template, referenceData || {});
 
   dataBinder      = new DataBinder(template.elements, domMap);
-  animationEngine = new AnimationEngine(domMap);
+  animationEngine = new GsapAnimationEngine(domMap);
 
   if (currentConfig && currentConfig.targetCars) {
     dataBinder.setTargetCars(currentConfig.targetCars);

@@ -36,93 +36,7 @@
       height: 100%;
     }
 
-    /* ── Enter Animations ── */
-    @keyframes slideInLeft {
-      from { transform: translateX(-100%); opacity: 0; }
-      to   { transform: translateX(0);     opacity: 1; }
-    }
-
-    @keyframes slideInRight {
-      from { transform: translateX(100%); opacity: 0; }
-      to   { transform: translateX(0);    opacity: 1; }
-    }
-
-    @keyframes slideInUp {
-      from { transform: translateY(100%); opacity: 0; }
-      to   { transform: translateY(0);    opacity: 1; }
-    }
-
-    @keyframes slideInDown {
-      from { transform: translateY(-100%); opacity: 0; }
-      to   { transform: translateY(0);     opacity: 1; }
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to   { opacity: 1; }
-    }
-
-    @keyframes scaleIn {
-      from { transform: scale(0); opacity: 0; }
-      to   { transform: scale(1); opacity: 1; }
-    }
-
-    /* ── Exit Animations ── */
-    @keyframes slideOutLeft {
-      from { transform: translateX(0);     opacity: 1; }
-      to   { transform: translateX(-100%); opacity: 0; }
-    }
-
-    @keyframes slideOutRight {
-      from { transform: translateX(0);    opacity: 1; }
-      to   { transform: translateX(100%); opacity: 0; }
-    }
-
-    @keyframes slideOutUp {
-      from { transform: translateY(0);     opacity: 1; }
-      to   { transform: translateY(-100%); opacity: 0; }
-    }
-
-    @keyframes slideOutDown {
-      from { transform: translateY(0);    opacity: 1; }
-      to   { transform: translateY(100%); opacity: 0; }
-    }
-
-    @keyframes fadeOut {
-      from { opacity: 1; }
-      to   { opacity: 0; }
-    }
-
-    @keyframes scaleOut {
-      from { transform: scale(1); opacity: 1; }
-      to   { transform: scale(0); opacity: 0; }
-    }
-
-    /* ── Crossfade helper for value transitions ── */
-    @keyframes crossfadeOut {
-      from { opacity: 1; }
-      to   { opacity: 0; }
-    }
-
-    @keyframes crossfadeIn {
-      from { opacity: 0; }
-      to   { opacity: 1; }
-    }
-
-    /* ── Animation utility classes ── */
-    .anim-slideInLeft   { animation: slideInLeft   0.4s ease-out forwards; }
-    .anim-slideInRight  { animation: slideInRight  0.4s ease-out forwards; }
-    .anim-slideInUp     { animation: slideInUp     0.4s ease-out forwards; }
-    .anim-slideInDown   { animation: slideInDown   0.4s ease-out forwards; }
-    .anim-fadeIn        { animation: fadeIn         0.3s ease-out forwards; }
-    .anim-scaleIn       { animation: scaleIn       0.3s ease-out forwards; }
-
-    .anim-slideOutLeft  { animation: slideOutLeft  0.4s ease-in forwards; }
-    .anim-slideOutRight { animation: slideOutRight 0.4s ease-in forwards; }
-    .anim-slideOutUp    { animation: slideOutUp    0.4s ease-in forwards; }
-    .anim-slideOutDown  { animation: slideOutDown  0.4s ease-in forwards; }
-    .anim-fadeOut       { animation: fadeOut        0.3s ease-in forwards; }
-    .anim-scaleOut      { animation: scaleOut      0.3s ease-in forwards; }
+    /* Animations handled by GSAP — no CSS @keyframes needed */
   </style>
 </head>
 <body>
@@ -132,6 +46,7 @@
     // Extract the access token from the URL path: /overlay/{accessToken}
     window.__OVERLAY_ACCESS_TOKEN__ = window.location.pathname.split('/overlay/')[1] || '';
   </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
   <script type="module" src="/js/overlay/main.js"></script>
 </body>
 </html>

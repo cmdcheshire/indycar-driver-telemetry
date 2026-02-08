@@ -306,11 +306,15 @@ function updateOverlayDelay(instanceId, delaySeconds) {
   }
 }
 
-function sendOverlayVisibility(instanceId, visible, animation) {
+function sendOverlayVisibility(instanceId, visible, animation, elementAnimations) {
   const message = JSON.stringify({
     type: 'visibility',
     timestamp: Date.now(),
-    data: { visible, animation: animation || (visible ? 'fadeIn' : 'fadeOut') },
+    data: {
+      visible,
+      animation: animation || (visible ? 'fadeIn' : 'fadeOut'),
+      elementAnimations: elementAnimations || [],
+    },
   });
 
   for (const [ws, client] of overlayClients) {

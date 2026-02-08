@@ -70,17 +70,7 @@ export function renderElement(element, referenceData = {}) {
     requestAnimationFrame(() => fitTextToElement(wrapper));
   }
 
-  // ── Enter animation ──
-  if (element.enterAnimation) {
-    wrapper.classList.add(`anim-${element.enterAnimation}`);
-    if (element.enterAnimationDuration) {
-      wrapper.style.animationDuration = `${element.enterAnimationDuration}ms`;
-    }
-    if (element.enterAnimationDelay) {
-      wrapper.style.animationDelay = `${element.enterAnimationDelay}ms`;
-      wrapper.style.opacity = '0'; // hidden until animation fires
-    }
-  }
+  // Enter animations are handled by GsapAnimationEngine — no CSS classes needed
 
   return wrapper;
 }

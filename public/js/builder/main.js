@@ -27,6 +27,7 @@ import {
   getAllGroupIds,
 } from './group-manager.js';
 import { resolveBindingPreview } from './data-binding.js';
+import { getEnterPreset, getExitPreset, getEmphasisPreset } from '/js/shared/animation-presets.js';
 
 import { initToolsPanel, getActiveTool, setActiveTool, handleToolShortcut } from './panels/tools-panel.js';
 import { initLayerPanel, renderLayerPanel } from './panels/layer-panel.js';
@@ -35,6 +36,7 @@ import { renderDataPanel } from './panels/data-panel.js';
 import { initDataPanel } from './panels/data-panel.js';
 import { initPreviewPanel, destroyPreviewPanel } from './panels/preview-panel.js';
 import { showPresetPicker, hidePresetPicker } from './panels/data-presets.js';
+import { initTimelinePanel, renderTimelinePanel } from './panels/timeline-panel.js';
 
 /* ================================================================ *
  *  State
@@ -260,14 +262,23 @@ function _initPanels() {
           const el = _getElementById(id);
           const node = canvas.getNode(id);
           if (el && node && el.animation?.enter?.type && el.animation.enter.type !== 'none') {
-            const cls = `anim-${el.animation.enter.type}`;
-            const duration = el.animation.enter.duration || 300;
-            node.style.animationDuration = `${duration}ms`;
-            node.classList.add(cls);
-            node.addEventListener('animationend', () => {
-              node.classList.remove(cls);
-              node.style.animationDuration = '';
-            }, { once: true });
+            _previewGsapEnter(node, el.animation.enter);
+          }
+          break;
+        }
+        case 'previewExitAnimation': {
+          const el = _getElementById(id);
+          const node = canvas.getNode(id);
+          if (el && node && el.animation?.exit?.type && el.animation.exit.type !== 'none') {
+            _previewGsapExit(node, el.animation.exit);
+          }
+          break;
+        }
+        case 'previewEmphasis': {
+          const el = _getElementById(id);
+          const node = canvas.getNode(id);
+          if (el && node && el.animation?.emphasis?.type && el.animation.emphasis.type !== 'none') {
+            _previewGsapEmphasis(node, el.animation.emphasis);
           }
           break;
         }
@@ -288,6 +299,18 @@ function _initPanels() {
     onDataUpdate: (id, changes) => {
       _updateElementInPlace(id, changes);
       canvas.updateElement(id, changes);
+    },
+  });
+
+  // Timeline
+  initTimelinePanel({
+    getElements: () => elements,
+    onAnimationChange: (id, animChanges) => {
+      _applyPropertyChange(id, { animation: animChanges });
+    },
+    onElementSelect: (id) => {
+      selection.selectElement(id);
+      setActiveTool('select');
     },
   });
 
@@ -1195,6 +1218,7 @@ function _onSelectionChanged(selectedIds) {
 
 function _refreshPanels() {
   renderLayerPanel();
+  renderTimelinePanel();
 
   const selectedIds = selection.getSelected();
   if (selectedIds.length === 1) {
@@ -1239,7 +1263,7 @@ function _updateElementInPlace(id, changes) {
     if (key === 'props' && typeof value === 'object') {
       el.props = { ...el.props, ...value };
     } else if (key === 'animation' && typeof value === 'object') {
-      // Deep merge animation sub-objects (enter, exit, update)
+      // Deep merge animation sub-objects (enter, exit, update, emphasis)
       el.animation = el.animation || {};
       for (const [sub, subVal] of Object.entries(value)) {
         el.animation[sub] = { ...(el.animation[sub] || {}), ...subVal };
@@ -1247,5 +1271,64 @@ function _updateElementInPlace(id, changes) {
     } else {
       el[key] = value;
     }
+  }
+}
+
+/* ================================================================ *
+ *  GSAP Preview Helpers
+ * ================================================================ */
+
+function _previewGsapEnter(node, enterConfig) {
+  const preset = getEnterPreset(enterConfig.type);
+  if (!preset) return;
+
+  const duration = (enterConfig.duration || 300) / 1000;
+  const easing = enterConfig.easing || 'power2.out';
+
+  // Kill any active preview tweens on this node
+  gsap.killTweensOf(node);
+
+  gsap.from(node, {
+    ...preset.vars,
+    duration,
+    ease: easing,
+    clearProps: preset.clearProps || 'all',
+  });
+}
+
+function _previewGsapExit(node, exitConfig) {
+  const preset = getExitPreset(exitConfig.type);
+  if (!preset) return;
+
+  const duration = (exitConfig.duration || 300) / 1000;
+  const easing = exitConfig.easing || 'power2.in';
+
+  gsap.killTweensOf(node);
+
+  // Animate to the exit state, then snap back
+  gsap.to(node, {
+    ...preset.vars,
+    duration,
+    ease: easing,
+    onComplete: () => {
+      gsap.set(node, { clearProps: 'all' });
+    },
+  });
+}
+
+function _previewGsapEmphasis(node, emphasisConfig) {
+  const preset = getEmphasisPreset(emphasisConfig.type);
+  if (!preset) return;
+
+  gsap.killTweensOf(node);
+
+  const tl = gsap.timeline();
+  for (const frame of preset.keyframes) {
+    const { duration: frameDur, ease: frameEase, ...props } = frame;
+    tl.to(node, {
+      ...props,
+      duration: frameDur || 0.15,
+      ease: frameEase || 'none',
+    });
   }
 }

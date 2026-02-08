@@ -50,9 +50,10 @@ export function createTextElement(x = 10, y = 10) {
       fitText: false,
     },
     animation: {
-      enter: { type: 'none', duration: 300, easing: 'ease' },
-      exit: { type: 'none', duration: 300, easing: 'ease' },
-      update: { type: 'none', duration: 300, easing: 'ease' },
+      enter: { type: 'none', duration: 300, delay: 0, easing: 'power2.out' },
+      exit: { type: 'none', duration: 300, delay: 0, easing: 'power2.in' },
+      update: { type: 'none', duration: 300, easing: 'power1.inOut' },
+      emphasis: { type: 'none', duration: 400, trigger: 'onChange', repeat: 0 },
     },
   };
 }
@@ -85,9 +86,10 @@ export function createImageElement(x = 10, y = 10) {
       fit: 'contain', // contain | cover | fill
     },
     animation: {
-      enter: { type: 'none', duration: 300, easing: 'ease' },
-      exit: { type: 'none', duration: 300, easing: 'ease' },
-      update: { type: 'none', duration: 300, easing: 'ease' },
+      enter: { type: 'none', duration: 300, delay: 0, easing: 'power2.out' },
+      exit: { type: 'none', duration: 300, delay: 0, easing: 'power2.in' },
+      update: { type: 'none', duration: 300, easing: 'power1.inOut' },
+      emphasis: { type: 'none', duration: 400, trigger: 'onChange', repeat: 0 },
     },
   };
 }
@@ -122,9 +124,10 @@ export function createShapeElement(x = 10, y = 10) {
       borderRadius: 0,
     },
     animation: {
-      enter: { type: 'none', duration: 300, easing: 'ease' },
-      exit: { type: 'none', duration: 300, easing: 'ease' },
-      update: { type: 'none', duration: 300, easing: 'ease' },
+      enter: { type: 'none', duration: 300, delay: 0, easing: 'power2.out' },
+      exit: { type: 'none', duration: 300, delay: 0, easing: 'power2.in' },
+      update: { type: 'none', duration: 300, easing: 'power1.inOut' },
+      emphasis: { type: 'none', duration: 400, trigger: 'onChange', repeat: 0 },
     },
   };
 }
@@ -178,9 +181,10 @@ export function createDataElement(x = 10, y = 10) {
       _previewValue: '',
     },
     animation: {
-      enter: { type: 'none', duration: 300, easing: 'ease' },
-      exit: { type: 'none', duration: 300, easing: 'ease' },
-      update: { type: 'none', duration: 300, easing: 'ease' },
+      enter: { type: 'none', duration: 300, delay: 0, easing: 'power2.out' },
+      exit: { type: 'none', duration: 300, delay: 0, easing: 'power2.in' },
+      update: { type: 'none', duration: 300, easing: 'power1.inOut' },
+      emphasis: { type: 'none', duration: 400, trigger: 'onChange', repeat: 0 },
     },
   };
 }

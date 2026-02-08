@@ -12,15 +12,16 @@
     }
 
     /* ================================================================ *
-     *  Layout — 2-row grid (toolbar + content)
+     *  Layout — 3-row grid (toolbar + content + timeline)
      * ================================================================ */
     .builder-layout {
       display: grid;
-      grid-template-rows: 48px 1fr;
+      grid-template-rows: 48px 1fr auto;
       grid-template-columns: 240px 1fr 280px;
       grid-template-areas:
         "toolbar toolbar toolbar"
-        "left-sidebar canvas right-sidebar";
+        "left-sidebar canvas right-sidebar"
+        "timeline timeline timeline";
       height: 100vh;
       width: 100vw;
     }
@@ -614,7 +615,8 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 28px;
+      gap: 4px;
+      padding: 4px 8px;
       height: 28px;
       border: 1px solid var(--border);
       border-radius: var(--radius-sm);
@@ -623,6 +625,7 @@
       cursor: pointer;
       flex-shrink: 0;
       transition: all var(--transition);
+      font-size: 0.7rem;
     }
 
     .anim-preview-btn:hover {
@@ -886,6 +889,179 @@
     }
 
     .preset-custom-link:hover { color: var(--accent); }
+
+    /* ================================================================ *
+     *  Timeline Panel
+     * ================================================================ */
+    .timeline-panel {
+      grid-area: timeline;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      max-height: 200px;
+      transition: max-height 0.2s ease;
+    }
+
+    .timeline-panel.collapsed {
+      max-height: 32px;
+    }
+
+    .timeline-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 12px;
+      height: 32px;
+      flex-shrink: 0;
+      border-bottom: 1px solid var(--border);
+      user-select: none;
+    }
+
+    .timeline-header-title {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+    }
+
+    .timeline-header-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 2px 8px;
+      font-size: 0.7rem;
+      transition: all var(--transition);
+    }
+
+    .timeline-header-btn:hover {
+      background: var(--accent-light);
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .timeline-toggle-btn {
+      margin-left: auto;
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      font-size: 0.6rem;
+      padding: 2px 6px;
+    }
+
+    .timeline-ruler {
+      position: relative;
+      height: 18px;
+      flex-shrink: 0;
+      border-bottom: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    .timeline-tick {
+      position: absolute;
+      top: 0;
+      font-size: 0.6rem;
+      color: var(--text-dim);
+      border-left: 1px solid var(--border);
+      padding: 2px 4px;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .timeline-body {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    .timeline-track {
+      display: flex;
+      align-items: center;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+
+    .timeline-track-label {
+      flex-shrink: 0;
+      padding: 0 8px;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      cursor: pointer;
+      line-height: 24px;
+    }
+
+    .timeline-track-label:hover {
+      color: var(--text);
+    }
+
+    .timeline-track-area {
+      flex: 1;
+      position: relative;
+      height: 24px;
+    }
+
+    .timeline-bar {
+      position: absolute;
+      top: 3px;
+      height: 18px;
+      background: var(--accent);
+      border-radius: 3px;
+      opacity: 0.7;
+      cursor: grab;
+      display: flex;
+      align-items: center;
+      overflow: hidden;
+      transition: opacity 0.15s;
+      min-width: 8px;
+    }
+
+    .timeline-bar:hover {
+      opacity: 1;
+    }
+
+    .timeline-bar.dragging,
+    .timeline-bar.resizing {
+      opacity: 1;
+      cursor: grabbing;
+    }
+
+    .timeline-bar-label {
+      font-size: 0.6rem;
+      color: #fff;
+      padding: 0 6px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      pointer-events: none;
+    }
+
+    .timeline-bar-resize {
+      position: absolute;
+      right: 0;
+      top: 0;
+      width: 6px;
+      height: 100%;
+      cursor: ew-resize;
+      background: rgba(255,255,255,0.2);
+      border-radius: 0 3px 3px 0;
+    }
+
+    .timeline-bar-resize:hover {
+      background: rgba(255,255,255,0.4);
+    }
+
+    .timeline-empty {
+      padding: 8px 12px;
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      text-align: center;
+    }
   </style>
 </head>
 <body>
@@ -998,6 +1174,23 @@
       </div>
     </div>
 
+    <!-- Timeline Panel -->
+    <div class="timeline-panel collapsed" id="timelinePanel">
+      <div class="timeline-header">
+        <span class="timeline-header-title">Timeline</span>
+        <button class="timeline-header-btn" id="timelineModeToggle">Enter</button>
+        <button class="timeline-header-btn" id="timelinePlayAll">
+          <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6z"/></svg>
+          Play All
+        </button>
+        <button class="timeline-toggle-btn" id="timelineToggle" title="Toggle timeline panel">&#9650;</button>
+      </div>
+      <div class="timeline-ruler" id="timelineRuler"></div>
+      <div class="timeline-body">
+        <div id="timelineTracks"></div>
+      </div>
+    </div>
+
   </div>
 
   <!-- Template Dropdown (positioned by JS) -->
@@ -1049,6 +1242,7 @@
     </div>
   </div>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
   <script type="module" src="/js/builder/main.js"></script>
 </body>
 </html>
