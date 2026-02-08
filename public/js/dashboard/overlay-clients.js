@@ -115,7 +115,7 @@ function renderOverlayInstances() {
     meta.className = 'overlay-instance-meta';
     const statusLabel = isConnected ? 'Connected' : 'Offline';
     const statusColor = isConnected ? 'var(--success)' : 'var(--text-muted)';
-    meta.innerHTML = `<span class="status-dot ${isConnected ? 'online' : 'offline'}" style="width:6px;height:6px;margin-right:4px;vertical-align:middle;"></span><span style="color:${statusColor}">${statusLabel}</span>`;
+    meta.innerHTML = `<span class="status-dot ${isConnected ? 'online' : 'offline'}" style="width:6px;height:6px;margin-right:4px;vertical-align:middle;"></span><span style="color:${statusColor}">${statusLabel}</span><span class="cache-dot" data-cache-instance="${inst.id}"></span>`;
     info.appendChild(meta);
 
     // URL row
@@ -409,6 +409,40 @@ async function createInstance() {
     console.error('Create instance error:', err);
     showToast('Failed to create instance', 'error');
   }
+}
+
+// ── Cache Status Indicators ──
+
+/**
+ * Update cache indicator dots on overlay instance cards.
+ * @param {Object} clientDataByInstance - Map of instanceId -> { cacheStatus }
+ */
+export function updateCacheStatus(clientDataByInstance) {
+  document.querySelectorAll('.cache-dot').forEach(dot => {
+    const instanceId = parseInt(dot.dataset.cacheInstance, 10);
+    const client = clientDataByInstance[instanceId];
+    const status = client?.cacheStatus;
+
+    // Reset
+    dot.className = 'cache-dot';
+    dot.title = '';
+
+    if (!status) return;
+
+    const { total, loaded, failed, ready } = status;
+    if (total === 0) return;
+
+    if (ready && failed === 0) {
+      dot.classList.add('ready');
+      dot.title = `${loaded}/${total} assets cached`;
+    } else if (ready && failed > 0) {
+      dot.classList.add('warn');
+      dot.title = `${loaded}/${total} cached, ${failed} failed`;
+    } else {
+      dot.classList.add('loading');
+      dot.title = `Caching assets: ${loaded}/${total}`;
+    }
+  });
 }
 
 // ── Helpers ──

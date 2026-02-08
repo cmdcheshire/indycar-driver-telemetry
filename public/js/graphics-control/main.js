@@ -1,11 +1,10 @@
 /**
- * Graphics Control page entry point.
+ * Live Rundowns page entry point.
  * Manages state, initializes all panels, and coordinates data flow between them.
  */
-import { initAuth, isAuthenticated, getUser, getToken, logout, authenticatedFetch } from '/js/modules/auth.js';
+import { initAuth, isAuthenticated, getUser, logout, authenticatedFetch } from '/js/modules/auth.js';
 import { showToast } from '/js/modules/ui.js';
-import { WebSocketClient } from '/js/modules/websocket-client.js';
-import { initOutputBrowser, renderOutputBrowser, getSelectedOutputId, updateCacheStatus } from '/js/graphics-control/output-browser.js';
+import { initOutputBrowser, renderOutputBrowser, getSelectedOutputId } from '/js/graphics-control/output-browser.js';
 import { initRundownPanel, renderRundown, clearRundown } from '/js/graphics-control/rundown-panel.js';
 import { initTemplateLibrary, renderTemplateLibrary } from '/js/graphics-control/template-library.js';
 import { initPreviewPanel, updatePreview, clearPreview } from '/js/graphics-control/preview-panel.js';
@@ -16,8 +15,6 @@ let folders = [];
 let instances = [];
 let templates = [];
 let selectedOutputId = null;
-let wsClient = null;
-let overlayClientCache = {};  // instanceId -> client data (including cacheStatus)
 
 // ── Data Fetching ──
 
@@ -70,7 +67,6 @@ async function fetchRundown(instanceId) {
 async function refreshOutputBrowser() {
   await Promise.all([fetchFolders(), fetchInstances()]);
   renderOutputBrowser(folders, instances);
-  updateCacheIndicators();
 }
 
 async function refreshRundown() {
@@ -165,34 +161,6 @@ function populateUserInfo() {
   }
 }
 
-// ── WebSocket (for live overlay client status) ──
-
-function connectWebSocket() {
-  const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const token = getToken();
-  const url = `${proto}//${window.location.host}/ws/dashboard?token=${encodeURIComponent(token)}`;
-
-  wsClient = new WebSocketClient(url);
-
-  wsClient.on('overlayClientChange', (data) => {
-    overlayClientCache = {};
-    for (const client of (data.clients || [])) {
-      // Use worst-case (lowest loaded ratio) if multiple overlays per instance
-      const existing = overlayClientCache[client.instanceId];
-      if (!existing || (client.cacheStatus && (!existing.cacheStatus || client.cacheStatus.loaded < existing.cacheStatus.loaded))) {
-        overlayClientCache[client.instanceId] = client;
-      }
-    }
-    updateCacheIndicators();
-  });
-
-  wsClient.connect();
-}
-
-function updateCacheIndicators() {
-  updateCacheStatus(overlayClientCache);
-}
-
 // ── Bootstrap ──
 
 async function init() {
@@ -230,12 +198,10 @@ async function init() {
   // Load initial data
   await refreshAll();
 
-  // Connect WebSocket for live overlay client status (cache indicators)
-  connectWebSocket();
 }
 
 // ── Start ──
 init().catch((err) => {
-  console.error('Graphics Control initialization failed:', err);
-  showToast('Failed to initialize Graphics Control', 'error');
+  console.error('Live Rundowns initialization failed:', err);
+  showToast('Failed to initialize Live Rundowns', 'error');
 });

@@ -156,7 +156,6 @@ function renderOutputItem(inst, inFolder) {
          data-instance-id="${inst.id}">
       <div class="gc-output-icon">${ICONS.output}</div>
       <div class="gc-output-name">${escapeHtml(inst.name)}</div>
-      <div class="gc-cache-dot" data-cache-instance="${inst.id}"></div>
       <div class="gc-on-air-dot ${hasOnAir ? 'active' : ''}"></div>
       <button class="gc-btn-dots" data-dots-id="${inst.id}" title="Options">${ICONS.dots}</button>
     </div>
@@ -493,40 +492,6 @@ async function handleDeleteFolder(folder) {
     console.error('Failed to delete folder:', err);
     showToast(err.message || 'Failed to delete folder', 'error');
   }
-}
-
-// ── Cache Status Indicators ──
-
-/**
- * Update cache indicator dots on output items based on live overlay client data.
- * @param {Object} clientDataByInstance - Map of instanceId -> { cacheStatus }
- */
-export function updateCacheStatus(clientDataByInstance) {
-  document.querySelectorAll('.gc-cache-dot').forEach(dot => {
-    const instanceId = parseInt(dot.dataset.cacheInstance, 10);
-    const client = clientDataByInstance[instanceId];
-    const status = client?.cacheStatus;
-
-    // Reset
-    dot.className = 'gc-cache-dot';
-    dot.title = '';
-
-    if (!status) return; // No overlay connected or no cache data
-
-    const { total, loaded, failed, pending, ready } = status;
-    if (total === 0) return; // No images — no indicator needed
-
-    if (ready && failed === 0) {
-      dot.classList.add('ready');
-      dot.title = `${loaded}/${total} assets cached`;
-    } else if (ready && failed > 0) {
-      dot.classList.add('warn');
-      dot.title = `${loaded}/${total} cached, ${failed} failed`;
-    } else {
-      dot.classList.add('loading');
-      dot.title = `Caching assets: ${loaded}/${total}`;
-    }
-  });
 }
 
 // ── Utilities ──

@@ -3,7 +3,7 @@
  *
  * Extracts image URLs from template definitions, pre-fetches them into
  * the browser cache using new Image(), and reports cache readiness back
- * to the server via WebSocket so the graphics control page can show
+ * to the server via WebSocket so the dashboard can show
  * confidence indicators.
  */
 

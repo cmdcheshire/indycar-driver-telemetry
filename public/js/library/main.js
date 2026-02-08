@@ -357,14 +357,14 @@ function renderFolderTree() {
       if (folderId === 'root') {
         selectFolder(null);
       } else {
-        selectFolder(folderId);
-        // Toggle expand
-        if (expandedFolders.has(folderId)) {
-          expandedFolders.delete(folderId);
+        const id = parseInt(folderId, 10);
+        // Toggle expand first so selectFolder's re-render picks it up
+        if (expandedFolders.has(id)) {
+          expandedFolders.delete(id);
         } else {
-          expandedFolders.add(folderId);
+          expandedFolders.add(id);
         }
-        renderFolderTree();
+        selectFolder(id);
       }
     });
   });
@@ -373,7 +373,7 @@ function renderFolderTree() {
   folderTreeEl.querySelectorAll('.lib-folder-action-btn[data-action="rename"]').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
-      const folderId = btn.dataset.folderId;
+      const folderId = parseInt(btn.dataset.folderId, 10);
       const folder = folders.find(f => f.id === folderId);
       if (!folder) return;
       const newName = await showPrompt('Rename Folder', 'Folder name', folder.name);
@@ -386,12 +386,45 @@ function renderFolderTree() {
   folderTreeEl.querySelectorAll('.lib-folder-action-btn[data-action="delete"]').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
-      const folderId = btn.dataset.folderId;
+      const folderId = parseInt(btn.dataset.folderId, 10);
       const folder = folders.find(f => f.id === folderId);
       if (!folder) return;
       const confirmed = await showConfirm('Delete Folder', `Delete "${folder.name}" and all its contents?`);
       if (confirmed) {
         await deleteFolder(folderId);
+      }
+    });
+  });
+
+  // Drag-and-drop: folders as drop targets
+  folderTreeEl.querySelectorAll('.lib-folder-row').forEach(row => {
+    row.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      row.classList.add('drag-over');
+    });
+    row.addEventListener('dragleave', () => {
+      row.classList.remove('drag-over');
+    });
+    row.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      row.classList.remove('drag-over');
+      const assetId = e.dataTransfer.getData('text/asset-id');
+      if (!assetId) return;
+      const folderId = row.dataset.folderId;
+      const targetFolderId = folderId === 'root' ? null : parseInt(folderId, 10);
+      try {
+        const token = getToken();
+        const res = await fetch(`/api/library/assets/${assetId}/move`, {
+          method: 'PUT',
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ folder_id: targetFolderId }),
+        });
+        if (!res.ok) throw new Error('Move failed');
+        await loadAssets(currentFolderId);
+        renderAssetGrid();
+        showToast('Asset moved', 'success', 2000);
+      } catch (err) {
+        console.error('Failed to move asset:', err);
       }
     });
   });
@@ -490,7 +523,7 @@ function renderAssetGrid() {
     }
 
     html += `
-      <div class="lib-asset-card${selectedAssetId === asset.id ? ' selected' : ''}" data-asset-id="${asset.id}">
+      <div class="lib-asset-card${selectedAssetId === asset.id ? ' selected' : ''}" data-asset-id="${asset.id}" draggable="true">
         <button class="lib-asset-dots" data-asset-id="${asset.id}" title="More actions">&#8943;</button>
         <div class="lib-asset-thumb">${thumbHtml}</div>
         <div class="lib-asset-info">
@@ -533,6 +566,14 @@ function renderAssetGrid() {
       const assetId = card.dataset.assetId;
       const asset = assets.find(a => a.id === assetId);
       if (asset) showAssetContextMenu(e, asset);
+    });
+  });
+
+  // Drag-and-drop: assets as drag sources
+  assetGridEl.querySelectorAll('.lib-asset-card').forEach(card => {
+    card.addEventListener('dragstart', (e) => {
+      e.dataTransfer.setData('text/asset-id', card.dataset.assetId);
+      e.dataTransfer.effectAllowed = 'move';
     });
   });
 }

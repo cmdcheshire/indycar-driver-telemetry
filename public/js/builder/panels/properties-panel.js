@@ -299,13 +299,13 @@ async function _triggerImageUpload() {
     if (!file) return;
 
     const formData = new FormData();
-    formData.append('image', file);
+    formData.append('files', file);
 
     try {
       const { getToken } = await import('/js/modules/auth.js');
       const token = getToken();
 
-      const res = await fetch('/api/assets/upload/overlays', {
+      const res = await fetch('/api/library/assets/upload', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
         body: formData,
@@ -314,10 +314,11 @@ async function _triggerImageUpload() {
       if (!res.ok) throw new Error('Upload failed');
       const data = await res.json();
 
-      _emitProp({ src: data.path });
+      const url = data.assets && data.assets[0] ? data.assets[0].url : '';
+      _emitProp({ src: url });
 
       if (currentElement) {
-        currentElement.props = { ...(currentElement.props || {}), src: data.path };
+        currentElement.props = { ...(currentElement.props || {}), src: url };
         updatePropertiesPanel(currentElement);
       }
     } catch (err) {

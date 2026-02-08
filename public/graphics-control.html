@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Graphics Control - IndyCar Telemetry</title>
+  <title>Live Rundowns - IndyCar Telemetry</title>
   <link rel="stylesheet" href="/css/main.css">
   <style>
     html, body {
@@ -332,19 +332,6 @@
       animation: pulse 2s infinite;
     }
 
-    /* Cache indicator dot */
-    .gc-cache-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      flex-shrink: 0;
-      display: none;
-    }
-    .gc-cache-dot.loading { display: block; background: var(--accent); animation: gc-pulse 1s infinite; }
-    .gc-cache-dot.ready   { display: block; background: var(--success); box-shadow: 0 0 4px var(--success); }
-    .gc-cache-dot.warn    { display: block; background: var(--warning); }
-    @keyframes gc-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-
     /* ================================================================ *
      *  Context Menu
      * ================================================================ */
@@ -643,43 +630,74 @@
       color: var(--text-muted);
     }
 
-    .gc-template-filters {
+    /* Template browser layout */
+    .gc-template-browser {
+      flex: 1;
       display: flex;
-      gap: 4px;
+      overflow: hidden;
     }
 
-    .gc-filter-tab {
-      padding: 3px 10px;
-      font-size: 0.7rem;
-      font-weight: 500;
-      color: var(--text-dim);
-      background: transparent;
-      border: 1px solid transparent;
-      border-radius: var(--radius-sm);
-      cursor: pointer;
-      transition: all var(--transition);
+    .gc-template-tree {
+      flex: 0 0 200px;
+      overflow-y: auto;
+      border-right: 1px solid var(--border);
+      padding: 8px;
     }
 
-    .gc-filter-tab:hover {
-      color: var(--text-muted);
-      background: var(--surface-alt);
-    }
-
-    .gc-filter-tab.active {
-      color: var(--accent);
-      background: var(--accent-light);
-      border-color: var(--accent);
-    }
-
-    .gc-template-grid {
+    .gc-template-list {
       flex: 1;
       overflow-y: auto;
       padding: 12px 16px;
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
       gap: 8px;
       align-content: start;
     }
+
+    /* Template folder tree */
+    .gc-tmpl-folder-item { margin-bottom: 1px; }
+
+    .gc-tmpl-folder-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 5px 8px;
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      font-weight: 500;
+      border-radius: var(--radius-sm);
+      transition: all var(--transition);
+      user-select: none;
+    }
+
+    .gc-tmpl-folder-row:hover { background: var(--surface-alt); color: var(--text); }
+    .gc-tmpl-folder-row.selected { background: var(--accent-light); color: var(--accent); }
+    .gc-tmpl-folder-row.drag-over { background: var(--accent-light); outline: 1px dashed var(--accent); }
+
+    .gc-tmpl-folder-chevron {
+      width: 14px;
+      height: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform var(--transition);
+      flex-shrink: 0;
+    }
+    .gc-tmpl-folder-chevron.open { transform: rotate(90deg); }
+    .gc-tmpl-folder-chevron svg { width: 10px; height: 10px; }
+    .gc-tmpl-folder-chevron.empty { visibility: hidden; }
+
+    .gc-tmpl-folder-name {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .gc-tmpl-folder-children { padding-left: 14px; display: none; }
+    .gc-tmpl-folder-children.open { display: block; }
 
     .gc-template-card {
       display: flex;
@@ -1029,7 +1047,7 @@
         <nav class="top-bar-nav">
           <a href="/dashboard">Dashboard</a>
           <a href="/templates">Templates</a>
-          <a href="/graphics-control" class="active">Graphics</a>
+          <a href="/graphics-control" class="active">Live Rundowns</a>
           <a href="/drivers">Drivers</a>
           <a href="/simulator">Simulator</a>
           <a href="/library">Library</a>
@@ -1094,13 +1112,12 @@
       <div class="gc-template-library">
         <div class="gc-template-header">
           <h3>Template Library</h3>
-          <div class="gc-template-filters" id="templateFilters">
-            <button class="gc-filter-tab active" data-filter="all">All</button>
-          </div>
+          <button class="btn btn-sm" id="templateNewFolder">+ Folder</button>
         </div>
-        <div class="gc-template-grid" id="templateGrid">
-          <div class="gc-empty-state">
-            <span>Loading templates...</span>
+        <div class="gc-template-browser">
+          <div class="gc-template-tree" id="templateTree"></div>
+          <div class="gc-template-list" id="templateList">
+            <div class="gc-empty-state"><span>Loading templates...</span></div>
           </div>
         </div>
       </div>

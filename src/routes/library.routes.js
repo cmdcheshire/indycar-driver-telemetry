@@ -254,6 +254,25 @@ router.delete('/assets/:id', authenticateToken, requireRole('admin'), async (req
   }
 });
 
+// PUT /api/library/assets/:id/move - move asset to a different folder
+router.put('/assets/:id/move', authenticateToken, requireRole('operator', 'admin'), (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const { folder_id } = req.body;
+
+    const asset = getDb().prepare('SELECT * FROM library_assets WHERE id = ?').get(id);
+    if (!asset) return res.status(404).json({ error: 'Asset not found' });
+
+    getDb().prepare('UPDATE library_assets SET folder_id = ? WHERE id = ?')
+      .run(folder_id ?? null, id);
+
+    const updated = getDb().prepare('SELECT * FROM library_assets WHERE id = ?').get(id);
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to move asset' });
+  }
+});
+
 // GET /api/library/assets/:id/file - serve the actual file (public, no auth)
 // S3 mode: 302 redirect to a presigned URL (24h expiry, cached by browser)
 // Local mode: serve directly from disk

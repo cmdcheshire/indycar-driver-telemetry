@@ -441,7 +441,24 @@
     .overlay-instance-meta {
       font-size: 0.7rem;
       color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 2px;
     }
+
+    /* Cache status chiclet */
+    .cache-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      display: none;
+      margin-left: 6px;
+    }
+    .cache-dot.loading { display: inline-block; background: var(--accent); animation: cache-pulse 1s infinite; }
+    .cache-dot.ready   { display: inline-block; background: var(--success); box-shadow: 0 0 4px var(--success); }
+    .cache-dot.warn    { display: inline-block; background: var(--warning); }
+    @keyframes cache-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
     .overlay-instance-controls {
       display: flex;
@@ -672,7 +689,7 @@
         <nav class="top-bar-nav">
           <a href="/dashboard" class="active">Dashboard</a>
           <a href="/templates">Templates</a>
-          <a href="/graphics-control">Graphics</a>
+          <a href="/graphics-control">Live Rundowns</a>
           <a href="/drivers">Drivers</a>
           <a href="/simulator">Simulator</a>
           <a href="/library">Library</a>
