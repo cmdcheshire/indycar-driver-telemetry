@@ -418,40 +418,40 @@ function _addAnimationSection(element) {
   const children = [
     // ── Enter ──
     _groupedSelectInput('Enter', enter.type, ENTER_ANIMATION_CATEGORIES, (v) => {
-      _emitAnimation({ enter: { ...enter, type: v } });
+      _emitAnimation({ enter: { type: v } });
     }),
     _row([
       _rangeInput('Duration', enter.duration, 100, 2000, 50, 'ms', (v) => {
-        _emitAnimation({ enter: { ...enter, duration: v } });
+        _emitAnimation({ enter: { duration: v } });
       }),
     ]),
     _row([
       _rangeInput('Delay', enter.delay || 0, 0, 2000, 50, 'ms', (v) => {
-        _emitAnimation({ enter: { ...enter, delay: v } });
+        _emitAnimation({ enter: { delay: v } });
       }),
     ]),
     _groupedEasingSelect('Easing', enter.easing, (v) => {
-      _emitAnimation({ enter: { ...enter, easing: v } });
+      _emitAnimation({ enter: { easing: v } });
     }),
 
     _separator(),
 
     // ── Exit ──
     _groupedSelectInput('Exit', exit.type, EXIT_ANIMATION_CATEGORIES, (v) => {
-      _emitAnimation({ exit: { ...exit, type: v } });
+      _emitAnimation({ exit: { type: v } });
     }),
     _row([
       _rangeInput('Duration', exit.duration, 100, 2000, 50, 'ms', (v) => {
-        _emitAnimation({ exit: { ...exit, duration: v } });
+        _emitAnimation({ exit: { duration: v } });
       }),
     ]),
     _row([
       _rangeInput('Delay', exit.delay || 0, 0, 2000, 50, 'ms', (v) => {
-        _emitAnimation({ exit: { ...exit, delay: v } });
+        _emitAnimation({ exit: { delay: v } });
       }),
     ]),
     _groupedEasingSelect('Easing', exit.easing, (v) => {
-      _emitAnimation({ exit: { ...exit, easing: v } });
+      _emitAnimation({ exit: { easing: v } });
     }),
   ];
 
@@ -463,16 +463,16 @@ function _addAnimationSection(element) {
         { value: 'none', label: 'None' },
         { value: 'crossfade', label: 'Crossfade' },
       ], (v) => {
-        _emitAnimation({ update: { ...update, type: v } });
+        _emitAnimation({ update: { type: v } });
       }),
       _rangeInput('Duration', update.duration, 50, 1000, 25, 'ms', (v) => {
-        _emitAnimation({ update: { ...update, duration: v } });
+        _emitAnimation({ update: { duration: v } });
       }),
 
       // ── Emphasis (data elements only) ──
       _separator(),
       _selectInput('Emphasis', emphasis.type, EMPHASIS_ANIMATIONS, (v) => {
-        _emitAnimation({ emphasis: { ...emphasis, type: v } });
+        _emitAnimation({ emphasis: { type: v } });
       }),
     );
 
@@ -480,16 +480,16 @@ function _addAnimationSection(element) {
     if (emphasis.type && emphasis.type !== 'none') {
       children.push(
         _rangeInput('Duration', emphasis.duration, 100, 2000, 50, 'ms', (v) => {
-          _emitAnimation({ emphasis: { ...emphasis, duration: v } });
+          _emitAnimation({ emphasis: { duration: v } });
         }),
         _selectInput('Trigger', emphasis.trigger || 'onChange', [
           { value: 'onChange', label: 'On Value Change' },
           { value: 'always', label: 'Always (loop)' },
         ], (v) => {
-          _emitAnimation({ emphasis: { ...emphasis, trigger: v } });
+          _emitAnimation({ emphasis: { trigger: v } });
         }),
         _numberInput('Repeat', emphasis.repeat || 0, 0, 10, 1, (v) => {
-          _emitAnimation({ emphasis: { ...emphasis, repeat: v } });
+          _emitAnimation({ emphasis: { repeat: v } });
         }),
       );
     }
