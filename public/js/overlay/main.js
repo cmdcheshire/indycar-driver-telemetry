@@ -195,10 +195,18 @@ function handleInit(msg) {
 // Live data
 // ---------------------------------------------------------------------------
 
+// Map WS event names to binding source names used in templates
+const DATA_TYPE_MAP = {
+  lap: 'lapData',
+  pit: 'pitStatus',
+  flag: 'raceState',
+};
+
 function handleDataUpdate(msg) {
   if (!dataBinder) return;
 
-  dataBinder.updateData(msg.type, msg.data);
+  const dataType = DATA_TYPE_MAP[msg.type] || msg.type;
+  dataBinder.updateData(dataType, msg.data);
   dataBinder.resolveBindings();
 }
 

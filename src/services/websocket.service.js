@@ -30,7 +30,7 @@ function initialize(server) {
   });
 
   // Subscribe to race-state events for broadcasting
-  state.on('telemetry', (data) => broadcastToDashboard('telemetry', data.full));
+  state.on('telemetry', (data) => broadcastToAll('telemetry', data.full));
   state.on('leaderboard', (data) => broadcastToAll('leaderboard', data));
   state.on('lap', (data) => broadcastToAll('lap', data));
   state.on('pit', (data) => broadcastToAll('pit', data));
