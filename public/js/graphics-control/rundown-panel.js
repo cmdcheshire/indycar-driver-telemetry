@@ -6,6 +6,7 @@
  */
 import { authenticatedFetch } from '/js/modules/auth.js';
 import { showToast, showConfirm } from '/js/modules/ui.js';
+import { getSettingDef, EXPOSABLE_SETTINGS } from '/js/shared/exposed-settings.js';
 
 let callbacks = { onRefresh: null };
 let currentInstanceId = null;
@@ -117,25 +118,89 @@ export function renderRundown(instanceId, items, overlayUrl) {
     const elementOverrides = config.elementOverrides || {};
     const exposedElements = item.exposed_elements || [];
 
-    // Build exposed element rows
+    // Build exposed element rows with proper controls per setting
     let exposedHtml = '';
     if (exposedElements.length > 0) {
       exposedHtml = '<div class="gc-config-divider">Exposed Elements</div>';
       for (const el of exposedElements) {
         const override = elementOverrides[el.id] || {};
-        const currentValue = _getOverrideValue(override, el) || el.defaultValue || '';
-        const inputType = el.type === 'shape' ? 'color' : 'text';
-        const placeholder = el.type === 'image' ? 'Image URL' : el.defaultValue || '';
+        const settings = el.exposedSettings || [];
+        const defaults = el.defaults || {};
 
-        exposedHtml += `
-          <div class="gc-config-row">
-            <span class="gc-config-label" title="${escapeHtml(el.name)}">${escapeHtml(el.name)}</span>
-            <input type="${inputType}" class="gc-config-input gc-exposed-input"
-                   data-element-id="${el.id}" data-element-type="${el.type}" data-item-id="${item.id}"
-                   placeholder="${escapeHtml(placeholder)}" value="${escapeHtml(currentValue)}"
-                   ${inputType === 'text' ? 'style="flex:1;width:auto;"' : ''}>
-          </div>
-        `;
+        // If element has specific exposed settings, render each one
+        if (settings.length > 0) {
+          exposedHtml += `<div class="gc-exposed-group"><span class="gc-exposed-group-label">${escapeHtml(el.name)}</span>`;
+          for (const settingKey of settings) {
+            const def = getSettingDef(el.type, settingKey);
+            if (!def) continue;
+
+            const currentVal = override[settingKey] !== undefined ? override[settingKey] : (defaults[settingKey] || '');
+
+            if (def.inputType === 'color') {
+              exposedHtml += `
+                <div class="gc-config-row">
+                  <span class="gc-config-label">${escapeHtml(def.label)}</span>
+                  <input type="color" class="gc-config-input gc-exposed-input"
+                         data-element-id="${el.id}" data-prop-key="${settingKey}" data-item-id="${item.id}"
+                         value="${escapeHtml(String(currentVal || '#ffffff'))}">
+                </div>`;
+            } else if (def.inputType === 'number') {
+              exposedHtml += `
+                <div class="gc-config-row">
+                  <span class="gc-config-label">${escapeHtml(def.label)}</span>
+                  <input type="number" class="gc-config-input gc-exposed-input"
+                         data-element-id="${el.id}" data-prop-key="${settingKey}" data-item-id="${item.id}"
+                         min="${def.min || 0}" max="${def.max || 999}" step="${def.step || 1}"
+                         value="${currentVal}" style="flex:1;width:auto;">
+                </div>`;
+            } else if (def.inputType === 'select' && def.options) {
+              const opts = def.options.map(o =>
+                `<option value="${escapeHtml(o.value)}"${String(currentVal) === String(o.value) ? ' selected' : ''}>${escapeHtml(o.label)}</option>`
+              ).join('');
+              exposedHtml += `
+                <div class="gc-config-row">
+                  <span class="gc-config-label">${escapeHtml(def.label)}</span>
+                  <select class="gc-config-input gc-exposed-input"
+                          data-element-id="${el.id}" data-prop-key="${settingKey}" data-item-id="${item.id}"
+                          style="flex:1;width:auto;">${opts}</select>
+                </div>`;
+            } else if (def.inputType === 'textarea') {
+              exposedHtml += `
+                <div class="gc-config-row" style="align-items:flex-start">
+                  <span class="gc-config-label">${escapeHtml(def.label)}</span>
+                  <textarea class="gc-config-input gc-exposed-input"
+                            data-element-id="${el.id}" data-prop-key="${settingKey}" data-item-id="${item.id}"
+                            rows="2" style="flex:1;width:auto;resize:vertical;">${escapeHtml(String(currentVal))}</textarea>
+                </div>`;
+            } else {
+              exposedHtml += `
+                <div class="gc-config-row">
+                  <span class="gc-config-label">${escapeHtml(def.label)}</span>
+                  <input type="text" class="gc-config-input gc-exposed-input"
+                         data-element-id="${el.id}" data-prop-key="${settingKey}" data-item-id="${item.id}"
+                         placeholder="${escapeHtml(String(defaults[settingKey] || ''))}"
+                         value="${escapeHtml(String(currentVal))}" style="flex:1;width:auto;">
+                </div>`;
+            }
+          }
+          exposedHtml += '</div>';
+        } else {
+          // Legacy fallback: single input per element (no exposedSettings defined)
+          const currentValue = _getOverrideValue(override, el) || el.defaultValue || '';
+          const inputType = el.type === 'shape' ? 'color' : 'text';
+          const placeholder = el.type === 'image' ? 'Image URL' : el.defaultValue || '';
+          const legacyKey = _getEditablePropKey(el.type);
+
+          exposedHtml += `
+            <div class="gc-config-row">
+              <span class="gc-config-label" title="${escapeHtml(el.name)}">${escapeHtml(el.name)}</span>
+              <input type="${inputType}" class="gc-config-input gc-exposed-input"
+                     data-element-id="${el.id}" data-prop-key="${legacyKey}" data-item-id="${item.id}"
+                     placeholder="${escapeHtml(placeholder)}" value="${escapeHtml(currentValue)}"
+                     ${inputType === 'text' ? 'style="flex:1;width:auto;"' : ''}>
+            </div>
+          `;
+        }
       }
     }
 
@@ -266,16 +331,21 @@ async function saveConfigOverrides(itemId) {
     }
   });
 
-  // Gather exposed element overrides
+  // Gather exposed element overrides (supports multiple settings per element)
   const elementOverrides = {};
   const exposedInputs = document.querySelectorAll(`.gc-exposed-input[data-item-id="${itemId}"]`);
   exposedInputs.forEach(input => {
     const elId = input.dataset.elementId;
-    const elType = input.dataset.elementType;
+    const propKey = input.dataset.propKey;
     const value = input.value.trim();
-    if (elId && value) {
-      const propKey = _getEditablePropKey(elType);
-      elementOverrides[elId] = { [propKey]: value };
+    if (elId && propKey && value) {
+      if (!elementOverrides[elId]) elementOverrides[elId] = {};
+      // Coerce numbers for numeric fields
+      if (input.type === 'number') {
+        elementOverrides[elId][propKey] = parseFloat(value);
+      } else {
+        elementOverrides[elId][propKey] = value;
+      }
     }
   });
 

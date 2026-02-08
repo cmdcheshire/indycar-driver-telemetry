@@ -20,11 +20,16 @@ import {
   cloneElement,
 } from './element-factory.js';
 import {
-  groupElements,
-  ungroupElement,
+  createGroup,
+  deleteGroup,
+  renameGroup,
+  toggleGroupExpanded,
+  toggleGroupVisibility,
+  toggleGroupLocked,
   getGroupMembers,
-  getElementGroupId,
-  getAllGroupIds,
+  getAllGroupDescendantElements,
+  ungroupElements,
+  buildLayerTree,
 } from './group-manager.js';
 import { resolveBindingPreview } from './data-binding.js';
 import { getEnterPreset, getExitPreset, getEmphasisPreset } from '/js/shared/animation-presets.js';
@@ -43,6 +48,9 @@ import { initTimelinePanel, renderTimelinePanel } from './panels/timeline-panel.
 
 /** @type {object[]} Master elements array */
 let elements = [];
+
+/** @type {object[]} Master groups array (separate from elements) */
+let groups = [];
 
 /** @type {object} Timeline settings (persisted with template) */
 let timelineData = {
@@ -84,7 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
   _loadFromUrl();
 
   // Initial history snapshot
-  history.push(elements);
+  history.push(_snapshotState());
 
   console.log('Overlay Builder initialized');
 });
@@ -216,6 +224,41 @@ function _initPanels() {
     onMoveBackward: (id) => _moveElementZIndex(id, 'backward'),
     onGroup: () => _groupSelected(),
     onUngroup: () => _ungroupSelected(),
+    // Group callbacks
+    onGroupSelect: (groupId) => {
+      // Select all elements within the group
+      const memberIds = getAllGroupDescendantElements(groupId, elements, groups);
+      if (memberIds.length > 0) {
+        selection.multiSelect(memberIds);
+      }
+      setActiveTool('select');
+    },
+    onGroupToggle: (groupId) => {
+      toggleGroupExpanded(groupId, groups);
+      _refreshPanels();
+    },
+    onGroupVisibilityToggle: (groupId) => {
+      toggleGroupVisibility(groupId, elements, groups);
+      // Update canvas for all affected elements
+      for (const el of elements) {
+        canvas.updateElement(el.id, { visible: el.visible });
+      }
+      _pushHistory();
+      _refreshPanels();
+    },
+    onGroupLockToggle: (groupId) => {
+      toggleGroupLocked(groupId, elements, groups);
+      // Update canvas for all affected elements
+      for (const el of elements) {
+        canvas.updateElement(el.id, { locked: el.locked });
+      }
+      _pushHistory();
+      _refreshPanels();
+    },
+    onGroupRename: (groupId, newName) => {
+      renameGroup(groupId, newName, groups);
+      _debouncedPushHistory();
+    },
   });
 
   // Properties
@@ -330,8 +373,6 @@ function _initPanels() {
     },
   });
 
-  // Load template list
-  _refreshTemplateList();
 }
 
 function _initToolbar() {
@@ -355,12 +396,20 @@ function _initToolbar() {
     _zoomToFit();
   });
 
+  // Snap toggle
+  const snapBtn = document.getElementById('btnSnap');
+  if (snapBtn) {
+    snapBtn.addEventListener('click', () => {
+      snapEngine.enabled = !snapEngine.enabled;
+      snapBtn.classList.toggle('active', snapEngine.enabled);
+      snapBtn.title = snapEngine.enabled ? 'Snapping On (click to disable)' : 'Snapping Off (click to enable)';
+    });
+  }
+
   // Group / Ungroup
   document.getElementById('btnGroupLayers').addEventListener('click', () => _groupSelected());
   document.getElementById('btnUngroupLayers').addEventListener('click', () => _ungroupSelected());
 
-  // Template dropdown
-  _initTemplateDropdown();
 }
 
 function _initKeyboardShortcuts() {
@@ -499,9 +548,9 @@ function _initCanvasInteractions() {
       if (e.shiftKey) {
         selection.toggleSelection(id);
       } else {
-        // If clicking on an element in a group, select all group members
+        // If clicking on an element in a group, select all group members (including nested)
         if (el.groupId) {
-          const groupMembers = getGroupMembers(el.groupId, elements);
+          const groupMembers = getAllGroupDescendantElements(el.groupId, elements, groups);
           selection.multiSelect(groupMembers);
         } else {
           selection.selectElement(id);
@@ -741,21 +790,27 @@ function _groupSelected() {
     showToast('Select 2 or more elements to group', 'warning', 3000);
     return;
   }
-  groupElements(selectedIds, elements);
+  const group = createGroup('Group', selectedIds, elements, groups);
   _pushHistory();
   _refreshPanels();
-  showToast('Elements grouped', 'info', 2000);
+  showToast(`Grouped into "${group.name}"`, 'info', 2000);
 }
 
 function _ungroupSelected() {
   const selectedIds = selection.getSelected();
   if (selectedIds.length === 0) return;
 
+  // Collect unique group IDs from selected elements
+  const groupIdsToDissolve = new Set();
   for (const id of selectedIds) {
-    const groupId = getElementGroupId(id, elements);
-    if (groupId) {
-      ungroupElement(groupId, elements);
+    const el = _getElementById(id);
+    if (el && el.groupId) {
+      groupIdsToDissolve.add(el.groupId);
     }
+  }
+
+  for (const groupId of groupIdsToDissolve) {
+    ungroupElements(groupId, elements, groups);
   }
 
   _pushHistory();
@@ -774,7 +829,7 @@ function _applyPropertyChange(id, changes) {
 
   // Don't push history on every keystroke; debounce
   _debouncedPushHistory();
-  renderLayerPanel();
+  renderLayerPanel(elements, groups);
   renderTimelinePanel();
 }
 
@@ -838,103 +893,21 @@ function _moveElementZIndex(elementId, direction) {
   _refreshPanels();
 }
 
-/* ================================================================ *
- *  Template Dropdown
- * ================================================================ */
-
-let _templateDropdownOpen = false;
-
-function _initTemplateDropdown() {
-  const btn = document.getElementById('btnTemplates');
-  const dropdown = document.getElementById('templateDropdown');
-  const newBtn = document.getElementById('btnNewTemplate');
-
-  if (!btn || !dropdown) return;
-
-  btn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    if (_templateDropdownOpen) {
-      _closeTemplateDropdown();
-    } else {
-      _openTemplateDropdown();
-    }
-  });
-
-  // Close on click outside
-  document.addEventListener('click', (e) => {
-    if (_templateDropdownOpen && !dropdown.contains(e.target) && e.target !== btn) {
-      _closeTemplateDropdown();
-    }
-  });
-
-  // New template button
-  if (newBtn) {
-    newBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      _closeTemplateDropdown();
-      _newTemplate();
-    });
-  }
-}
-
-function _openTemplateDropdown() {
-  const btn = document.getElementById('btnTemplates');
-  const dropdown = document.getElementById('templateDropdown');
-  if (!btn || !dropdown) return;
-
-  const rect = btn.getBoundingClientRect();
-  dropdown.style.display = '';
-  dropdown.style.top = `${rect.bottom + 2}px`;
-  dropdown.style.left = `${rect.right - 320}px`; // Align right edge with button
-
-  // Keep within viewport
-  const ddRect = dropdown.getBoundingClientRect();
-  if (ddRect.left < 0) {
-    dropdown.style.left = '4px';
-  }
-
-  _templateDropdownOpen = true;
-  _refreshTemplateList();
-}
-
-function _closeTemplateDropdown() {
-  const dropdown = document.getElementById('templateDropdown');
-  if (dropdown) dropdown.style.display = 'none';
-  _templateDropdownOpen = false;
-}
-
-function _newTemplate() {
-  // Reset to blank state
-  elements = [];
-  timelineData = { holdDuration: 5000, pausePoints: [], loopRegion: { enabled: false, start: 0, end: 3000 } };
-  canvas.loadElements([]);
-  selection.deselectAll();
-  templateManager.currentId = null;
-
-  document.getElementById('templateName').value = 'Untitled Template';
-  document.getElementById('templateType').value = 'custom';
-
-  // Clear URL param
-  const url = new URL(window.location);
-  url.searchParams.delete('id');
-  window.history.replaceState({}, '', url);
-
-  // Hide overlay link
-  const section = document.getElementById('overlayLinkSection');
-  if (section) section.style.display = 'none';
-
-  history.clear();
-  history.push([]);
-  _refreshPanels();
-  showToast('New template', 'info', 2000);
-}
 
 /* ================================================================ *
  *  History
  * ================================================================ */
 
+/** Deep-clone the current elements + groups for history snapshots. */
+function _snapshotState() {
+  return {
+    elements: JSON.parse(JSON.stringify(elements)),
+    groups: JSON.parse(JSON.stringify(groups)),
+  };
+}
+
 function _pushHistory() {
-  history.push(elements.map(e => JSON.parse(JSON.stringify(e))));
+  history.push(_snapshotState());
 }
 
 let _historyDebounceTimer = null;
@@ -960,7 +933,14 @@ function _redo() {
 }
 
 function _restoreState(state) {
-  elements = state;
+  // Support both old format (array) and new format ({ elements, groups })
+  if (Array.isArray(state)) {
+    elements = state;
+    groups = [];
+  } else {
+    elements = state.elements || [];
+    groups = state.groups || [];
+  }
   canvas.loadElements(elements);
   selection.deselectAll();
   _refreshPanels();
@@ -973,19 +953,15 @@ function _restoreState(state) {
 async function _save() {
   const name = document.getElementById('templateName').value.trim() || 'Untitled Template';
   const type = document.getElementById('templateType').value;
-  const groupIds = getAllGroupIds(elements);
   const { width, height } = canvas.canvasSize;
 
   try {
-    await templateManager.save(name, type, elements, groupIds, width, height, timelineData);
+    await templateManager.save(name, type, elements, groups, width, height, timelineData);
     showToast('Template saved', 'success');
-    _refreshTemplateList();
 
     // Update URL with template ID if new
     if (templateManager.currentId) {
-      const url = new URL(window.location);
-      url.searchParams.set('id', templateManager.currentId);
-      window.history.replaceState({}, '', url);
+      window.history.replaceState({}, '', `/builder/${templateManager.currentId}`);
 
       // Ensure an overlay instance exists and show the link
       await _ensureOverlayInstance(templateManager.currentId, name);
@@ -1069,145 +1045,37 @@ function _showOverlayLink(overlayUrl) {
 }
 
 async function _loadFromUrl() {
-  const params = new URLSearchParams(window.location.search);
-  const id = params.get('id');
-  if (!id) return;
+  // Support both /builder/:id path and ?id=N query param
+  const pathMatch = window.location.pathname.match(/\/builder\/(\d+)/);
+  const id = pathMatch ? pathMatch[1] : new URLSearchParams(window.location.search).get('id');
+
+  if (!id) {
+    // No template specified — redirect to templates page
+    window.location.href = '/templates';
+    return;
+  }
 
   try {
     const template = await templateManager.load(id);
     document.getElementById('templateName').value = template.name || 'Untitled';
     document.getElementById('templateType').value = template.type || 'custom';
     elements = template.elements || [];
+    groups = Array.isArray(template.groups) ? template.groups : [];
     timelineData = template.timeline || { holdDuration: 5000, pausePoints: [], loopRegion: { enabled: false, start: 0, end: 3000 } };
 
-    // Assign z-indices if missing
     elements.forEach((el, i) => {
       if (el.zIndex === undefined) el.zIndex = i;
     });
 
     canvas.loadElements(elements);
     history.clear();
-    history.push(elements.map(e => JSON.parse(JSON.stringify(e))));
+    history.push(_snapshotState());
     _refreshPanels();
     showToast(`Loaded "${template.name}"`, 'success');
-
-    // Show overlay link if instance exists
     _ensureOverlayInstance(id, template.name);
   } catch (err) {
     showToast(`Failed to load template: ${err.message}`, 'error');
     console.error('Load error:', err);
-  }
-}
-
-async function _loadTemplate(id) {
-  try {
-    const template = await templateManager.load(id);
-    document.getElementById('templateName').value = template.name || 'Untitled';
-    document.getElementById('templateType').value = template.type || 'custom';
-    elements = template.elements || [];
-    timelineData = template.timeline || { holdDuration: 5000, pausePoints: [], loopRegion: { enabled: false, start: 0, end: 3000 } };
-
-    elements.forEach((el, i) => {
-      if (el.zIndex === undefined) el.zIndex = i;
-    });
-
-    canvas.loadElements(elements);
-    selection.deselectAll();
-    history.clear();
-    history.push(elements.map(e => JSON.parse(JSON.stringify(e))));
-    _refreshPanels();
-
-    // Update URL
-    const url = new URL(window.location);
-    url.searchParams.set('id', id);
-    window.history.replaceState({}, '', url);
-
-    showToast(`Loaded "${template.name}"`, 'success');
-
-    // Show overlay link if instance exists
-    _ensureOverlayInstance(id, template.name);
-  } catch (err) {
-    showToast(`Failed to load: ${err.message}`, 'error');
-  }
-}
-
-async function _refreshTemplateList() {
-  const listEl = document.getElementById('templateList');
-  if (!listEl) return;
-
-  try {
-    const templates = await templateManager.list();
-    listEl.innerHTML = '';
-
-    if (templates.length === 0) {
-      const empty = document.createElement('div');
-      empty.className = 'text-sm text-muted';
-      empty.style.padding = '12px';
-      empty.textContent = 'No saved templates';
-      listEl.appendChild(empty);
-      return;
-    }
-
-    for (const tmpl of templates) {
-      const item = document.createElement('div');
-      item.className = 'template-list-item';
-
-      const name = document.createElement('span');
-      name.className = 'tmpl-name';
-      name.textContent = tmpl.name || 'Untitled';
-      item.appendChild(name);
-
-      const type = document.createElement('span');
-      type.className = 'tmpl-type';
-      type.textContent = tmpl.type || '';
-      item.appendChild(type);
-
-      const actions = document.createElement('div');
-      actions.className = 'tmpl-actions';
-
-      const dupBtn = document.createElement('button');
-      dupBtn.className = 'tmpl-action-btn';
-      dupBtn.textContent = 'Dup';
-      dupBtn.title = 'Duplicate';
-      dupBtn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        try {
-          await templateManager.duplicate(tmpl.id);
-          _refreshTemplateList();
-          showToast('Template duplicated', 'success');
-        } catch (err) {
-          showToast(`Duplicate failed: ${err.message}`, 'error');
-        }
-      });
-      actions.appendChild(dupBtn);
-
-      const delBtn = document.createElement('button');
-      delBtn.className = 'tmpl-action-btn delete';
-      delBtn.textContent = 'Del';
-      delBtn.title = 'Delete';
-      delBtn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        if (!confirm(`Delete "${tmpl.name}"?`)) return;
-        try {
-          await templateManager.delete(tmpl.id);
-          _refreshTemplateList();
-          showToast('Template deleted', 'info');
-        } catch (err) {
-          showToast(`Delete failed: ${err.message}`, 'error');
-        }
-      });
-      actions.appendChild(delBtn);
-
-      item.appendChild(actions);
-
-      item.addEventListener('click', () => {
-        _closeTemplateDropdown();
-        _loadTemplate(tmpl.id);
-      });
-      listEl.appendChild(item);
-    }
-  } catch (err) {
-    console.error('Failed to load template list:', err);
   }
 }
 
@@ -1230,11 +1098,11 @@ function _onSelectionChanged(selectedIds) {
     updatePropertiesPanel(null);
   }
 
-  renderLayerPanel();
+  renderLayerPanel(elements, groups);
 }
 
 function _refreshPanels() {
-  renderLayerPanel();
+  renderLayerPanel(elements, groups);
   renderTimelinePanel();
 
   const selectedIds = selection.getSelected();

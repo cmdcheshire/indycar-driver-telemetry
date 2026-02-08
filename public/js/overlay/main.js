@@ -9,6 +9,7 @@ import { buildOverlay, normalizeElements } from './template-loader.js';
 import { updateElementText, updateElementStyle } from './element-renderer.js';
 import { DataBinder } from './data-binder.js';
 import { GsapAnimationEngine } from './gsap-animation-engine.js';
+import { init as initAssetCache, precacheTemplate } from './asset-cache.js';
 
 // ---------------------------------------------------------------------------
 // State
@@ -22,6 +23,7 @@ let heartbeatTimer = null;
 let reconnectTimer = null;
 let currentTemplate = null;
 let currentConfig = null;
+let holdTimer = null;          // Auto-exit timer for hold duration
 
 const HEARTBEAT_INTERVAL_MS = 10_000;
 const RECONNECT_DELAY_MS    = 3_000;
@@ -66,6 +68,7 @@ function onOpen() {
   console.log('[overlay] WebSocket connected');
   clearTimeout(reconnectTimer);
   startHeartbeat();
+  initAssetCache(ws);
 }
 
 function onClose(event) {
@@ -206,6 +209,14 @@ function handleInit(msg) {
   if (config && config.elementOverrides && domMap) {
     applyElementOverrides(config.elementOverrides);
   }
+
+  // Respect initial visibility — hide overlay if nothing is on-air
+  if (config && config.visible === false) {
+    rootEl.style.display = 'none';
+  }
+
+  // Pre-cache image assets for this template
+  precacheTemplate(currentTemplate, referenceData || {}, currentConfig || {});
 }
 
 // ---------------------------------------------------------------------------
@@ -244,7 +255,13 @@ function handleDataUpdate(msg) {
 function handleVisibility(msg) {
   if (!animationEngine) return;
 
-  const { visible, elementId, animation, elementAnimations } = msg.data || {};
+  const { visible, elementId, animation, elementAnimations, timeline } = msg.data || {};
+
+  // Clear any pending hold timer
+  if (holdTimer) {
+    clearTimeout(holdTimer);
+    holdTimer = null;
+  }
 
   if (elementId) {
     // Show/hide a specific element
@@ -259,6 +276,9 @@ function handleVisibility(msg) {
     if (visible) {
       rootEl.style.display = '';
       animationEngine.showAll(elementAnimations);
+
+      // Auto-exit after hold duration (if set)
+      scheduleAutoExit(timeline, elementAnimations);
     } else {
       animationEngine.hideAll(elementAnimations);
       // Hide root after the longest animation completes
@@ -275,6 +295,9 @@ function handleVisibility(msg) {
       if (animation) {
         animationEngine.show('__root__', { type: animation, duration: 400, easing: 'power2.out' });
       }
+
+      // Auto-exit after hold duration (if set)
+      scheduleAutoExit(timeline, null, animation);
     } else {
       if (animation) {
         animationEngine.hide('__root__', {
@@ -287,6 +310,51 @@ function handleVisibility(msg) {
       }
     }
   }
+}
+
+/**
+ * Schedule auto-exit after holdDuration (ms) elapses.
+ * holdDuration of 0 or undefined means hold indefinitely (manual TAKE OFF).
+ */
+function scheduleAutoExit(timeline, elementAnimations, rootAnimation) {
+  if (!timeline || !timeline.holdDuration || timeline.holdDuration <= 0) return;
+
+  // Calculate the longest enter animation duration so hold starts AFTER enter completes
+  let enterDuration = 0;
+  if (elementAnimations && elementAnimations.length > 0) {
+    enterDuration = elementAnimations.reduce(
+      (max, ea) => Math.max(max, (ea.delay || 0) + (ea.duration || 300)), 0
+    );
+  } else if (rootAnimation) {
+    enterDuration = 400; // default root animation duration
+  }
+
+  const totalWait = enterDuration + timeline.holdDuration;
+
+  holdTimer = setTimeout(() => {
+    holdTimer = null;
+    if (!animationEngine) return;
+
+    const rootEl = document.getElementById('overlay-root');
+
+    if (elementAnimations && elementAnimations.length > 0) {
+      // Build exit animations from enter configs (swap enter→exit types)
+      const exitAnims = elementAnimations.map(ea => ({
+        ...ea,
+        type: ea.exitType || ea.type.replace(/In$/, 'Out').replace(/^slide/, 'slide').replace(/^wipe/, 'wipe'),
+      }));
+      animationEngine.hideAll(exitAnims);
+      const maxDur = exitAnims.reduce(
+        (max, ea) => Math.max(max, (ea.delay || 0) + (ea.duration || 300)), 0
+      );
+      setTimeout(() => { rootEl.style.display = 'none'; }, maxDur + 50);
+    } else {
+      animationEngine.hide('__root__', {
+        type: 'fadeOut', duration: 300, easing: 'power2.in',
+      });
+      setTimeout(() => { rootEl.style.display = 'none'; }, 350);
+    }
+  }, totalWait);
 }
 
 // ---------------------------------------------------------------------------
@@ -335,6 +403,9 @@ function handleTemplateUpdate(msg) {
   // Re-resolve with whatever data we already have
   dataBinder.resolveBindings();
 
+  // Pre-cache image assets for the new template
+  precacheTemplate(currentTemplate, referenceData || {}, currentConfig || {});
+
   // Root stays hidden — visibility message (TAKE ON) will show it
 }
 
@@ -356,6 +427,8 @@ function handleConfigUpdate(msg) {
   // Apply element overrides from exposed elements
   if (domMap && config.elementOverrides) {
     applyElementOverrides(config.elementOverrides);
+    // Re-cache in case image sources were overridden
+    precacheTemplate(currentTemplate, {}, currentConfig);
   }
 }
 
@@ -368,17 +441,57 @@ function applyElementOverrides(overrides) {
     const node = domMap.get(elementId);
     if (!node) continue;
 
+    // Text content
     if (props.text !== undefined) {
       updateElementText(node, props.text);
     }
+
+    // Image source
     if (props.src !== undefined) {
       const img = node.querySelector('img');
-      if (img) {
-        img.src = props.src;
+      if (img) img.src = props.src;
+    }
+
+    // Image fit
+    if (props.fit !== undefined) {
+      const img = node.querySelector('img');
+      if (img) img.style.objectFit = props.fit;
+    }
+
+    // Style properties — map prop keys to CSS
+    const styleMap = {};
+    if (props.fill !== undefined) styleMap.backgroundColor = props.fill;
+    if (props.color !== undefined) styleMap.color = props.color;
+    if (props.backgroundColor !== undefined) styleMap.backgroundColor = props.backgroundColor;
+    if (props.fontSize !== undefined) styleMap.fontSize = `${props.fontSize}px`;
+    if (props.fontWeight !== undefined) styleMap.fontWeight = String(props.fontWeight);
+    if (props.fontFamily !== undefined) styleMap.fontFamily = props.fontFamily;
+    if (props.textAlign !== undefined) {
+      // Map text-align to flex justify-content
+      const alignMap = { left: 'flex-start', center: 'center', right: 'flex-end' };
+      styleMap.justifyContent = alignMap[props.textAlign] || 'flex-start';
+    }
+    if (props.strokeColor !== undefined) {
+      const sw = props.strokeWidth || 1;
+      styleMap.border = `${sw}px solid ${props.strokeColor}`;
+    }
+    if (props.strokeWidth !== undefined && props.strokeColor === undefined) {
+      // Only stroke width changed, preserve existing color
+      const existing = node.style.borderColor || '';
+      if (existing) {
+        styleMap.border = `${props.strokeWidth}px solid ${existing}`;
       }
     }
-    if (props.fill !== undefined) {
-      updateElementStyle(node, { backgroundColor: props.fill });
+    if (props.borderRadius !== undefined) styleMap.borderRadius = `${props.borderRadius}px`;
+
+    if (Object.keys(styleMap).length > 0) {
+      updateElementStyle(node, styleMap);
     }
+
+    // Data binding props (prefix, suffix, fallback, carSelector)
+    if (props.prefix !== undefined) node.setAttribute('data-prefix', props.prefix);
+    if (props.suffix !== undefined) node.setAttribute('data-suffix', props.suffix);
+    if (props.fallback !== undefined) node.setAttribute('data-fallback', props.fallback);
+    if (props.carSelector !== undefined) node.setAttribute('data-car', props.carSelector);
   }
 }

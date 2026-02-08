@@ -99,6 +99,8 @@ export class GsapAnimationEngine {
           } else {
             gsap.set(node, { clearProps: 'transform,opacity' });
           }
+          // Restore mask clip-path if clipping mask system set one
+          this._restoreMaskClipPath(node);
           this._clearWillChange(elementId, node);
         },
       });
@@ -158,6 +160,8 @@ export class GsapAnimationEngine {
           node.style.display = 'none';
           this._channels.delete(elementId);
           gsap.set(node, { clearProps: 'transform,opacity,clipPath' });
+          // Restore mask clip-path if clipping mask system set one
+          this._restoreMaskClipPath(node);
           this._clearWillChange(elementId, node);
         },
       });
@@ -497,6 +501,17 @@ export class GsapAnimationEngine {
     const node = this._getNode(channel);
     if (node) {
       gsap.killTweensOf(node);
+    }
+  }
+
+  /**
+   * Restore the clipping mask's clip-path after animation clearProps removed it.
+   * The mask clip-path is stored as a data attribute by template-loader.
+   */
+  _restoreMaskClipPath(node) {
+    const maskClip = node.dataset?.maskClipPath;
+    if (maskClip) {
+      node.style.clipPath = maskClip;
     }
   }
 

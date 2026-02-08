@@ -15,6 +15,7 @@ const ICONS = {
   chevron: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>',
   folder: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>',
   output: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>',
+  dots: '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>',
 };
 
 // ── Public API ──
@@ -121,14 +122,19 @@ export function renderOutputBrowser(folders, instances) {
 
   // Wire up output item clicks
   tree.querySelectorAll('.gc-output-item').forEach(el => {
-    el.addEventListener('click', () => {
+    el.addEventListener('click', (e) => {
+      // Don't select if clicking the dots button
+      if (e.target.closest('.gc-btn-dots')) return;
       const id = parseInt(el.dataset.instanceId, 10);
       selectOutput(id);
     });
+  });
 
-    el.addEventListener('contextmenu', (e) => {
-      e.preventDefault();
-      const id = parseInt(el.dataset.instanceId, 10);
+  // Wire up three-dot menu buttons on output items
+  tree.querySelectorAll('.gc-btn-dots').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = parseInt(btn.dataset.dotsId, 10);
       const inst = instances.find(i => i.id === id);
       showOutputContextMenu(e, inst, folders);
     });
@@ -150,7 +156,9 @@ function renderOutputItem(inst, inFolder) {
          data-instance-id="${inst.id}">
       <div class="gc-output-icon">${ICONS.output}</div>
       <div class="gc-output-name">${escapeHtml(inst.name)}</div>
+      <div class="gc-cache-dot" data-cache-instance="${inst.id}"></div>
       <div class="gc-on-air-dot ${hasOnAir ? 'active' : ''}"></div>
+      <button class="gc-btn-dots" data-dots-id="${inst.id}" title="Options">${ICONS.dots}</button>
     </div>
   `;
 }
@@ -317,8 +325,16 @@ function showFolderContextMenu(e, folder) {
 }
 
 function positionContextMenu(menu, e) {
-  menu.style.left = `${e.clientX}px`;
-  menu.style.top = `${e.clientY}px`;
+  // If triggered from a button click, position below the button
+  const btn = e.currentTarget || e.target;
+  if (btn && btn.getBoundingClientRect) {
+    const btnRect = btn.getBoundingClientRect();
+    menu.style.left = `${btnRect.left}px`;
+    menu.style.top = `${btnRect.bottom + 4}px`;
+  } else {
+    menu.style.left = `${e.clientX}px`;
+    menu.style.top = `${e.clientY}px`;
+  }
   menu.classList.add('show');
 
   // Adjust if off screen
@@ -477,6 +493,40 @@ async function handleDeleteFolder(folder) {
     console.error('Failed to delete folder:', err);
     showToast(err.message || 'Failed to delete folder', 'error');
   }
+}
+
+// ── Cache Status Indicators ──
+
+/**
+ * Update cache indicator dots on output items based on live overlay client data.
+ * @param {Object} clientDataByInstance - Map of instanceId -> { cacheStatus }
+ */
+export function updateCacheStatus(clientDataByInstance) {
+  document.querySelectorAll('.gc-cache-dot').forEach(dot => {
+    const instanceId = parseInt(dot.dataset.cacheInstance, 10);
+    const client = clientDataByInstance[instanceId];
+    const status = client?.cacheStatus;
+
+    // Reset
+    dot.className = 'gc-cache-dot';
+    dot.title = '';
+
+    if (!status) return; // No overlay connected or no cache data
+
+    const { total, loaded, failed, pending, ready } = status;
+    if (total === 0) return; // No images — no indicator needed
+
+    if (ready && failed === 0) {
+      dot.classList.add('ready');
+      dot.title = `${loaded}/${total} assets cached`;
+    } else if (ready && failed > 0) {
+      dot.classList.add('warn');
+      dot.title = `${loaded}/${total} cached, ${failed} failed`;
+    } else {
+      dot.classList.add('loading');
+      dot.title = `Caching assets: ${loaded}/${total}`;
+    }
+  });
 }
 
 // ── Utilities ──

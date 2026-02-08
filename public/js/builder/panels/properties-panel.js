@@ -18,6 +18,8 @@ import {
   GSAP_EASINGS,
 } from '/js/shared/animation-presets.js';
 
+import { getExposableSettings } from '/js/shared/exposed-settings.js';
+
 /** @type {Function} */
 let onPropertyChange = null;
 /** @type {Function} */
@@ -67,11 +69,66 @@ export function updatePropertiesPanel(element) {
   // Quick actions bar
   _addQuickActions(element);
 
-  // Element name + exposed toggle
-  _addCollapsibleGroup('Element', [
+  // Element name + exposed toggle + settings picker
+  const elementChildren = [
     _textInput('Name', element.name, (v) => _emit({ name: v })),
-    _checkboxInput('Expose to Operator', !!element.exposed, (v) => _emit({ exposed: v })),
-  ]);
+    _checkboxInput('Expose to Operator', !!element.exposed, (v) => {
+      _emit({ exposed: v });
+      if (currentElement) {
+        currentElement.exposed = v;
+        updatePropertiesPanel(currentElement);
+      }
+    }),
+  ];
+
+  // When exposed, show checkboxes for which settings the operator can edit
+  if (element.exposed) {
+    const availableSettings = getExposableSettings(element.type);
+    const currentSettings = element.exposedSettings || [];
+
+    if (availableSettings.length > 0) {
+      const settingsContainer = document.createElement('div');
+      settingsContainer.className = 'exposed-settings-picker';
+      settingsContainer.style.cssText = 'padding:4px 0 0 18px; display:flex; flex-direction:column; gap:2px;';
+
+      const label = document.createElement('div');
+      label.textContent = 'Operator can edit:';
+      label.style.cssText = 'font-size:0.68rem; color:var(--text-dim,#8b8fa3); font-weight:600; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:2px;';
+      settingsContainer.appendChild(label);
+
+      for (const setting of availableSettings) {
+        const isChecked = currentSettings.includes(setting.key);
+        const row = document.createElement('label');
+        row.style.cssText = 'display:flex; align-items:center; gap:6px; cursor:pointer; font-size:0.75rem; color:var(--text,#e8eaed); padding:1px 0;';
+
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = isChecked;
+        cb.style.cssText = 'accent-color:var(--accent,#5865f2); margin:0;';
+        cb.addEventListener('change', () => {
+          const updated = [...(currentElement?.exposedSettings || [])];
+          if (cb.checked) {
+            if (!updated.includes(setting.key)) updated.push(setting.key);
+          } else {
+            const idx = updated.indexOf(setting.key);
+            if (idx !== -1) updated.splice(idx, 1);
+          }
+          _emit({ exposedSettings: updated });
+          if (currentElement) currentElement.exposedSettings = updated;
+        });
+
+        const span = document.createElement('span');
+        span.textContent = setting.label;
+        row.appendChild(cb);
+        row.appendChild(span);
+        settingsContainer.appendChild(row);
+      }
+
+      elementChildren.push(settingsContainer);
+    }
+  }
+
+  _addCollapsibleGroup('Element', elementChildren);
 
   // Transform
   _addCollapsibleGroup('Transform', [

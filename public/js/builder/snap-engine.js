@@ -10,6 +10,8 @@ export class SnapEngine {
   #container;
   /** @type {HTMLElement[]} */
   #activeGuides = [];
+  /** @type {boolean} */
+  #enabled = true;
 
   /**
    * @param {HTMLElement} canvasContainer - The .canvas-container element
@@ -17,6 +19,12 @@ export class SnapEngine {
   constructor(canvasContainer) {
     this.#container = canvasContainer;
   }
+
+  /** @returns {boolean} */
+  get enabled() { return this.#enabled; }
+
+  /** @param {boolean} val */
+  set enabled(val) { this.#enabled = !!val; }
 
   /**
    * Generate snap target positions (X and Y) from grid, canvas center, and other elements.
@@ -66,6 +74,8 @@ export class SnapEngine {
    * @returns {number|null} Snapped value, or null if nothing is close enough
    */
   snap(value, targets) {
+    if (!this.#enabled) return null;
+
     let closest = null;
     let closestDist = SNAP_THRESHOLD;
 
@@ -87,6 +97,7 @@ export class SnapEngine {
    */
   renderGuides(snappedX, snappedY) {
     this.clearGuides();
+    if (!this.#enabled) return;
 
     if (snappedX !== null) {
       const guide = document.createElement('div');

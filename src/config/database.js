@@ -143,7 +143,47 @@ function initializeDatabase() {
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS library_folders (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      parent_id INTEGER,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (parent_id) REFERENCES library_folders(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS template_folders (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      parent_id INTEGER,
+      sort_order INTEGER DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (parent_id) REFERENCES template_folders(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS library_assets (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      filename TEXT NOT NULL,
+      original_name TEXT NOT NULL,
+      mime_type TEXT,
+      file_size INTEGER DEFAULT 0,
+      width INTEGER,
+      height INTEGER,
+      folder_id INTEGER,
+      tags TEXT DEFAULT '[]',
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (folder_id) REFERENCES library_folders(id) ON DELETE SET NULL
+    );
   `);
+
+  // Add folder_id column to overlay_templates if it doesn't exist
+  try {
+    db.exec('ALTER TABLE overlay_templates ADD COLUMN folder_id INTEGER REFERENCES template_folders(id) ON DELETE SET NULL');
+  } catch (e) {
+    // Column already exists — ignore
+  }
 
   // Add folder_id column to overlay_instances if it doesn't exist
   try {

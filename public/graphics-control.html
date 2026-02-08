@@ -171,7 +171,7 @@
     .gc-output-tree {
       flex: 1;
       overflow-y: auto;
-      padding: 8px 0;
+      padding: 8px 8px;
     }
 
     /* Folder styles */
@@ -231,43 +231,52 @@
       white-space: nowrap;
     }
 
-    .gc-folder-children {
-      display: none;
-    }
-
-    .gc-folder-children.open {
-      display: block;
-    }
-
-    /* Output item styles */
+    /* Output item styles -- compact chiclets */
     .gc-output-item {
-      display: flex;
+      display: inline-flex;
       align-items: center;
-      gap: 8px;
-      padding: 7px 12px 7px 16px;
+      gap: 6px;
+      padding: 4px 10px;
+      margin: 2px 4px 2px 0;
       cursor: pointer;
       color: var(--text);
-      font-size: 0.825rem;
-      transition: background var(--transition);
+      font-size: 0.75rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--card-bg);
+      transition: all var(--transition);
       user-select: none;
+      max-width: 100%;
     }
 
     .gc-folder-children .gc-output-item {
-      padding-left: 40px;
+      margin-left: 0;
+    }
+
+    .gc-folder-children {
+      padding: 2px 4px 4px 24px;
+      display: none;
+      flex-wrap: wrap;
+    }
+
+    .gc-folder-children.open {
+      display: flex;
     }
 
     .gc-output-item:hover {
+      border-color: var(--accent);
       background: var(--surface-alt);
     }
 
     .gc-output-item.selected {
       background: var(--accent-light);
+      border-color: var(--accent);
       color: var(--accent);
     }
 
     .gc-output-icon {
-      width: 14px;
-      height: 14px;
+      width: 12px;
+      height: 12px;
       flex-shrink: 0;
       opacity: 0.5;
     }
@@ -277,16 +286,40 @@
     }
 
     .gc-output-name {
-      flex: 1;
       min-width: 0;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      max-width: 160px;
+    }
+
+    .gc-output-actions {
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .gc-btn-dots {
+      padding: 0 2px;
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      font-size: 0.9rem;
+      line-height: 1;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+    }
+
+    .gc-btn-dots:hover {
+      color: var(--text);
+      background: var(--surface-alt);
     }
 
     .gc-on-air-dot {
-      width: 8px;
-      height: 8px;
+      width: 7px;
+      height: 7px;
       border-radius: 50%;
       flex-shrink: 0;
       display: none;
@@ -298,6 +331,19 @@
       box-shadow: 0 0 6px var(--danger);
       animation: pulse 2s infinite;
     }
+
+    /* Cache indicator dot */
+    .gc-cache-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      display: none;
+    }
+    .gc-cache-dot.loading { display: block; background: var(--accent); animation: gc-pulse 1s infinite; }
+    .gc-cache-dot.ready   { display: block; background: var(--success); box-shadow: 0 0 4px var(--success); }
+    .gc-cache-dot.warn    { display: block; background: var(--warning); }
+    @keyframes gc-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
     /* ================================================================ *
      *  Context Menu
@@ -706,8 +752,8 @@
     .gc-preview-wrapper {
       position: relative;
       width: 100%;
-      /* 16:9 aspect ratio */
-      padding-bottom: 56.25%;
+      max-height: 100%;
+      aspect-ratio: 16 / 9;
       background: #000;
       border-radius: var(--radius);
       overflow: hidden;
@@ -898,6 +944,42 @@
       width: auto;
     }
 
+    .gc-exposed-group {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 8px;
+      margin: 4px 0;
+      background: var(--card-bg);
+    }
+
+    .gc-exposed-group-label {
+      display: block;
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 4px;
+      letter-spacing: 0.03em;
+    }
+
+    .gc-exposed-group select {
+      background: var(--surface-alt);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 4px;
+      font-size: 0.75rem;
+    }
+
+    .gc-exposed-group textarea {
+      background: var(--surface-alt);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 4px 6px;
+      font-size: 0.75rem;
+      font-family: inherit;
+    }
+
     .gc-btn-config {
       padding: 4px 6px;
       background: transparent;
@@ -946,10 +1028,11 @@
         <div class="app-title">Indy<span>Car</span> Telemetry</div>
         <nav class="top-bar-nav">
           <a href="/dashboard">Dashboard</a>
-          <a href="/builder">Builder</a>
+          <a href="/templates">Templates</a>
           <a href="/graphics-control" class="active">Graphics</a>
           <a href="/drivers">Drivers</a>
           <a href="/simulator">Simulator</a>
+          <a href="/library">Library</a>
         </nav>
       </div>
       <div class="top-bar-right">

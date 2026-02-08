@@ -161,6 +161,8 @@ function _applyClipPaths(elements, domMap) {
     const clipPath = computeClipPath(clippedBounds, maskBounds);
     if (clipPath) {
       domNode.style.clipPath = clipPath;
+      // Store mask clip-path so the animation engine can restore it after clearProps
+      domNode.dataset.maskClipPath = clipPath;
     }
 
     // Hide mask element if flagged

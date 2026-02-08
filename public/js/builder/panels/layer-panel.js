@@ -1,8 +1,19 @@
 /**
- * Layer panel - vertical list of layers in the left sidebar.
- * Each row: drag handle | type icon | name (double-click to rename) | animation badge | visibility | lock
- * Supports drag-to-reorder and right-click context menu.
+ * Layer panel - tree-structured layer list in the left sidebar.
+ *
+ * Renders a nested tree of groups (collapsible folders) and elements.
+ * Groups appear as folder rows with expand/collapse, visibility, lock,
+ * and exposed toggles. Elements appear as leaf rows with type icon,
+ * name, and the same set of toggles.
+ *
+ * Supports right-click context menus for both groups and elements.
  */
+
+import { buildLayerTree } from '../group-manager.js';
+
+/* ================================================================ *
+ *  Module-level state
+ * ================================================================ */
 
 /** @type {Function} */
 let getElements = null;
@@ -37,23 +48,43 @@ let onGroup = null;
 /** @type {Function} */
 let onUngroup = null;
 
+// New group callbacks
+/** @type {Function} */
+let onGroupSelect = null;
+/** @type {Function} */
+let onGroupToggle = null;
+/** @type {Function} */
+let onGroupVisibilityToggle = null;
+/** @type {Function} */
+let onGroupLockToggle = null;
+/** @type {Function} */
+let onGroupRename = null;
+/** @type {Function} */
+let onGroupContextMenu = null;
+/** @type {Function} */
+let onContextMenu = null;
+
 /** @type {HTMLElement} */
 let layerListEl = null;
 /** @type {HTMLElement} */
 let contextMenuEl = null;
 
-/** @type {string|null} Dragged element ID */
-let draggedId = null;
 /** @type {string|null} Right-clicked element ID for context menu */
 let contextMenuTargetId = null;
+/** @type {string|null} Right-clicked group ID for context menu */
+let contextMenuTargetGroupId = null;
+
+/* ================================================================ *
+ *  Initialization
+ * ================================================================ */
 
 /**
  * Initialize the layer panel.
  * @param {object} opts
  * @param {Function} opts.getElements - Returns current elements array
  * @param {Function} opts.getSelectedIds - Returns currently selected element IDs
- * @param {Function} opts.onSelect - Called with element ID when a layer is clicked
- * @param {Function} opts.onReorder - Called with (elementId, newIndex) after drag reorder
+ * @param {Function} opts.onSelect - Called with (elementId, { shiftKey }) when a layer is clicked
+ * @param {Function} [opts.onReorder] - Called with (elementId, newIndex) after drag reorder
  * @param {Function} opts.onVisibilityToggle - Called with element ID
  * @param {Function} opts.onLockToggle - Called with element ID
  * @param {Function} [opts.onDelete] - Called with element ID
@@ -66,12 +97,19 @@ let contextMenuTargetId = null;
  * @param {Function} [opts.onExposedToggle] - Called with element ID
  * @param {Function} [opts.onGroup] - Called when group is requested
  * @param {Function} [opts.onUngroup] - Called when ungroup is requested
+ * @param {Function} [opts.onContextMenu] - Called with (elementId, event)
+ * @param {Function} [opts.onGroupSelect] - Called with groupId
+ * @param {Function} [opts.onGroupToggle] - Called with groupId (expand/collapse)
+ * @param {Function} [opts.onGroupVisibilityToggle] - Called with groupId
+ * @param {Function} [opts.onGroupLockToggle] - Called with groupId
+ * @param {Function} [opts.onGroupRename] - Called with (groupId, newName)
+ * @param {Function} [opts.onGroupContextMenu] - Called with (groupId, event)
  */
 export function initLayerPanel(opts) {
   getElements = opts.getElements;
   getSelectedIds = opts.getSelectedIds;
   onSelect = opts.onSelect;
-  onReorder = opts.onReorder;
+  onReorder = opts.onReorder || null;
   onVisibilityToggle = opts.onVisibilityToggle;
   onLockToggle = opts.onLockToggle;
   onDelete = opts.onDelete || null;
@@ -84,6 +122,15 @@ export function initLayerPanel(opts) {
   onExposedToggle = opts.onExposedToggle || null;
   onGroup = opts.onGroup || null;
   onUngroup = opts.onUngroup || null;
+  onContextMenu = opts.onContextMenu || null;
+
+  // Group callbacks
+  onGroupSelect = opts.onGroupSelect || null;
+  onGroupToggle = opts.onGroupToggle || null;
+  onGroupVisibilityToggle = opts.onGroupVisibilityToggle || null;
+  onGroupLockToggle = opts.onGroupLockToggle || null;
+  onGroupRename = opts.onGroupRename || null;
+  onGroupContextMenu = opts.onGroupContextMenu || null;
 
   layerListEl = document.getElementById('layerList');
   contextMenuEl = document.getElementById('layerContextMenu');
@@ -91,146 +138,295 @@ export function initLayerPanel(opts) {
   _initContextMenu();
 }
 
-/**
- * Render the layer list from the current elements.
- * Should be called whenever elements change.
- */
-export function renderLayerPanel() {
-  if (!layerListEl || !getElements) return;
+/* ================================================================ *
+ *  Render
+ * ================================================================ */
 
-  const elements = getElements();
-  const selectedIds = getSelectedIds ? getSelectedIds() : [];
+/**
+ * Render the layer list from the current elements and groups.
+ * Accepts optional parameters for tree-based rendering; when omitted
+ * it falls back to the flat getElements() / getSelectedIds() approach
+ * for backward compatibility.
+ *
+ * @param {object[]} [elements] - Elements array (optional, falls back to getElements())
+ * @param {object[]} [groups] - Groups array (optional, defaults to [])
+ * @param {Set<string>|string[]} [selectedIds] - Selected element IDs (optional)
+ */
+export function renderLayerPanel(elements, groups, selectedIds) {
+  if (!layerListEl) return;
+
+  // Resolve arguments with fallbacks for backward compatibility
+  const els = elements || (getElements ? getElements() : []);
+  const grps = groups || [];
+  const selRaw = selectedIds || (getSelectedIds ? getSelectedIds() : []);
+  const selSet = selRaw instanceof Set ? selRaw : new Set(selRaw);
 
   layerListEl.innerHTML = '';
 
-  // Render in reverse z-index order (highest z-index = top of list, matching visual stack)
+  // Build the tree structure via group-manager
+  let tree;
+  try {
+    tree = buildLayerTree(els, grps);
+  } catch (_) {
+    // If buildLayerTree is not available, fall back to flat rendering
+    tree = _buildFlatTree(els);
+  }
+
+  // Render recursively
+  _renderTreeNodes(tree, layerListEl, selSet, 0);
+}
+
+/**
+ * Fallback: build a flat tree from elements (no groups) so the panel
+ * still works when buildLayerTree is unavailable.
+ * Sorted in reverse z-index order (highest z-index = top of list).
+ * @param {object[]} elements
+ * @returns {object[]} Tree nodes
+ */
+function _buildFlatTree(elements) {
   const sorted = [...elements].sort((a, b) => (b.zIndex || 0) - (a.zIndex || 0));
+  return sorted.map(el => ({ type: 'element', element: el }));
+}
 
-  for (const el of sorted) {
-    const item = document.createElement('div');
-    item.className = `layer-item${selectedIds.includes(el.id) ? ' selected' : ''}`;
-    item.dataset.elementId = el.id;
-    item.draggable = true;
-
-    // Drag handle
-    const handle = document.createElement('span');
-    handle.className = 'layer-drag-handle';
-    handle.innerHTML = '&#x2630;'; // hamburger icon
-    item.appendChild(handle);
-
-    // Type icon
-    const typeIcon = document.createElement('span');
-    typeIcon.className = 'layer-type-icon';
-    typeIcon.innerHTML = _getTypeIcon(el.type);
-    item.appendChild(typeIcon);
-
-    // Name (editable on double-click)
-    const nameEl = document.createElement('span');
-    nameEl.className = 'layer-name';
-    nameEl.textContent = _getDisplayName(el);
-    nameEl.addEventListener('dblclick', (e) => {
-      e.stopPropagation();
-      _startRename(item, el);
-    });
-    item.appendChild(nameEl);
-
-    // Animation badge (if has non-none enter or exit animation)
-    const hasAnim = el.animation &&
-      ((el.animation.enter && el.animation.enter.type !== 'none') ||
-       (el.animation.exit && el.animation.exit.type !== 'none'));
-    if (hasAnim) {
-      const badge = document.createElement('span');
-      badge.className = 'layer-anim-badge';
-      badge.title = 'Has animation';
-      item.appendChild(badge);
+/**
+ * Recursively render an array of tree nodes into a parent container.
+ * @param {object[]} nodes - Array of { type: 'group'|'element', ... }
+ * @param {HTMLElement} container - DOM container to append to
+ * @param {Set<string>} selectedIds - Set of selected element IDs
+ * @param {number} depth - Current nesting depth (for indentation)
+ */
+function _renderTreeNodes(nodes, container, selectedIds, depth) {
+  for (const node of nodes) {
+    if (node.type === 'group') {
+      _renderGroupNode(node, container, selectedIds, depth);
+    } else {
+      _renderElementNode(node.element, container, selectedIds, depth);
     }
-
-    // Visibility toggle
-    const visBtn = document.createElement('button');
-    visBtn.className = `layer-ctrl-btn${el.visible ? '' : ' off'}`;
-    visBtn.innerHTML = el.visible ? _eyeIcon() : _eyeOffIcon();
-    visBtn.title = el.visible ? 'Hide' : 'Show';
-    visBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (onVisibilityToggle) onVisibilityToggle(el.id);
-    });
-    item.appendChild(visBtn);
-
-    // Lock toggle
-    const lockBtn = document.createElement('button');
-    lockBtn.className = `layer-ctrl-btn${el.locked ? '' : ' off'}`;
-    lockBtn.innerHTML = el.locked ? _lockIcon() : _unlockIcon();
-    lockBtn.title = el.locked ? 'Unlock' : 'Lock';
-    lockBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (onLockToggle) onLockToggle(el.id);
-    });
-    item.appendChild(lockBtn);
-
-    // Exposed toggle
-    const expBtn = document.createElement('button');
-    expBtn.className = `layer-ctrl-btn${el.exposed ? '' : ' off'}`;
-    expBtn.innerHTML = _exposedIcon();
-    expBtn.title = el.exposed ? 'Hide from operator' : 'Expose to operator';
-    expBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (onExposedToggle) onExposedToggle(el.id);
-    });
-    item.appendChild(expBtn);
-
-    // Click to select
-    item.addEventListener('click', (e) => {
-      if (onSelect) onSelect(el.id, { shiftKey: e.shiftKey });
-    });
-
-    // Right-click for context menu
-    item.addEventListener('contextmenu', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      contextMenuTargetId = el.id;
-      if (onSelect) onSelect(el.id);
-      _showContextMenu(e.clientX, e.clientY);
-    });
-
-    // Drag events for reordering
-    item.addEventListener('dragstart', (e) => {
-      draggedId = el.id;
-      e.dataTransfer.effectAllowed = 'move';
-      item.style.opacity = '0.5';
-    });
-
-    item.addEventListener('dragend', () => {
-      draggedId = null;
-      item.style.opacity = '';
-      layerListEl.querySelectorAll('.layer-item').forEach(i => i.classList.remove('drag-over'));
-    });
-
-    item.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      item.classList.add('drag-over');
-    });
-
-    item.addEventListener('dragleave', () => {
-      item.classList.remove('drag-over');
-    });
-
-    item.addEventListener('drop', (e) => {
-      e.preventDefault();
-      item.classList.remove('drag-over');
-      if (draggedId && draggedId !== el.id && onReorder) {
-        // Find the target index in the original (ascending z-index) array
-        const ascSorted = [...elements].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
-        const targetIndex = ascSorted.findIndex(s => s.id === el.id);
-        onReorder(draggedId, targetIndex);
-      }
-    });
-
-    layerListEl.appendChild(item);
   }
 }
 
-/* ---- Inline Rename ---- */
+/* ================================================================ *
+ *  Group Row
+ * ================================================================ */
+
+/**
+ * Render a group folder row and its children.
+ * @param {object} node - Tree node { type: 'group', group, children }
+ * @param {HTMLElement} container
+ * @param {Set<string>} selectedIds
+ * @param {number} depth
+ */
+function _renderGroupNode(node, container, selectedIds, depth) {
+  const group = node.group;
+  const children = node.children || [];
+  const isExpanded = group.expanded !== false; // default expanded
+
+  // -- Group folder row --
+  const row = document.createElement('div');
+  row.className = 'layer-item layer-group-row';
+  row.dataset.groupId = group.id;
+  row.style.paddingLeft = `${4 + depth * 16}px`;
+
+  // Chevron toggle
+  const chevron = document.createElement('span');
+  chevron.className = 'layer-group-chevron';
+  chevron.innerHTML = isExpanded ? _chevronDownIcon() : _chevronRightIcon();
+  chevron.title = isExpanded ? 'Collapse' : 'Expand';
+  chevron.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (onGroupToggle) onGroupToggle(group.id);
+  });
+  row.appendChild(chevron);
+
+  // Folder icon
+  const folderIcon = document.createElement('span');
+  folderIcon.className = 'layer-type-icon';
+  folderIcon.innerHTML = isExpanded ? _folderOpenIcon() : _folderIcon();
+  row.appendChild(folderIcon);
+
+  // Group name (editable on double-click)
+  const nameEl = document.createElement('span');
+  nameEl.className = 'layer-name';
+  nameEl.textContent = group.name || 'Group';
+  nameEl.addEventListener('dblclick', (e) => {
+    e.stopPropagation();
+    _startGroupRename(row, group);
+  });
+  row.appendChild(nameEl);
+
+  // Visibility toggle (toggles all members)
+  const visBtn = document.createElement('button');
+  const groupVisible = group.visible !== false;
+  visBtn.className = `layer-ctrl-btn${groupVisible ? '' : ' off'}`;
+  visBtn.innerHTML = groupVisible ? _eyeIcon() : _eyeOffIcon();
+  visBtn.title = groupVisible ? 'Hide group' : 'Show group';
+  visBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (onGroupVisibilityToggle) onGroupVisibilityToggle(group.id);
+  });
+  row.appendChild(visBtn);
+
+  // Lock toggle
+  const lockBtn = document.createElement('button');
+  const groupLocked = !!group.locked;
+  lockBtn.className = `layer-ctrl-btn${groupLocked ? '' : ' off'}`;
+  lockBtn.innerHTML = groupLocked ? _lockIcon() : _unlockIcon();
+  lockBtn.title = groupLocked ? 'Unlock group' : 'Lock group';
+  lockBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (onGroupLockToggle) onGroupLockToggle(group.id);
+  });
+  row.appendChild(lockBtn);
+
+  // Exposed toggle
+  const expBtn = document.createElement('button');
+  const groupExposed = !!group.exposed;
+  expBtn.className = `layer-ctrl-btn${groupExposed ? '' : ' off'}`;
+  expBtn.innerHTML = _exposedIcon();
+  expBtn.title = groupExposed ? 'Hide group from operator' : 'Expose group to operator';
+  expBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    // Group exposed is informational; forward to group callback if exists
+    if (onGroupSelect) onGroupSelect(group.id);
+  });
+  row.appendChild(expBtn);
+
+  // Click to select group
+  row.addEventListener('click', (e) => {
+    if (onGroupSelect) onGroupSelect(group.id);
+  });
+
+  // Right-click for context menu
+  row.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    contextMenuTargetGroupId = group.id;
+    contextMenuTargetId = null;
+    if (onGroupContextMenu) {
+      onGroupContextMenu(group.id, e);
+    } else {
+      _showContextMenu(e.clientX, e.clientY);
+    }
+  });
+
+  container.appendChild(row);
+
+  // -- Children container --
+  const childContainer = document.createElement('div');
+  childContainer.className = 'layer-group-children';
+  childContainer.dataset.groupId = group.id;
+
+  if (!isExpanded) {
+    childContainer.style.display = 'none';
+  }
+
+  // Recursively render children at the next depth level
+  _renderTreeNodes(children, childContainer, selectedIds, depth + 1);
+
+  container.appendChild(childContainer);
+}
+
+/* ================================================================ *
+ *  Element Row
+ * ================================================================ */
+
+/**
+ * Render a single element row.
+ * @param {object} el - Element object
+ * @param {HTMLElement} container
+ * @param {Set<string>} selectedIds
+ * @param {number} depth
+ */
+function _renderElementNode(el, container, selectedIds, depth) {
+  const item = document.createElement('div');
+  item.className = `layer-item${selectedIds.has(el.id) ? ' selected' : ''}`;
+  item.dataset.elementId = el.id;
+  item.style.paddingLeft = `${4 + depth * 16}px`;
+
+  // Type icon
+  const typeIcon = document.createElement('span');
+  typeIcon.className = 'layer-type-icon';
+  typeIcon.innerHTML = _getTypeIcon(el.type);
+  item.appendChild(typeIcon);
+
+  // Name (editable on double-click)
+  const nameEl = document.createElement('span');
+  nameEl.className = 'layer-name';
+  nameEl.textContent = _getDisplayName(el);
+  nameEl.addEventListener('dblclick', (e) => {
+    e.stopPropagation();
+    _startRename(item, el);
+  });
+  item.appendChild(nameEl);
+
+  // Animation badge (if has non-none enter or exit animation)
+  const hasAnim = el.animation &&
+    ((el.animation.enter && el.animation.enter.type !== 'none') ||
+     (el.animation.exit && el.animation.exit.type !== 'none'));
+  if (hasAnim) {
+    const badge = document.createElement('span');
+    badge.className = 'layer-anim-badge';
+    badge.title = 'Has animation';
+    item.appendChild(badge);
+  }
+
+  // Visibility toggle
+  const visBtn = document.createElement('button');
+  visBtn.className = `layer-ctrl-btn${el.visible ? '' : ' off'}`;
+  visBtn.innerHTML = el.visible ? _eyeIcon() : _eyeOffIcon();
+  visBtn.title = el.visible ? 'Hide' : 'Show';
+  visBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (onVisibilityToggle) onVisibilityToggle(el.id);
+  });
+  item.appendChild(visBtn);
+
+  // Lock toggle
+  const lockBtn = document.createElement('button');
+  lockBtn.className = `layer-ctrl-btn${el.locked ? '' : ' off'}`;
+  lockBtn.innerHTML = el.locked ? _lockIcon() : _unlockIcon();
+  lockBtn.title = el.locked ? 'Unlock' : 'Lock';
+  lockBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (onLockToggle) onLockToggle(el.id);
+  });
+  item.appendChild(lockBtn);
+
+  // Exposed toggle
+  const expBtn = document.createElement('button');
+  expBtn.className = `layer-ctrl-btn${el.exposed ? '' : ' off'}`;
+  expBtn.innerHTML = _exposedIcon();
+  expBtn.title = el.exposed ? 'Hide from operator' : 'Expose to operator';
+  expBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (onExposedToggle) onExposedToggle(el.id);
+  });
+  item.appendChild(expBtn);
+
+  // Click to select
+  item.addEventListener('click', (e) => {
+    if (onSelect) onSelect(el.id, { shiftKey: e.shiftKey });
+  });
+
+  // Right-click for context menu
+  item.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    contextMenuTargetId = el.id;
+    contextMenuTargetGroupId = null;
+    if (onSelect) onSelect(el.id);
+    if (onContextMenu) {
+      onContextMenu(el.id, e);
+    }
+    _showContextMenu(e.clientX, e.clientY);
+  });
+
+  container.appendChild(item);
+}
+
+/* ================================================================ *
+ *  Inline Rename (elements)
+ * ================================================================ */
 
 function _startRename(itemEl, element) {
   const nameEl = itemEl.querySelector('.layer-name');
@@ -265,7 +461,46 @@ function _startRename(itemEl, element) {
   input.select();
 }
 
-/* ---- Context Menu ---- */
+/* ================================================================ *
+ *  Inline Rename (groups)
+ * ================================================================ */
+
+function _startGroupRename(rowEl, group) {
+  const nameEl = rowEl.querySelector('.layer-name');
+  if (!nameEl) return;
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'layer-name-input';
+  input.value = group.name || 'Group';
+
+  const finish = () => {
+    const newName = input.value.trim();
+    if (newName && newName !== group.name && onGroupRename) {
+      onGroupRename(group.id, newName);
+    }
+    renderLayerPanel();
+  };
+
+  input.addEventListener('blur', finish);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      input.blur();
+    } else if (e.key === 'Escape') {
+      input.value = group.name || 'Group';
+      input.blur();
+    }
+  });
+
+  nameEl.replaceWith(input);
+  input.focus();
+  input.select();
+}
+
+/* ================================================================ *
+ *  Context Menu
+ * ================================================================ */
 
 function _initContextMenu() {
   if (!contextMenuEl) return;
@@ -285,6 +520,25 @@ function _initContextMenu() {
     if (!item) return;
 
     const action = item.dataset.action;
+
+    // If we right-clicked a group, handle group-level actions
+    if (contextMenuTargetGroupId) {
+      switch (action) {
+        case 'rename':
+          _triggerGroupRenameFromContextMenu(contextMenuTargetGroupId);
+          break;
+        case 'ungroup':
+          if (onUngroup) onUngroup();
+          break;
+        case 'delete':
+          // Forward to group-level handling if needed
+          break;
+      }
+      _hideContextMenu();
+      return;
+    }
+
+    // Element-level context menu actions
     if (!contextMenuTargetId) return;
 
     switch (action) {
@@ -343,6 +597,7 @@ function _hideContextMenu() {
     contextMenuEl.style.display = 'none';
   }
   contextMenuTargetId = null;
+  contextMenuTargetGroupId = null;
 }
 
 function _triggerRenameFromContextMenu(elementId) {
@@ -357,7 +612,22 @@ function _triggerRenameFromContextMenu(elementId) {
   _startRename(itemEl, el);
 }
 
-/* ---- Display Name ---- */
+function _triggerGroupRenameFromContextMenu(groupId) {
+  if (!layerListEl) return;
+  const rowEl = layerListEl.querySelector(`.layer-group-row[data-group-id="${groupId}"]`);
+  if (!rowEl) return;
+
+  // Extract group info from the row's dataset and name element
+  const nameEl = rowEl.querySelector('.layer-name');
+  const currentName = nameEl ? nameEl.textContent : 'Group';
+
+  // Create a minimal group object for the rename handler
+  _startGroupRename(rowEl, { id: groupId, name: currentName });
+}
+
+/* ================================================================ *
+ *  Display Name
+ * ================================================================ */
 
 function _getDisplayName(el) {
   // If element has a custom name that differs from default, use it
@@ -379,7 +649,9 @@ function _getDisplayName(el) {
   return el.name || el.type;
 }
 
-/* ---- Type Icons ---- */
+/* ================================================================ *
+ *  Type Icons
+ * ================================================================ */
 
 function _getTypeIcon(type) {
   switch (type) {
@@ -396,7 +668,9 @@ function _getTypeIcon(type) {
   }
 }
 
-/* ---- Control Icons ---- */
+/* ================================================================ *
+ *  Control Icons
+ * ================================================================ */
 
 function _eyeIcon() {
   return '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 8s3-5 7-5 7 5 7 5-3 5-7 5S1 8 1 8z"/><circle cx="8" cy="8" r="2"/></svg>';
@@ -416,4 +690,24 @@ function _unlockIcon() {
 
 function _exposedIcon() {
   return '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M6 3h8v8"/><path d="M14 3L6 11"/><path d="M2 13h4v-4"/></svg>';
+}
+
+/* ================================================================ *
+ *  Group / Chevron Icons
+ * ================================================================ */
+
+function _chevronRightIcon() {
+  return '<svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4l4 4-4 4"/></svg>';
+}
+
+function _chevronDownIcon() {
+  return '<svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4"/></svg>';
+}
+
+function _folderIcon() {
+  return '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4v8a1 1 0 001 1h10a1 1 0 001-1V6a1 1 0 00-1-1H8L6.5 3.5A1 1 0 005.8 3H3a1 1 0 00-1 1z"/></svg>';
+}
+
+function _folderOpenIcon() {
+  return '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4v8a1 1 0 001 1h10a1 1 0 001-1V6a1 1 0 00-1-1H8L6.5 3.5A1 1 0 005.8 3H3a1 1 0 00-1 1z"/><path d="M2 8h12"/></svg>';
 }

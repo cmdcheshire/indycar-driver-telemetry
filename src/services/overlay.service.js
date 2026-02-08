@@ -5,7 +5,7 @@ const { getDb } = require('../config/database');
 
 function getAllTemplates() {
   return getDb().prepare(
-    'SELECT id, name, overlay_type, description, canvas_width, canvas_height, is_default, created_by_id, created_at, updated_at FROM overlay_templates ORDER BY updated_at DESC'
+    'SELECT id, name, overlay_type, description, canvas_width, canvas_height, is_default, folder_id, created_by_id, created_at, updated_at FROM overlay_templates ORDER BY updated_at DESC'
   ).all();
 }
 
@@ -18,7 +18,7 @@ function getTemplate(id) {
 }
 
 function createTemplate(data, userId) {
-  const { name, overlay_type, description, template_data, canvas_width, canvas_height } = data;
+  const { name, overlay_type, description, template_data, canvas_width, canvas_height, folder_id } = data;
 
   if (!name || !overlay_type) {
     throw new Error('name and overlay_type required');
@@ -28,9 +28,9 @@ function createTemplate(data, userId) {
   const templateJson = typeof template_data === 'string' ? template_data : JSON.stringify(template_data || { elements: [], groups: [] });
 
   const result = getDb().prepare(
-    `INSERT INTO overlay_templates (name, overlay_type, description, template_data, canvas_width, canvas_height, created_by_id, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(name, overlay_type, description || null, templateJson, canvas_width || 1920, canvas_height || 1080, userId, now, now);
+    `INSERT INTO overlay_templates (name, overlay_type, description, template_data, canvas_width, canvas_height, folder_id, created_by_id, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(name, overlay_type, description || null, templateJson, canvas_width || 1920, canvas_height || 1080, folder_id || null, userId, now, now);
 
   return getTemplate(result.lastInsertRowid);
 }
@@ -39,7 +39,7 @@ function updateTemplate(id, data) {
   const existing = getDb().prepare('SELECT id FROM overlay_templates WHERE id = ?').get(id);
   if (!existing) return null;
 
-  const { name, overlay_type, description, template_data, canvas_width, canvas_height } = data;
+  const { name, overlay_type, description, template_data, canvas_width, canvas_height, folder_id } = data;
   const now = new Date().toISOString();
 
   const sets = [];
@@ -54,6 +54,7 @@ function updateTemplate(id, data) {
   }
   if (canvas_width !== undefined) { sets.push('canvas_width = ?'); params.push(canvas_width); }
   if (canvas_height !== undefined) { sets.push('canvas_height = ?'); params.push(canvas_height); }
+  if (folder_id !== undefined) { sets.push('folder_id = ?'); params.push(folder_id); }
 
   sets.push('updated_at = ?');
   params.push(now);
@@ -263,7 +264,9 @@ function getRundownItems(instanceId) {
             id: el.id,
             name: el.name || el.type,
             type: el.type,
+            exposedSettings: el.exposedSettings || [],
             defaultValue: _getDefaultEditableValue(el),
+            defaults: _getExposedDefaults(el),
           }));
       } catch (_) { /* ignore parse errors */ }
     }
@@ -289,6 +292,21 @@ function _getDefaultEditableValue(el) {
     case 'data': return p.fallback || '---';
     default: return '';
   }
+}
+
+/** Get default values for all exposed settings of an element. */
+function _getExposedDefaults(el) {
+  const p = el.props || {};
+  const settings = el.exposedSettings || [];
+  if (settings.length === 0) return {};
+
+  const defaults = {};
+  for (const key of settings) {
+    if (p[key] !== undefined) {
+      defaults[key] = p[key];
+    }
+  }
+  return defaults;
 }
 
 function addRundownItem(instanceId, templateId, sortOrder) {
@@ -349,6 +367,22 @@ function deleteRundownItem(itemId) {
   getDb().prepare('DELETE FROM rundown_items WHERE id = ?').run(itemId);
 }
 
+function getOnAirItemForInstance(instanceId) {
+  const row = getDb().prepare(
+    `SELECT ri.*, ot.template_data
+     FROM rundown_items ri
+     JOIN overlay_templates ot ON ri.template_id = ot.id
+     WHERE ri.instance_id = ? AND ri.is_on_air = 1
+     LIMIT 1`
+  ).get(instanceId);
+
+  if (row) {
+    row.config_overrides = JSON.parse(row.config_overrides || '{}');
+    row.template_data = row.template_data ? JSON.parse(row.template_data) : null;
+  }
+  return row || null;
+}
+
 function setRundownItemOnAir(itemId, isOnAir) {
   const now = new Date().toISOString();
   const existing = getDb().prepare('SELECT id FROM rundown_items WHERE id = ?').get(itemId);
@@ -366,6 +400,50 @@ function setRundownItemOnAir(itemId, isOnAir) {
 
   if (row) row.config_overrides = JSON.parse(row.config_overrides || '{}');
   return row;
+}
+
+// ── Template Folders ──
+
+function getTemplateFolders() {
+  return getDb().prepare(
+    'SELECT * FROM template_folders ORDER BY sort_order ASC, name ASC'
+  ).all();
+}
+
+function createTemplateFolder(name, parentId) {
+  if (!name) throw new Error('Folder name is required');
+  const now = new Date().toISOString();
+  const result = getDb().prepare(
+    'INSERT INTO template_folders (name, parent_id, sort_order, created_at, updated_at) VALUES (?, ?, 0, ?, ?)'
+  ).run(name, parentId || null, now, now);
+  return getDb().prepare('SELECT * FROM template_folders WHERE id = ?').get(result.lastInsertRowid);
+}
+
+function updateTemplateFolder(id, data) {
+  const existing = getDb().prepare('SELECT id FROM template_folders WHERE id = ?').get(id);
+  if (!existing) return null;
+  const { name, sort_order, parent_id } = data;
+  const now = new Date().toISOString();
+  const sets = [];
+  const params = [];
+  if (name !== undefined) { sets.push('name = ?'); params.push(name); }
+  if (sort_order !== undefined) { sets.push('sort_order = ?'); params.push(sort_order); }
+  if (parent_id !== undefined) { sets.push('parent_id = ?'); params.push(parent_id); }
+  sets.push('updated_at = ?');
+  params.push(now);
+  params.push(id);
+  getDb().prepare(`UPDATE template_folders SET ${sets.join(', ')} WHERE id = ?`).run(...params);
+  return getDb().prepare('SELECT * FROM template_folders WHERE id = ?').get(id);
+}
+
+function deleteTemplateFolder(id) {
+  const folder = getDb().prepare('SELECT * FROM template_folders WHERE id = ?').get(id);
+  if (!folder) return;
+  // Re-parent child folders to this folder's parent
+  getDb().prepare('UPDATE template_folders SET parent_id = ? WHERE parent_id = ?').run(folder.parent_id || null, id);
+  // Orphan templates in this folder to root
+  getDb().prepare('UPDATE overlay_templates SET folder_id = NULL WHERE folder_id = ?').run(id);
+  getDb().prepare('DELETE FROM template_folders WHERE id = ?').run(id);
 }
 
 module.exports = {
@@ -387,8 +465,13 @@ module.exports = {
   updateFolder,
   deleteFolder,
   getRundownItems,
+  getOnAirItemForInstance,
   addRundownItem,
   updateRundownItem,
   deleteRundownItem,
   setRundownItemOnAir,
+  getTemplateFolders,
+  createTemplateFolder,
+  updateTemplateFolder,
+  deleteTemplateFolder,
 };

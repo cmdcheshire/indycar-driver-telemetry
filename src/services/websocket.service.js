@@ -169,6 +169,12 @@ function handleOverlayUpgrade(request, socket, head, query) {
         if (msg.type === 'heartbeat') {
           const client = overlayClients.get(ws);
           if (client) client.lastHeartbeat = Date.now();
+        } else if (msg.type === 'cacheStatus') {
+          const client = overlayClients.get(ws);
+          if (client) {
+            client.cacheStatus = msg.data;
+            broadcastOverlayClientChange();
+          }
         }
       } catch (e) { /* ignore */ }
     });
@@ -188,18 +194,31 @@ function handleOverlayUpgrade(request, socket, head, query) {
       broadcastOverlayClientChange();
     });
 
-    // Send init payload
+    // Check for on-air rundown item — send its template instead of the
+    // instance's base template so overlay reconnects resume the active graphic
+    const onAirItem = overlayService.getOnAirItemForInstance(instance.id);
+    let initTemplate = instance.template_data;
+    let initVisible = false;
+    let initConfigOverrides = {};
+
+    if (onAirItem && onAirItem.template_data) {
+      initTemplate = onAirItem.template_data;
+      initVisible = true;
+      initConfigOverrides = onAirItem.config_overrides || {};
+    }
+
     const initPayload = JSON.stringify({
       type: 'init',
       timestamp: Date.now(),
       data: {
-        template: instance.template_data,
+        template: initTemplate,
         config: {
           delay: instance.delay_seconds,
-          visible: true,
+          visible: initVisible,
           instanceId: instance.id,
           targetCars: state.targetCarNumbers,
           ...instance.instance_config,
+          ...initConfigOverrides,
         },
         referenceData: state.referenceData,
         snapshot: {
@@ -293,6 +312,7 @@ function broadcastOverlayClientChange() {
       connectedAt: client.connectedAt,
       delay: client.delayBuffer.delayMs / 1000,
       bufferStats: client.delayBuffer.getStats(),
+      cacheStatus: client.cacheStatus || null,
     });
   }
   broadcastToDashboard('overlayClientChange', { clients });

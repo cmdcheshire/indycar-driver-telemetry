@@ -70,6 +70,62 @@ router.post('/templates/:id/duplicate', requireRole('operator', 'admin'), (req, 
   }
 });
 
+// ── Template Folders ──
+
+router.get('/template-folders', (req, res) => {
+  try {
+    const folders = overlayService.getTemplateFolders();
+    res.json({ folders });
+  } catch (err) {
+    console.error('Error listing template folders:', err.message);
+    res.status(500).json({ error: 'Failed to list template folders' });
+  }
+});
+
+router.post('/template-folders', requireRole('operator', 'admin'), (req, res) => {
+  try {
+    const { name, parent_id } = req.body;
+    const folder = overlayService.createTemplateFolder(name, parent_id);
+    res.status(201).json({ folder });
+  } catch (err) {
+    console.error('Error creating template folder:', err.message);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.put('/template-folders/:id', requireRole('operator', 'admin'), (req, res) => {
+  try {
+    const folder = overlayService.updateTemplateFolder(parseInt(req.params.id, 10), req.body);
+    if (!folder) return res.status(404).json({ error: 'Folder not found' });
+    res.json({ folder });
+  } catch (err) {
+    console.error('Error updating template folder:', err.message);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.delete('/template-folders/:id', requireRole('admin'), (req, res) => {
+  try {
+    overlayService.deleteTemplateFolder(parseInt(req.params.id, 10));
+    res.json({ message: 'Template folder deleted' });
+  } catch (err) {
+    console.error('Error deleting template folder:', err.message);
+    res.status(500).json({ error: 'Failed to delete template folder' });
+  }
+});
+
+router.put('/templates/:id/move', requireRole('operator', 'admin'), (req, res) => {
+  try {
+    const { folder_id } = req.body;
+    const template = overlayService.updateTemplate(parseInt(req.params.id, 10), { folder_id: folder_id ?? null });
+    if (!template) return res.status(404).json({ error: 'Template not found' });
+    res.json({ template });
+  } catch (err) {
+    console.error('Error moving template:', err.message);
+    res.status(400).json({ error: err.message });
+  }
+});
+
 // ── Instances ──
 
 router.get('/instances', (req, res) => {

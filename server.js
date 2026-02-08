@@ -72,6 +72,8 @@ async function main() {
   app.get('/drivers', (req, res) => res.sendFile(path.join(__dirname, 'public', 'drivers.html')));
   app.get('/simulator', (req, res) => res.sendFile(path.join(__dirname, 'public', 'simulator.html')));
   app.get('/graphics-control', (req, res) => res.sendFile(path.join(__dirname, 'public', 'graphics-control.html')));
+  app.get('/library', (req, res) => res.sendFile(path.join(__dirname, 'public', 'library.html')));
+  app.get('/templates', (req, res) => res.sendFile(path.join(__dirname, 'public', 'templates.html')));
 
   // Create HTTP server
   const server = http.createServer(app);
@@ -136,8 +138,9 @@ async function main() {
   server.listen(constants.PORT, () => {
     console.log(`\nServer running at http://localhost:${constants.PORT}`);
     console.log(`Dashboard:  http://localhost:${constants.PORT}/dashboard`);
-    console.log(`Builder:    http://localhost:${constants.PORT}/builder`);
+    console.log(`Templates:  http://localhost:${constants.PORT}/templates`);
     console.log(`Simulator:  http://localhost:${constants.PORT}/simulator`);
+    console.log(`Library:    http://localhost:${constants.PORT}/library`);
     console.log(`TCP target: ${state.tcpHost}:${state.tcpPort}`);
     console.log(`Online:     ${state.isOnline}`);
     console.log('─'.repeat(50));
