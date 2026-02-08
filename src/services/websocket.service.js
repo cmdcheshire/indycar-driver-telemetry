@@ -96,6 +96,12 @@ function handleDashboardUpgrade(request, socket, head, query) {
       });
 
       sendToDashboard(ws, 'tcpStatus', getTcpStatus());
+
+      // Send simulator status if available
+      try {
+        const simulatorService = require('./simulator.service');
+        sendToDashboard(ws, 'simulatorStatus', simulatorService.getStatus());
+      } catch (_) { /* simulator not loaded yet */ }
     });
   } catch (err) {
     socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');

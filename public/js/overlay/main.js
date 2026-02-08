@@ -5,7 +5,7 @@
  * builds the overlay DOM, and keeps it updated in real-time.
  */
 
-import { buildOverlay } from './template-loader.js';
+import { buildOverlay, normalizeElements } from './template-loader.js';
 import { DataBinder } from './data-binder.js';
 import { AnimationEngine } from './animation-engine.js';
 
@@ -159,6 +159,11 @@ function handleInit(msg) {
 
   console.log('[overlay] Received init – building overlay');
 
+  // Normalize builder elements to flat format for renderer/binder
+  if (template && template.elements) {
+    template.elements = normalizeElements(template.elements);
+  }
+
   currentTemplate = template;
   currentConfig   = config;
 
@@ -243,6 +248,11 @@ function handleTemplateUpdate(msg) {
   const { template, referenceData } = msg.data || {};
 
   console.log('[overlay] Template update received – rebuilding DOM');
+
+  // Normalize builder elements to flat format
+  if (template && template.elements) {
+    template.elements = normalizeElements(template.elements);
+  }
 
   currentTemplate = template;
 
