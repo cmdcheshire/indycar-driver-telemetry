@@ -244,6 +244,7 @@ export function renderRundown(instanceId, items, overlayUrl) {
             <button class="gc-btn-cue" data-action="cue" data-item-id="${item.id}" title="Cue (load without showing)">CUE</button>
             <button class="gc-btn-take-on" data-action="take-on" data-item-id="${item.id}" title="Take On Air">TAKE ON</button>
             <button class="gc-btn-take-off" data-action="take-off" data-item-id="${item.id}" title="Take Off Air">TAKE OFF</button>
+            <button class="gc-btn-resume ${isOnAir ? '' : 'hidden'}" data-action="resume" data-item-id="${item.id}" title="Resume (advance past pause point)">RESUME</button>
             <div class="gc-rundown-on-air ${isOnAir ? 'active' : ''}" title="${isOnAir ? 'ON AIR' : 'Off'}"></div>
             <button class="gc-btn-remove" data-action="remove" data-item-id="${item.id}" title="Remove from rundown">${ICONS.remove}</button>
           </div>
@@ -267,6 +268,7 @@ export function renderRundown(instanceId, items, overlayUrl) {
       if (action === 'cue') handleCue(itemId);
       else if (action === 'take-on') handleTakeOn(itemId);
       else if (action === 'take-off') handleTakeOff(itemId);
+      else if (action === 'resume') handleResume(itemId);
       else if (action === 'remove') handleRemove(itemId);
       else if (action === 'config') handleToggleConfig(itemId, btn);
     });
@@ -566,6 +568,23 @@ async function handleTakeOff(itemId) {
   } catch (err) {
     console.error('Failed to take off:', err);
     showToast(err.message || 'Failed to take off', 'error');
+  }
+}
+
+async function handleResume(itemId) {
+  try {
+    const res = await authenticatedFetch(`/api/overlays/rundown/${itemId}/take`, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'resume' }),
+    });
+
+    if (!res.ok) {
+      const data = await res.json();
+      throw new Error(data.error || 'Failed to resume');
+    }
+  } catch (err) {
+    console.error('Failed to resume:', err);
+    showToast(err.message || 'Failed to resume', 'error');
   }
 }
 

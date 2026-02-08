@@ -11,6 +11,8 @@ import { DataBinder } from './data-binder.js';
 import { GsapAnimationEngine } from './gsap-animation-engine.js';
 import { init as initAssetCache, precacheTemplate } from './asset-cache.js';
 import { loadCustomFonts } from '/js/shared/font-loader.js';
+import { getEnterPreset, migrateEasing } from '/js/shared/animation-presets.js';
+import { resolveEasing } from '/js/shared/motorsport-easings.js';
 
 // ---------------------------------------------------------------------------
 // State
@@ -25,6 +27,7 @@ let reconnectTimer = null;
 let currentTemplate = null;
 let currentConfig = null;
 let holdTimer = null;          // Auto-exit timer for hold duration
+let playoutTimeline = null;    // GSAP master timeline for IN phase (pause points + enter anims)
 let initPromise = null;        // Tracks async init to queue messages during await
 let pendingMessages = [];      // Messages queued while init is running
 
@@ -196,6 +199,13 @@ function processMessage(msg) {
       handleConfigUpdate(msg);
       break;
 
+    case 'resume':
+      if (playoutTimeline && playoutTimeline.paused()) {
+        console.log('[overlay] Resuming playout timeline (advancing past pause point)');
+        playoutTimeline.play();
+      }
+      break;
+
     default:
       console.log('[overlay] Unknown message type:', msg.type);
   }
@@ -238,9 +248,9 @@ async function handleInit(msg) {
 
   domMap = buildOverlay(rootEl, template, referenceData);
 
-  // Create binder + animation engine
-  dataBinder      = new DataBinder(template.elements, domMap);
+  // Create shared animation engine + binder
   animationEngine = new GsapAnimationEngine(domMap);
+  dataBinder      = new DataBinder(template.elements, domMap, animationEngine);
 
   // Apply target cars from config
   if (config && config.targetCars) {
@@ -307,7 +317,7 @@ function handleDataUpdate(msg) {
 }
 
 // ---------------------------------------------------------------------------
-// Visibility
+// Visibility — GSAP master timeline playout system
 // ---------------------------------------------------------------------------
 
 function handleVisibility(msg) {
@@ -315,104 +325,187 @@ function handleVisibility(msg) {
 
   const { visible, elementId, animation, elementAnimations, timeline } = msg.data || {};
 
-  // Clear any pending hold timer
-  if (holdTimer) {
-    clearTimeout(holdTimer);
-    holdTimer = null;
-  }
-
+  // Single-element show/hide (not part of the playout lifecycle)
   if (elementId) {
-    // Show/hide a specific element
     if (visible) {
       animationEngine.show(elementId, { type: animation });
     } else {
       animationEngine.hide(elementId, { type: animation });
     }
-  } else if (elementAnimations && elementAnimations.length > 0) {
-    // Per-element orchestrated animation
-    const rootEl = document.getElementById('overlay-root');
-    if (visible) {
-      rootEl.style.display = '';
-      animationEngine.showAll(elementAnimations);
+    return;
+  }
 
-      // Auto-exit after hold duration (if set)
-      scheduleAutoExit(timeline, elementAnimations);
-    } else {
-      animationEngine.hideAll(elementAnimations);
-      // Hide root after the longest animation completes
-      const maxDuration = elementAnimations.reduce(
-        (max, ea) => Math.max(max, (ea.delay || 0) + (ea.duration || 300)), 0
-      );
-      setTimeout(() => { rootEl.style.display = 'none'; }, maxDuration + 50);
+  if (visible) {
+    // ── TAKE ON ──
+    // Clean up any previous playout state
+    if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+    if (playoutTimeline) { playoutTimeline.kill(); playoutTimeline = null; }
+
+    const rootEl = document.getElementById('overlay-root');
+    rootEl.style.display = '';
+
+    if (elementAnimations && elementAnimations.length > 0) {
+      // Build a GSAP master timeline for the IN phase with pause points
+      buildPlayoutTimeline(elementAnimations, timeline);
+    } else if (animation) {
+      // Simple root-level animation (no per-element orchestration)
+      animationEngine.show('__root__', { type: animation, duration: 400, easing: 'power2.out' });
+      // Schedule hold/auto-exit for root-level animation
+      if (timeline && !timeline.loop && timeline.holdDuration > 0) {
+        holdTimer = setTimeout(() => {
+          holdTimer = null;
+          performTakeOff();
+        }, 400 + timeline.holdDuration);
+      }
     }
   } else {
-    // Show/hide the entire overlay with a single animation
-    const rootEl = document.getElementById('overlay-root');
-    if (visible) {
-      rootEl.style.display = '';
-      if (animation) {
-        animationEngine.show('__root__', { type: animation, duration: 400, easing: 'power2.out' });
-      }
-
-      // Auto-exit after hold duration (if set)
-      scheduleAutoExit(timeline, null, animation);
-    } else {
-      if (animation) {
-        animationEngine.hide('__root__', {
-          type: animation, duration: 300, easing: 'power2.in',
-        });
-        // Delay hiding the root until animation completes
-        setTimeout(() => { rootEl.style.display = 'none'; }, 350);
-      } else {
-        rootEl.style.display = 'none';
-      }
-    }
+    // ── TAKE OFF ──
+    performTakeOff();
   }
 }
 
 /**
- * Schedule auto-exit after holdDuration (ms) elapses.
- * holdDuration of 0 or undefined means hold indefinitely (manual TAKE OFF).
+ * Build a GSAP master timeline for the IN (enter) phase.
+ * Adds pause points so the operator can step through with RESUME.
+ * On completion, enters the HOLD phase (loop or timed auto-exit).
  */
-function scheduleAutoExit(timeline, elementAnimations, rootAnimation) {
-  if (!timeline || !timeline.holdDuration || timeline.holdDuration <= 0) return;
+function buildPlayoutTimeline(elementAnimations, timeline) {
+  const tl = gsap.timeline({
+    onComplete: () => {
+      playoutTimeline = null;
+      onEnterComplete(timeline);
+    },
+  });
 
-  // Calculate the longest enter animation duration so hold starts AFTER enter completes
-  let enterDuration = 0;
-  if (elementAnimations && elementAnimations.length > 0) {
-    enterDuration = elementAnimations.reduce(
-      (max, ea) => Math.max(max, (ea.delay || 0) + (ea.duration || 300)), 0
-    );
-  } else if (rootAnimation) {
-    enterDuration = 400; // default root animation duration
+  for (const config of elementAnimations) {
+    const node = domMap ? domMap.get(config.elementId) : null;
+    if (!node) continue;
+
+    const presetName = config.type || 'fadeIn';
+    if (presetName === 'none') continue;
+
+    const preset = getEnterPreset(presetName);
+    if (!preset) continue;
+
+    const duration = (config.duration || 300) / 1000;
+    const delay = (config.delay || 0) / 1000;
+    const rawEasing = config.easing || preset.defaultEase || 'power2.out';
+    const easing = resolveEasing(migrateEasing(rawEasing));
+
+    // Make element visible
+    node.style.display = '';
+    node.style.opacity = '';
+    node.style.willChange = 'transform, opacity';
+
+    // Add enter animation to the master timeline at absolute offset
+    tl.from(node, {
+      ...preset.vars,
+      duration,
+      ease: easing,
+      onComplete: () => {
+        // Clear GSAP-set inline transforms so element returns to CSS-defined position
+        const clearStr = preset.clearProps || Object.keys(preset.vars).join(',');
+        gsap.set(node, { clearProps: clearStr });
+        // Restore mask clip-path if set
+        const maskClip = node.dataset?.maskClipPath;
+        if (maskClip) node.style.clipPath = maskClip;
+        // Schedule GPU layer cleanup
+        setTimeout(() => { node.style.willChange = ''; }, 5000);
+      },
+    }, delay);
   }
 
-  const totalWait = enterDuration + timeline.holdDuration;
-
-  holdTimer = setTimeout(() => {
-    holdTimer = null;
-    if (!animationEngine) return;
-
-    const rootEl = document.getElementById('overlay-root');
-
-    if (elementAnimations && elementAnimations.length > 0) {
-      // Build exit animations from enter configs (swap enter→exit types)
-      const exitAnims = elementAnimations.map(ea => ({
-        ...ea,
-        type: ea.exitType || ea.type.replace(/In$/, 'Out').replace(/^slide/, 'slide').replace(/^wipe/, 'wipe'),
-      }));
-      animationEngine.hideAll(exitAnims);
-      const maxDur = exitAnims.reduce(
-        (max, ea) => Math.max(max, (ea.delay || 0) + (ea.duration || 300)), 0
-      );
-      setTimeout(() => { rootEl.style.display = 'none'; }, maxDur + 50);
-    } else {
-      animationEngine.hide('__root__', {
-        type: 'fadeOut', duration: 300, easing: 'power2.in',
-      });
-      setTimeout(() => { rootEl.style.display = 'none'; }, 350);
+  // Add pause points (sorted by time, only within the IN duration)
+  if (timeline && Array.isArray(timeline.pausePoints)) {
+    const sorted = [...timeline.pausePoints].sort((a, b) => a.time - b.time);
+    const tlDuration = tl.duration();
+    for (const pp of sorted) {
+      const ppSec = pp.time / 1000;
+      if (ppSec > 0 && ppSec < tlDuration) {
+        tl.addPause(ppSec);
+      }
     }
-  }, totalWait);
+  }
+
+  playoutTimeline = tl;
+  return tl;
+}
+
+/**
+ * Called when the IN phase master timeline completes. Enters HOLD phase.
+ * - loop enabled: hold indefinitely (no auto-exit) until TAKE OFF
+ * - loop disabled + holdDuration > 0: auto-exit after holdDuration ms
+ * - no holdDuration: hold indefinitely (manual TAKE OFF)
+ */
+function onEnterComplete(timeline) {
+  if (timeline && timeline.loop) {
+    console.log('[overlay] Entering HOLD (loop — waiting for TAKE OFF)');
+    return;
+  }
+
+  if (timeline && timeline.holdDuration > 0) {
+    console.log('[overlay] Entering HOLD for', timeline.holdDuration, 'ms');
+    holdTimer = setTimeout(() => {
+      holdTimer = null;
+      performTakeOff();
+    }, timeline.holdDuration);
+  }
+}
+
+/**
+ * Perform a clean TAKE OFF from any playout state.
+ * Kills emphasis, plays exit animations, then hides the root.
+ */
+function performTakeOff() {
+  const rootEl = document.getElementById('overlay-root');
+  if (!rootEl) return;
+
+  // Kill active playout timeline (if still in IN phase)
+  if (playoutTimeline) {
+    playoutTimeline.kill();
+    playoutTimeline = null;
+  }
+
+  // Clear hold timer
+  if (holdTimer) {
+    clearTimeout(holdTimer);
+    holdTimer = null;
+  }
+
+  // Kill emphasis animations for a clean exit (no mid-animation jitter)
+  if (animationEngine) {
+    animationEngine.killEmphasis();
+  }
+
+  // Extract exit animations from the current template
+  const exitConfigs = extractExitAnimations(currentTemplate);
+
+  if (exitConfigs.length > 0 && animationEngine) {
+    animationEngine.hideAll(exitConfigs);
+    const maxDur = exitConfigs.reduce(
+      (max, ea) => Math.max(max, (ea.delay || 0) + (ea.duration || 300)), 0
+    );
+    setTimeout(() => { rootEl.style.display = 'none'; }, maxDur + 50);
+  } else {
+    rootEl.style.display = 'none';
+  }
+}
+
+/**
+ * Extract exit animation configs from the current template's elements.
+ * Uses the normalized flat properties set by template-loader.
+ */
+function extractExitAnimations(template) {
+  if (!template || !Array.isArray(template.elements)) return [];
+  return template.elements
+    .filter(el => el.exitAnimation && el.exitAnimation !== 'none')
+    .map(el => ({
+      elementId: el.id,
+      type: el.exitAnimation,
+      duration: el.exitAnimationDuration || 300,
+      delay: el.exitAnimationDelay || 0,
+      easing: el.exitAnimationEasing || 'power2.in',
+    }));
 }
 
 // ---------------------------------------------------------------------------
@@ -446,8 +539,8 @@ function handleTemplateUpdate(msg) {
 
   domMap = buildOverlay(rootEl, template, referenceData || {});
 
-  dataBinder      = new DataBinder(template.elements, domMap);
   animationEngine = new GsapAnimationEngine(domMap);
+  dataBinder      = new DataBinder(template.elements, domMap, animationEngine);
 
   if (currentConfig && currentConfig.targetCars) {
     dataBinder.setTargetCars(currentConfig.targetCars);

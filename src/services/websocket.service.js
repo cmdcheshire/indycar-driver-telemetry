@@ -379,6 +379,15 @@ function sendOverlayTemplateUpdate(instanceId, templateData) {
   }
 }
 
+function sendOverlayResume(instanceId) {
+  const message = JSON.stringify({ type: 'resume', timestamp: Date.now() });
+  for (const [ws, client] of overlayClients) {
+    if (client.instanceId === instanceId && ws.readyState === 1) {
+      ws.send(message);
+    }
+  }
+}
+
 function sendOverlayConfigUpdate(instanceId, config) {
   const message = JSON.stringify({
     type: 'configUpdate',
@@ -432,6 +441,7 @@ module.exports = {
   broadcastOverlayClientChange,
   updateOverlayDelay,
   sendOverlayVisibility,
+  sendOverlayResume,
   sendOverlayTemplateUpdate,
   sendOverlayConfigUpdate,
   setTcpStatus,

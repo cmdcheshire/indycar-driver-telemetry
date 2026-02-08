@@ -89,9 +89,15 @@ export function initTimelinePanel(opts) {
   // Loop toggle
   const loopBtn = document.getElementById('tlLoopBtn');
   if (loopBtn) {
+    // Sync initial state from timeline data
+    if (_getTimeline) {
+      _loopEnabled = _getTimeline().loop || false;
+      loopBtn.classList.toggle('active', _loopEnabled);
+    }
     loopBtn.addEventListener('click', () => {
       _loopEnabled = !_loopEnabled;
       loopBtn.classList.toggle('active', _loopEnabled);
+      if (_onTimelineChange) _onTimelineChange({ loop: _loopEnabled });
     });
   }
 

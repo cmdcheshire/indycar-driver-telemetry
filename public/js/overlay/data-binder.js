@@ -64,10 +64,11 @@ export function getOrdinal(n) {
 
 export class DataBinder {
   /**
-   * @param {Array}  elements - The template elements array (from template.elements).
-   * @param {Map}    domMap   - Map of element.id -> DOM node.
+   * @param {Array}  elements        - The template elements array (from template.elements).
+   * @param {Map}    domMap          - Map of element.id -> DOM node.
+   * @param {GsapAnimationEngine} [animationEngine] - Shared engine (creates own if omitted).
    */
-  constructor(elements, domMap) {
+  constructor(elements, domMap, animationEngine) {
     /** All template element definitions */
     this._elements = elements || [];
 
@@ -94,7 +95,7 @@ export class DataBinder {
     this._previousRanks = new Map();
 
     /** Animation engine instance for position transitions and emphasis */
-    this._animationEngine = new GsapAnimationEngine(domMap);
+    this._animationEngine = animationEngine || new GsapAnimationEngine(domMap);
   }
 
   // -----------------------------------------------------------------------
@@ -189,8 +190,15 @@ export class DataBinder {
 
       // Dirty check: only touch the DOM if the value changed
       if (this._previousValues[element.id] !== display) {
+        const isFirstRender = this._previousValues[element.id] === undefined;
         this._previousValues[element.id] = display;
-        updateElementText(domNode, display);
+
+        // Use crossfade transition on subsequent renders if configured
+        if (!isFirstRender && element.updateAnimation === 'crossfade') {
+          this._animationEngine.updateValue(element.id, display, 'crossfade', element.updateAnimationDuration || 300);
+        } else {
+          updateElementText(domNode, display);
+        }
 
         // Evaluate conditional styles
         this.evaluateConditionalStyles(element, rawValue, domNode);

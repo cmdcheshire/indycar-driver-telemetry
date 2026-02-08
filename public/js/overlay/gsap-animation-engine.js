@@ -437,6 +437,25 @@ export class GsapAnimationEngine {
   // -----------------------------------------------------------------------
 
   /**
+   * Kill all emphasis animations and reset their elements to clean state.
+   * Called before TAKE OFF so exit animations play smoothly.
+   */
+  killEmphasis() {
+    for (const [channel, anim] of this._channels) {
+      if (channel.startsWith('emphasis-')) {
+        if (typeof anim.kill === 'function') anim.kill();
+        const elementId = channel.replace('emphasis-', '');
+        const node = this._getNode(elementId);
+        if (node) {
+          gsap.set(node, { clearProps: 'transform,opacity,textShadow,color,backgroundColor,filter' });
+          this._restoreMaskClipPath(node);
+        }
+        this._channels.delete(channel);
+      }
+    }
+  }
+
+  /**
    * Kill all active animations and revert the GSAP context.
    * Call this when rebuilding the overlay DOM.
    */

@@ -322,8 +322,8 @@ router.delete('/rundown/:itemId', requireRole('admin'), (req, res) => {
 router.post('/rundown/:itemId/take', requireRole('operator', 'admin'), (req, res) => {
   try {
     const { action } = req.body;
-    if (action !== 'on' && action !== 'off' && action !== 'cue') {
-      return res.status(400).json({ error: "action must be 'on', 'off', or 'cue'" });
+    if (action !== 'on' && action !== 'off' && action !== 'cue' && action !== 'resume') {
+      return res.status(400).json({ error: "action must be 'on', 'off', 'cue', or 'resume'" });
     }
 
     const itemId = parseInt(req.params.itemId, 10);
@@ -420,6 +420,8 @@ router.post('/rundown/:itemId/take', requireRole('operator', 'admin'), (req, res
 
       wsService.sendOverlayVisibility(instanceId, true, enterAnimation, enterElementAnims, timelineConfig);
       overlayService.setRundownItemOnAir(itemId, true);
+    } else if (action === 'resume') {
+      wsService.sendOverlayResume(instanceId);
     } else {
       wsService.sendOverlayVisibility(instanceId, false, exitAnimation, exitElementAnims);
       overlayService.setRundownItemOnAir(itemId, false);
