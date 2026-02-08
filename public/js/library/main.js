@@ -979,6 +979,32 @@ async function init() {
     renderAssetGrid();
   });
 
+  // Re-scan button
+  const btnRescan = document.getElementById('btnRescan');
+  if (btnRescan) {
+    btnRescan.addEventListener('click', async () => {
+      btnRescan.disabled = true;
+      btnRescan.textContent = 'Scanning...';
+      try {
+        const res = await authenticatedFetch('/api/library/rescan', { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Re-scan failed');
+        if (data.recovered > 0) {
+          showToast(`Recovered ${data.recovered} asset(s)`, 'success');
+          await loadAssets();
+          renderAssetGrid();
+        } else {
+          showToast('No orphaned files found', 'info', 2000);
+        }
+      } catch (err) {
+        showToast(err.message, 'error');
+      } finally {
+        btnRescan.disabled = false;
+        btnRescan.textContent = 'Re-scan';
+      }
+    });
+  }
+
   // Close context menu on outside click
   document.addEventListener('click', (e) => {
     if (!contextMenuEl.contains(e.target)) {

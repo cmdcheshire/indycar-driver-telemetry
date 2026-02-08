@@ -87,6 +87,11 @@ export const EXPOSABLE_SETTINGS = {
       { value: '700', label: 'Bold' },
       { value: '900', label: 'Black' },
     ]},
+    { key: 'textAlign', label: 'Alignment', inputType: 'select', options: [
+      { value: 'left', label: 'Left' },
+      { value: 'center', label: 'Center' },
+      { value: 'right', label: 'Right' },
+    ]},
     { key: 'overflow', label: 'Overflow', inputType: 'select', options: [
       { value: 'hidden', label: 'Clip' },
       { value: 'visible', label: 'Visible' },

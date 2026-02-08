@@ -306,6 +306,62 @@ router.get('/assets/:id/file', async (req, res) => {
   }
 });
 
+// POST /api/library/rescan - re-index orphaned files from disk into the DB
+router.post('/rescan', authenticateToken, requireRole('admin'), (req, res) => {
+  try {
+    if (useS3) {
+      return res.status(400).json({ error: 'Re-scan is only supported for local disk storage' });
+    }
+
+    if (!fs.existsSync(LIBRARY_UPLOAD_DIR)) {
+      return res.json({ recovered: 0, message: 'Upload directory does not exist' });
+    }
+
+    // Get all filenames currently tracked in the DB
+    const tracked = new Set(
+      getDb().prepare('SELECT filename FROM library_assets').all().map(r => r.filename)
+    );
+
+    // Scan disk for files not in DB
+    const files = fs.readdirSync(LIBRARY_UPLOAD_DIR).filter(f => {
+      const fullPath = path.join(LIBRARY_UPLOAD_DIR, f);
+      return fs.statSync(fullPath).isFile() && !tracked.has(f);
+    });
+
+    if (files.length === 0) {
+      return res.json({ recovered: 0, message: 'No orphaned files found' });
+    }
+
+    const now = new Date().toISOString();
+    const insert = getDb().prepare(
+      'INSERT INTO library_assets (filename, original_name, mime_type, file_size, folder_id, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+    );
+
+    const insertMany = getDb().transaction((fileList) => {
+      const results = [];
+      for (const f of fileList) {
+        const fullPath = path.join(LIBRARY_UPLOAD_DIR, f);
+        const stat = fs.statSync(fullPath);
+        const mime = _resolveMimeType(f, 'application/octet-stream');
+        // Derive a readable original name: strip the timestamp suffix before extension
+        const ext = path.extname(f);
+        const base = path.basename(f, ext).replace(/_\d{13}$/, '');
+        const originalName = base + ext;
+
+        const result = insert.run(f, originalName, mime, stat.size, null, now);
+        results.push({ id: result.lastInsertRowid, filename: f, original_name: originalName });
+      }
+      return results;
+    });
+
+    const recovered = insertMany(files);
+    res.json({ recovered: recovered.length, assets: recovered });
+  } catch (err) {
+    console.error('[library] Re-scan error:', err.message);
+    res.status(500).json({ error: 'Failed to re-scan library' });
+  }
+});
+
 /**
  * Resolve the correct MIME type for a file. Falls back to extension-based
  * lookup when the stored type is generic (e.g. application/octet-stream).

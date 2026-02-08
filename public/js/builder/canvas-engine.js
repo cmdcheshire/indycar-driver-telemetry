@@ -65,10 +65,13 @@ export class CanvasEngine {
   updateElement(id, props) {
     const entry = this.#elements.get(id);
     if (!entry) return;
-    Object.assign(entry.element, props);
+    // Merge props sub-object separately to avoid clobbering nested data
     if (props.props) {
       entry.element.props = { ...entry.element.props, ...props.props };
     }
+    // Merge top-level keys (excluding props which was already merged)
+    const { props: _propsObj, ...topLevel } = props;
+    Object.assign(entry.element, topLevel);
     this.#applyStyles(entry.element, entry.node);
     this.#renderContent(entry.element, entry.node);
 
@@ -253,6 +256,7 @@ export class CanvasEngine {
         node.style.lineHeight = p.lineHeight || '1.3';
         node.style.display = 'flex';
         node.style.alignItems = 'center';
+        node.style.justifyContent = this.#mapTextAlign(p.textAlign);
         node.style.overflow = p.fitText ? 'hidden' : (p.overflow || '');
         if (p.textShadow) node.style.textShadow = p.textShadow;
         if (p.textStroke) node.style.webkitTextStroke = p.textStroke;
@@ -307,6 +311,7 @@ export class CanvasEngine {
         node.style.lineHeight = p.lineHeight || '1.3';
         node.style.display = 'flex';
         node.style.alignItems = 'center';
+        node.style.justifyContent = this.#mapTextAlign(p.textAlign);
         node.style.overflow = p.fitText ? 'hidden' : (p.overflow || '');
         if (p.textShadow) node.style.textShadow = p.textShadow;
         if (p.textStroke) node.style.webkitTextStroke = p.textStroke;
@@ -401,6 +406,20 @@ export class CanvasEngine {
       } else if (entry.element.visible !== false) {
         entry.node.style.display = '';
       }
+    }
+  }
+
+  /**
+   * Map textAlign to flexbox justify-content value.
+   * @param {string} [align]
+   * @returns {string}
+   */
+  #mapTextAlign(align) {
+    switch (align) {
+      case 'center': return 'center';
+      case 'right':  return 'flex-end';
+      case 'left':
+      default:       return 'flex-start';
     }
   }
 

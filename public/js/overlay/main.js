@@ -27,6 +27,7 @@ let reconnectTimer = null;
 let currentTemplate = null;
 let currentConfig = null;
 let holdTimer = null;          // Auto-exit timer for hold duration
+let exitHideTimer = null;      // Timer to hide root after exit animations finish
 let playoutTimeline = null;    // GSAP master timeline for IN phase (pause points + enter anims)
 let initPromise = null;        // Tracks async init to queue messages during await
 let pendingMessages = [];      // Messages queued while init is running
@@ -339,6 +340,7 @@ function handleVisibility(msg) {
     // ── TAKE ON ──
     // Clean up any previous playout state
     if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+    if (exitHideTimer) { clearTimeout(exitHideTimer); exitHideTimer = null; }
     if (playoutTimeline) { playoutTimeline.kill(); playoutTimeline = null; }
 
     const rootEl = document.getElementById('overlay-root');
@@ -472,6 +474,12 @@ function performTakeOff() {
     holdTimer = null;
   }
 
+  // Clear any previous exit-hide timer (rapid TAKE OFF / TAKE ON cycles)
+  if (exitHideTimer) {
+    clearTimeout(exitHideTimer);
+    exitHideTimer = null;
+  }
+
   // Kill emphasis animations for a clean exit (no mid-animation jitter)
   if (animationEngine) {
     animationEngine.killEmphasis();
@@ -485,7 +493,10 @@ function performTakeOff() {
     const maxDur = exitConfigs.reduce(
       (max, ea) => Math.max(max, (ea.delay || 0) + (ea.duration || 300)), 0
     );
-    setTimeout(() => { rootEl.style.display = 'none'; }, maxDur + 50);
+    exitHideTimer = setTimeout(() => {
+      exitHideTimer = null;
+      rootEl.style.display = 'none';
+    }, maxDur + 50);
   } else {
     rootEl.style.display = 'none';
   }
@@ -582,6 +593,8 @@ function handleConfigUpdate(msg) {
   // Apply element overrides from exposed elements
   if (domMap && config.elementOverrides) {
     applyElementOverrides(config.elementOverrides);
+    // Re-resolve bindings in case prefix/suffix/fallback/car changed
+    if (dataBinder) dataBinder.resolveBindings();
     // Re-cache in case image sources were overridden
     precacheTemplate(currentTemplate, {}, currentConfig);
   }

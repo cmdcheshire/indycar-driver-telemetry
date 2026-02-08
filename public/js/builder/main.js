@@ -993,6 +993,10 @@ async function _loadFromUrl() {
 
     elements.forEach((el, i) => {
       if (el.zIndex === undefined) el.zIndex = i;
+      // Ensure data elements have a preview value for display in the builder
+      if (el.type === 'data' && el.props && !el.props._previewValue) {
+        el.props._previewValue = resolveBindingPreview(el.props);
+      }
     });
 
     canvas.loadElements(elements);
