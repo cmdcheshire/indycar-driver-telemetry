@@ -200,8 +200,8 @@ function applyTextStyles(wrapper, element) {
   if (element.lineHeight)  wrapper.style.lineHeight  = String(element.lineHeight);
   if (element.letterSpacing) wrapper.style.letterSpacing = toPx(element.letterSpacing);
 
-  // Color
-  if (element.color)           wrapper.style.color           = element.color;
+  // Color (fallback to white — overlay has transparent background so black is invisible)
+  wrapper.style.color = element.color || '#FFFFFF';
   if (element.backgroundColor) wrapper.style.backgroundColor = element.backgroundColor;
 
   // Padding
