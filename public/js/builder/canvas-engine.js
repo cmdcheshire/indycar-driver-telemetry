@@ -326,8 +326,8 @@ export class CanvasEngine {
     }
     node.style.transform = transforms.join(' ');
 
-    // Visibility / lock states
-    node.classList.toggle('hidden-element', !element.visible);
+    // Visibility / lock states (default to visible if field is undefined)
+    node.classList.toggle('hidden-element', element.visible === false);
     node.classList.toggle('locked', !!element.locked);
   }
 

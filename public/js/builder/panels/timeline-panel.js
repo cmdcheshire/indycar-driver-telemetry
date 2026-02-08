@@ -73,6 +73,7 @@ export function initTimelinePanel(opts) {
     modeToggle.addEventListener('click', () => {
       _mode = _mode === 'enter' ? 'exit' : 'enter';
       modeToggle.textContent = _mode === 'enter' ? 'Enter' : 'Exit';
+      _expandPanel();
       renderTimelinePanel();
     });
   }
@@ -80,8 +81,22 @@ export function initTimelinePanel(opts) {
   // Play All
   const playBtn = document.getElementById('timelinePlayAll');
   if (playBtn) {
-    playBtn.addEventListener('click', () => _playAll());
+    playBtn.addEventListener('click', () => {
+      _expandPanel();
+      _playAll();
+    });
   }
+}
+
+/**
+ * Expand the timeline panel if it is collapsed.
+ */
+function _expandPanel() {
+  if (!_collapsed) return;
+  _collapsed = false;
+  if (_panelEl) _panelEl.classList.remove('collapsed');
+  const toggleBtn = document.getElementById('timelineToggle');
+  if (toggleBtn) toggleBtn.textContent = '\u25BC';
 }
 
 /**
