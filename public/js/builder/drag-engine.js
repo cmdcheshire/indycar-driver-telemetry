@@ -144,10 +144,6 @@ export class DragEngine {
     let newX = this.#startElement.x + dx;
     let newY = this.#startElement.y + dy;
 
-    // Clamp to canvas bounds
-    newX = Math.max(0, Math.min(100 - this.#startElement.width, newX));
-    newY = Math.max(0, Math.min(100 - this.#startElement.height, newY));
-
     // Snap
     const allElements = this.#canvas.getElements();
     const targets = this.#snapEngine.getSnapTargets(this.#elementId, allElements);
@@ -188,24 +184,23 @@ export class DragEngine {
         height = Math.max(minSize, s.height + dy);
         break;
       case 'sw':
-        x = Math.max(0, s.x + dx);
+        x = s.x + dx;
         width = Math.max(minSize, s.width - dx);
         height = Math.max(minSize, s.height + dy);
         break;
       case 'ne':
-        y = y; // unchanged
         width = Math.max(minSize, s.width + dx);
         height = Math.max(minSize, s.height - dy);
-        y = Math.max(0, s.y + dy);
+        y = s.y + dy;
         break;
       case 'nw':
-        x = Math.max(0, s.x + dx);
-        y = Math.max(0, s.y + dy);
+        x = s.x + dx;
+        y = s.y + dy;
         width = Math.max(minSize, s.width - dx);
         height = Math.max(minSize, s.height - dy);
         break;
       case 'n':
-        y = Math.max(0, s.y + dy);
+        y = s.y + dy;
         height = Math.max(minSize, s.height - dy);
         break;
       case 's':
@@ -215,14 +210,10 @@ export class DragEngine {
         width = Math.max(minSize, s.width + dx);
         break;
       case 'w':
-        x = Math.max(0, s.x + dx);
+        x = s.x + dx;
         width = Math.max(minSize, s.width - dx);
         break;
     }
-
-    // Clamp right/bottom edges
-    if (x + width > 100) width = 100 - x;
-    if (y + height > 100) height = 100 - y;
 
     this.#onUpdate(this.#elementId, { x, y, width, height });
   }

@@ -92,12 +92,12 @@ export function updatePropertiesPanel(element) {
   // Transform
   _addCollapsibleGroup('Transform', [
     _row([
-      _numberInput('X', element.x, 0, 100, 0.1, (v) => _emit({ x: v })),
-      _numberInput('Y', element.y, 0, 100, 0.1, (v) => _emit({ y: v })),
+      _numberInput('X', element.x, -100, 200, 0.1, (v) => _emit({ x: v })),
+      _numberInput('Y', element.y, -100, 200, 0.1, (v) => _emit({ y: v })),
     ]),
     _row([
-      _numberInput('W', element.width, 0.5, 100, 0.1, (v) => _emit({ width: v })),
-      _numberInput('H', element.height, 0.5, 100, 0.1, (v) => _emit({ height: v })),
+      _numberInput('W', element.width, 0.5, 200, 0.1, (v) => _emit({ width: v })),
+      _numberInput('H', element.height, 0.5, 200, 0.1, (v) => _emit({ height: v })),
     ]),
     _row([
       _numberInput('Rot', element.rotation || 0, 0, 360, 1, (v) => _emit({ rotation: v })),

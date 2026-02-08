@@ -282,7 +282,10 @@ function handleTemplateUpdate(msg) {
 
   currentTemplate = template;
 
+  // Hide root BEFORE clearing DOM to prevent flash during CUE
   const rootEl = document.getElementById('overlay-root');
+  rootEl.style.display = 'none';
+  rootEl.className = '';
   rootEl.innerHTML = '';
 
   domMap = buildOverlay(rootEl, template, referenceData || {});
@@ -305,6 +308,8 @@ function handleTemplateUpdate(msg) {
 
   // Re-resolve with whatever data we already have
   dataBinder.resolveBindings();
+
+  // Root stays hidden — visibility message (TAKE ON) will show it
 }
 
 // ---------------------------------------------------------------------------

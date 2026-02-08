@@ -1,7 +1,8 @@
 /**
  * Rundown Panel -- main area.
  * Displays and manages the ordered list of graphics for the selected output instance.
- * Supports take on/off, reorder via drag-and-drop, and item removal.
+ * Supports take on/off, cue, reorder via drag-and-drop, item removal,
+ * per-item config overrides, inline rename, and output URL display.
  */
 import { authenticatedFetch } from '/js/modules/auth.js';
 import { showToast, showConfirm } from '/js/modules/ui.js';
@@ -15,6 +16,7 @@ let dragSourceIndex = null;
 const ICONS = {
   dragHandle: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>',
   remove: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>',
+  gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>',
 };
 
 // ── Public API ──
@@ -26,7 +28,6 @@ export function initRundownPanel({ onRefresh }) {
   const addBtn = document.getElementById('btnAddGraphic');
   if (addBtn) {
     addBtn.addEventListener('click', () => {
-      // Scroll the template library into view and flash it
       const templateLib = document.querySelector('.gc-template-library');
       if (templateLib) {
         templateLib.style.outline = '2px solid var(--accent)';
@@ -34,24 +35,53 @@ export function initRundownPanel({ onRefresh }) {
       }
     });
   }
+
+  // Wire up URL copy button
+  const copyBtn = document.getElementById('urlCopyBtn');
+  if (copyBtn) {
+    copyBtn.addEventListener('click', () => {
+      const urlInput = document.getElementById('urlInput');
+      if (urlInput && urlInput.value) {
+        navigator.clipboard.writeText(urlInput.value).then(() => {
+          copyBtn.textContent = 'Copied!';
+          setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
+        }).catch(() => {
+          // Fallback: select + copy
+          urlInput.select();
+          document.execCommand('copy');
+          copyBtn.textContent = 'Copied!';
+          setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
+        });
+      }
+    });
+  }
 }
 
-export function renderRundown(instanceId, items) {
+export function renderRundown(instanceId, items, overlayUrl) {
   currentInstanceId = instanceId;
 
   const titleEl = document.getElementById('rundownTitle');
   const listEl = document.getElementById('rundownList');
   const addBtn = document.getElementById('btnAddGraphic');
+  const urlBar = document.getElementById('urlBar');
+  const urlInput = document.getElementById('urlInput');
 
   if (!listEl) return;
 
-  // Update title -- we may not have the instance name here, so just show "Rundown"
   if (titleEl) {
     titleEl.textContent = 'Rundown';
   }
 
   if (addBtn) {
     addBtn.classList.remove('hidden');
+  }
+
+  // Show URL bar with overlay URL
+  if (urlBar && urlInput && overlayUrl) {
+    urlBar.classList.remove('hidden');
+    urlInput.value = overlayUrl;
+  } else if (urlBar) {
+    urlBar.classList.add('hidden');
   }
 
   if (!items || items.length === 0) {
@@ -76,22 +106,49 @@ export function renderRundown(instanceId, items) {
       ? `<span class="gc-type-badge">${escapeHtml(item.overlay_type)}</span>`
       : '';
 
+    // Use displayName from config_overrides if set, otherwise template_name
+    const config = item.config_overrides || {};
+    const displayName = config.displayName || item.template_name || 'Unknown Template';
+
+    // Target cars from config
+    const targetCars = config.targetCars || {};
+
     html += `
-      <div class="gc-rundown-item ${isOnAir ? 'on-air' : ''}"
-           data-item-id="${item.id}"
-           data-index="${index}"
-           draggable="true">
-        <div class="gc-drag-handle" title="Drag to reorder">${ICONS.dragHandle}</div>
-        <div class="gc-rundown-info">
-          <span class="gc-rundown-template-name">${escapeHtml(item.template_name || 'Unknown Template')}</span>
-          ${typeBadge}
+      <div class="gc-rundown-item-wrapper" data-item-id="${item.id}">
+        <div class="gc-rundown-item ${isOnAir ? 'on-air' : ''}"
+             data-item-id="${item.id}"
+             data-index="${index}"
+             draggable="true">
+          <div class="gc-drag-handle" title="Drag to reorder">${ICONS.dragHandle}</div>
+          <div class="gc-rundown-info">
+            <span class="gc-rundown-template-name"
+                  data-item-id="${item.id}"
+                  data-original-name="${escapeHtml(item.template_name || 'Unknown Template')}"
+                  title="Double-click to rename">${escapeHtml(displayName)}</span>
+            ${typeBadge}
+          </div>
+          <div class="gc-rundown-controls">
+            <button class="gc-btn-config" data-action="config" data-item-id="${item.id}" title="Configure">${ICONS.gear}</button>
+            <button class="gc-btn-cue" data-action="cue" data-item-id="${item.id}" title="Cue (load without showing)">CUE</button>
+            <button class="gc-btn-take-on" data-action="take-on" data-item-id="${item.id}" title="Take On Air">TAKE ON</button>
+            <button class="gc-btn-take-off" data-action="take-off" data-item-id="${item.id}" title="Take Off Air">TAKE OFF</button>
+            <div class="gc-rundown-on-air ${isOnAir ? 'active' : ''}" title="${isOnAir ? 'ON AIR' : 'Off'}"></div>
+            <button class="gc-btn-remove" data-action="remove" data-item-id="${item.id}" title="Remove from rundown">${ICONS.remove}</button>
+          </div>
         </div>
-        <div class="gc-rundown-controls">
-          <button class="gc-btn-cue" data-action="cue" data-item-id="${item.id}" title="Cue (load)">CUE</button>
-          <button class="gc-btn-take-on" data-action="take-on" data-item-id="${item.id}" title="Take On Air">TAKE ON</button>
-          <button class="gc-btn-take-off" data-action="take-off" data-item-id="${item.id}" title="Take Off Air">TAKE OFF</button>
-          <div class="gc-rundown-on-air ${isOnAir ? 'active' : ''}" title="${isOnAir ? 'ON AIR' : 'Off'}"></div>
-          <button class="gc-btn-remove" data-action="remove" data-item-id="${item.id}" title="Remove from rundown">${ICONS.remove}</button>
+        <div class="gc-item-config" data-config-for="${item.id}">
+          <div class="gc-config-row">
+            <span class="gc-config-label">Target Car 1</span>
+            <input type="text" class="gc-config-input" data-config-field="target1" data-item-id="${item.id}" placeholder="e.g. 28" value="${escapeHtml(targetCars.target1 || '')}">
+          </div>
+          <div class="gc-config-row">
+            <span class="gc-config-label">Target Car 2</span>
+            <input type="text" class="gc-config-input" data-config-field="target2" data-item-id="${item.id}" placeholder="e.g. 5" value="${escapeHtml(targetCars.target2 || '')}">
+          </div>
+          <div class="gc-config-row">
+            <span class="gc-config-label">Target Car 3</span>
+            <input type="text" class="gc-config-input" data-config-field="target3" data-item-id="${item.id}" placeholder="e.g. 12" value="${escapeHtml(targetCars.target3 || '')}">
+          </div>
         </div>
       </div>
     `;
@@ -110,6 +167,23 @@ export function renderRundown(instanceId, items) {
       else if (action === 'take-on') handleTakeOn(itemId);
       else if (action === 'take-off') handleTakeOff(itemId);
       else if (action === 'remove') handleRemove(itemId);
+      else if (action === 'config') handleToggleConfig(itemId, btn);
+    });
+  });
+
+  // Wire up config input changes
+  listEl.querySelectorAll('.gc-config-input').forEach(input => {
+    input.addEventListener('change', () => {
+      const itemId = parseInt(input.dataset.itemId, 10);
+      saveConfigOverrides(itemId);
+    });
+  });
+
+  // Wire up inline rename (double-click)
+  listEl.querySelectorAll('.gc-rundown-template-name').forEach(nameEl => {
+    nameEl.addEventListener('dblclick', (e) => {
+      e.stopPropagation();
+      startInlineRename(nameEl);
     });
   });
 
@@ -123,9 +197,11 @@ export function clearRundown() {
   const titleEl = document.getElementById('rundownTitle');
   const listEl = document.getElementById('rundownList');
   const addBtn = document.getElementById('btnAddGraphic');
+  const urlBar = document.getElementById('urlBar');
 
   if (titleEl) titleEl.textContent = 'Select an Output';
   if (addBtn) addBtn.classList.add('hidden');
+  if (urlBar) urlBar.classList.add('hidden');
 
   if (listEl) {
     listEl.innerHTML = `
@@ -139,13 +215,146 @@ export function clearRundown() {
   }
 }
 
+// ── Config Panel ──
+
+function handleToggleConfig(itemId, btn) {
+  const configPanel = document.querySelector(`.gc-item-config[data-config-for="${itemId}"]`);
+  if (!configPanel) return;
+
+  const isOpen = configPanel.classList.contains('open');
+  configPanel.classList.toggle('open');
+  btn.classList.toggle('active', !isOpen);
+}
+
+async function saveConfigOverrides(itemId) {
+  // Gather all config inputs for this item
+  const inputs = document.querySelectorAll(`.gc-config-input[data-item-id="${itemId}"]`);
+  const targetCars = {};
+
+  inputs.forEach(input => {
+    const field = input.dataset.configField;
+    const value = input.value.trim();
+    if (value) {
+      targetCars[field] = value;
+    }
+  });
+
+  // Also preserve any existing displayName
+  const nameEl = document.querySelector(`.gc-rundown-template-name[data-item-id="${itemId}"]`);
+  const currentName = nameEl ? nameEl.textContent.trim() : '';
+  const originalName = nameEl ? nameEl.dataset.originalName : '';
+
+  const configOverrides = { targetCars };
+  if (currentName && currentName !== originalName) {
+    configOverrides.displayName = currentName;
+  }
+
+  try {
+    const res = await authenticatedFetch(`/api/overlays/rundown/${itemId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ config_overrides: configOverrides }),
+    });
+
+    if (!res.ok) {
+      const data = await res.json();
+      throw new Error(data.error || 'Failed to save config');
+    }
+
+    showToast('Config saved', 'success');
+  } catch (err) {
+    console.error('Failed to save config:', err);
+    showToast(err.message || 'Failed to save config', 'error');
+  }
+}
+
+// ── Inline Rename ──
+
+function startInlineRename(nameEl) {
+  const originalText = nameEl.textContent;
+  nameEl.contentEditable = 'true';
+  nameEl.focus();
+
+  // Select all text
+  const range = document.createRange();
+  range.selectNodeContents(nameEl);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+
+  function finishRename() {
+    nameEl.contentEditable = 'false';
+    nameEl.removeEventListener('blur', onBlur);
+    nameEl.removeEventListener('keydown', onKeydown);
+
+    const newName = nameEl.textContent.trim();
+    if (!newName) {
+      nameEl.textContent = originalText;
+      return;
+    }
+
+    if (newName !== originalText) {
+      const itemId = parseInt(nameEl.dataset.itemId, 10);
+      saveDisplayName(itemId, newName);
+    }
+  }
+
+  function onBlur() {
+    finishRename();
+  }
+
+  function onKeydown(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      nameEl.blur();
+    } else if (e.key === 'Escape') {
+      nameEl.textContent = originalText;
+      nameEl.blur();
+    }
+  }
+
+  nameEl.addEventListener('blur', onBlur);
+  nameEl.addEventListener('keydown', onKeydown);
+}
+
+async function saveDisplayName(itemId, displayName) {
+  // Read existing config_overrides first, then merge
+  try {
+    // Get current config inputs to preserve target cars
+    const inputs = document.querySelectorAll(`.gc-config-input[data-item-id="${itemId}"]`);
+    const targetCars = {};
+    inputs.forEach(input => {
+      const value = input.value.trim();
+      if (value) {
+        targetCars[input.dataset.configField] = value;
+      }
+    });
+
+    const configOverrides = { targetCars, displayName };
+
+    const res = await authenticatedFetch(`/api/overlays/rundown/${itemId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ config_overrides: configOverrides }),
+    });
+
+    if (!res.ok) {
+      const data = await res.json();
+      throw new Error(data.error || 'Failed to rename');
+    }
+
+    showToast('Renamed', 'success');
+  } catch (err) {
+    console.error('Failed to rename:', err);
+    showToast(err.message || 'Failed to rename', 'error');
+  }
+}
+
 // ── Take Actions ──
 
 async function handleCue(itemId) {
   try {
     const res = await authenticatedFetch(`/api/overlays/rundown/${itemId}/take`, {
       method: 'POST',
-      body: JSON.stringify({ action: 'on' }),
+      body: JSON.stringify({ action: 'cue' }),
     });
 
     if (!res.ok) {
@@ -245,7 +454,6 @@ function setupDragAndDrop(listEl, items) {
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
 
-      // Clear all drag-over classes
       rows.forEach(r => r.classList.remove('drag-over'));
       if (index !== dragSourceIndex) {
         row.classList.add('drag-over');
@@ -265,20 +473,17 @@ function setupDragAndDrop(listEl, items) {
 
       if (fromIndex === null || fromIndex === toIndex) return;
 
-      // Swap sort orders
       const fromItem = items[fromIndex];
       const toItem = items[toIndex];
 
       if (!fromItem || !toItem) return;
 
       try {
-        // Update the moved item's sort_order to the target position
         await authenticatedFetch(`/api/overlays/rundown/${fromItem.id}`, {
           method: 'PUT',
           body: JSON.stringify({ sort_order: toItem.sort_order }),
         });
 
-        // Update the displaced item's sort_order
         await authenticatedFetch(`/api/overlays/rundown/${toItem.id}`, {
           method: 'PUT',
           body: JSON.stringify({ sort_order: fromItem.sort_order }),

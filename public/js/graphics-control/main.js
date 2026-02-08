@@ -75,7 +75,14 @@ async function refreshRundown() {
     return;
   }
   const items = await fetchRundown(selectedOutputId);
-  renderRundown(selectedOutputId, items);
+
+  // Build overlay URL for the selected output
+  const instance = instances.find(i => i.id === selectedOutputId);
+  const overlayUrl = instance && instance.access_token
+    ? `${window.location.origin}/overlay/${instance.access_token}`
+    : null;
+
+  renderRundown(selectedOutputId, items, overlayUrl);
 }
 
 async function refreshAll() {

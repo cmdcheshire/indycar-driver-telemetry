@@ -772,6 +772,153 @@
     .gc-rundown-item.drag-over {
       border-top: 2px solid var(--accent);
     }
+
+    /* ================================================================ *
+     *  Output URL Bar
+     * ================================================================ */
+    .gc-url-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 20px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .gc-url-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-dim);
+      white-space: nowrap;
+    }
+
+    .gc-url-input {
+      flex: 1;
+      padding: 4px 8px;
+      font-size: 0.75rem;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      color: var(--text-muted);
+      background: var(--deep-space);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      outline: none;
+      min-width: 0;
+    }
+
+    .gc-url-copy-btn {
+      padding: 4px 10px;
+      font-size: 0.7rem;
+      font-weight: 500;
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all var(--transition);
+      white-space: nowrap;
+    }
+
+    .gc-url-copy-btn:hover {
+      background: var(--accent-light);
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+
+    /* ================================================================ *
+     *  Rundown Item Config Panel
+     * ================================================================ */
+    .gc-rundown-item-wrapper {
+      border-bottom: 1px solid var(--border);
+    }
+
+    .gc-rundown-item-wrapper .gc-rundown-item {
+      border-bottom: none;
+    }
+
+    .gc-item-config {
+      display: none;
+      padding: 8px 20px 12px 44px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+    }
+
+    .gc-item-config.open {
+      display: block;
+    }
+
+    .gc-config-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+
+    .gc-config-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .gc-config-label {
+      font-size: 0.72rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      width: 80px;
+      flex-shrink: 0;
+    }
+
+    .gc-config-input {
+      width: 80px;
+      padding: 3px 6px;
+      font-size: 0.8rem;
+      background: var(--deep-space);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      outline: none;
+    }
+
+    .gc-config-input:focus {
+      border-color: var(--accent);
+    }
+
+    .gc-btn-config {
+      padding: 4px 6px;
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      border-radius: var(--radius-sm);
+      transition: all var(--transition);
+      display: flex;
+      align-items: center;
+    }
+
+    .gc-btn-config:hover {
+      color: var(--accent);
+      background: var(--accent-light);
+    }
+
+    .gc-btn-config.active {
+      color: var(--accent);
+    }
+
+    .gc-btn-config svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    /* ================================================================ *
+     *  Inline Rename
+     * ================================================================ */
+    .gc-rundown-template-name[contenteditable="true"] {
+      background: var(--deep-space);
+      border: 1px solid var(--accent);
+      border-radius: var(--radius-sm);
+      padding: 1px 6px;
+      outline: none;
+      min-width: 60px;
+    }
   </style>
 </head>
 <body>
@@ -825,6 +972,11 @@
           <h2 id="rundownTitle">Select an Output</h2>
         </div>
         <button class="btn btn-sm btn-primary hidden" id="btnAddGraphic">+ Add Graphic</button>
+      </div>
+      <div class="gc-url-bar hidden" id="urlBar">
+        <span class="gc-url-label">URL</span>
+        <input type="text" class="gc-url-input" id="urlInput" readonly>
+        <button class="gc-url-copy-btn" id="urlCopyBtn">Copy</button>
       </div>
       <div class="gc-rundown-list" id="rundownList">
         <div class="gc-rundown-empty" id="rundownEmpty">

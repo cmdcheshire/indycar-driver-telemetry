@@ -259,8 +259,8 @@ router.delete('/rundown/:itemId', requireRole('admin'), (req, res) => {
 router.post('/rundown/:itemId/take', requireRole('operator', 'admin'), (req, res) => {
   try {
     const { action } = req.body;
-    if (action !== 'on' && action !== 'off') {
-      return res.status(400).json({ error: "action must be 'on' or 'off'" });
+    if (action !== 'on' && action !== 'off' && action !== 'cue') {
+      return res.status(400).json({ error: "action must be 'on', 'off', or 'cue'" });
     }
 
     const itemId = parseInt(req.params.itemId, 10);
@@ -272,6 +272,7 @@ router.post('/rundown/:itemId/take', requireRole('operator', 'admin'), (req, res
     if (!rundownItem) return res.status(404).json({ error: 'Rundown item not found' });
 
     const instanceId = rundownItem.instance_id;
+    const configOverrides = JSON.parse(rundownItem.config_overrides || '{}');
 
     // Load template to extract animation config
     const templateData = overlayService.getTemplate(rundownItem.template_id);
@@ -291,7 +292,18 @@ router.post('/rundown/:itemId/take', requireRole('operator', 'admin'), (req, res
       } catch (_) { /* ignore parse errors, defaults will be used */ }
     }
 
-    if (action === 'on') {
+    if (action === 'cue') {
+      // CUE: load the template but don't make it visible (no flash)
+      if (!templateData) return res.status(404).json({ error: 'Template not found' });
+
+      wsService.sendOverlayTemplateUpdate(instanceId, templateData);
+
+      // Apply config overrides (e.g. target car numbers) if any
+      if (Object.keys(configOverrides).length > 0) {
+        wsService.sendOverlayConfigUpdate(instanceId, configOverrides);
+      }
+
+    } else if (action === 'on') {
       if (!templateData) return res.status(404).json({ error: 'Template not found' });
 
       // Take off any other currently on-air items for this instance
@@ -304,8 +316,13 @@ router.post('/rundown/:itemId/take', requireRole('operator', 'admin'), (req, res
         overlayService.setRundownItemOnAir(onAirItem.id, false);
       }
 
-      // Send template update then visibility with enter animation
+      // Send template update, config overrides, then visibility
       wsService.sendOverlayTemplateUpdate(instanceId, templateData);
+
+      if (Object.keys(configOverrides).length > 0) {
+        wsService.sendOverlayConfigUpdate(instanceId, configOverrides);
+      }
+
       wsService.sendOverlayVisibility(instanceId, true, enterAnimation);
       overlayService.setRundownItemOnAir(itemId, true);
     } else {

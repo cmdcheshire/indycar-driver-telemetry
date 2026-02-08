@@ -337,6 +337,20 @@ function sendOverlayTemplateUpdate(instanceId, templateData) {
   }
 }
 
+function sendOverlayConfigUpdate(instanceId, config) {
+  const message = JSON.stringify({
+    type: 'configUpdate',
+    timestamp: Date.now(),
+    data: config,
+  });
+
+  for (const [ws, client] of overlayClients) {
+    if (client.instanceId === instanceId && ws.readyState === 1) {
+      ws.send(message);
+    }
+  }
+}
+
 let tcpStatusData = { connected: false, host: null, port: null, connectedAt: null };
 
 function setTcpStatus(status) {
@@ -377,6 +391,7 @@ module.exports = {
   updateOverlayDelay,
   sendOverlayVisibility,
   sendOverlayTemplateUpdate,
+  sendOverlayConfigUpdate,
   setTcpStatus,
   getTcpStatus,
   getConnectedOverlayClients,
