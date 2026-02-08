@@ -366,12 +366,16 @@ function _playAll() {
     const duration = (anim.duration || 300) / 1000;
     const easing = anim.easing || (animKey === 'enter' ? 'power2.out' : 'power2.in');
 
+    // Only clear the properties the preset actually animates (not 'all'),
+    // so canvas-engine positioning styles are preserved.
+    const safeClearProps = preset.clearProps || Object.keys(preset.vars).join(',');
+
     if (animKey === 'enter') {
       tl.from(node, {
         ...preset.vars,
         duration,
         ease: easing,
-        clearProps: preset.clearProps || 'all',
+        clearProps: safeClearProps,
       }, delay); // absolute position in timeline
     } else {
       tl.to(node, {
@@ -386,8 +390,12 @@ function _playAll() {
   if (animKey === 'exit') {
     tl.then(() => {
       for (const el of animatedElements) {
-        const node = document.querySelector(`[data-element-id="${el.id}"]`);
-        if (node) gsap.set(node, { clearProps: 'all' });
+        const node = document.querySelector(`#canvasContainer [data-element-id="${el.id}"]`);
+        if (!node) continue;
+        const anim = el.animation[animKey];
+        const preset = getExitPreset(anim.type);
+        const props = preset ? (preset.clearProps || Object.keys(preset.vars).join(',')) : 'opacity';
+        gsap.set(node, { clearProps: props });
       }
     });
   }

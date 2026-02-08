@@ -1288,11 +1288,15 @@ function _previewGsapEnter(node, enterConfig) {
   // Kill any active preview tweens on this node
   gsap.killTweensOf(node);
 
+  // Only clear the properties the preset animates, not 'all',
+  // so canvas-engine positioning styles are preserved.
+  const safeClearProps = preset.clearProps || Object.keys(preset.vars).join(',');
+
   gsap.from(node, {
     ...preset.vars,
     duration,
     ease: easing,
-    clearProps: preset.clearProps || 'all',
+    clearProps: safeClearProps,
   });
 }
 
@@ -1305,13 +1309,15 @@ function _previewGsapExit(node, exitConfig) {
 
   gsap.killTweensOf(node);
 
+  const safeClearProps = preset.clearProps || Object.keys(preset.vars).join(',');
+
   // Animate to the exit state, then snap back
   gsap.to(node, {
     ...preset.vars,
     duration,
     ease: easing,
     onComplete: () => {
-      gsap.set(node, { clearProps: 'all' });
+      gsap.set(node, { clearProps: safeClearProps });
     },
   });
 }
