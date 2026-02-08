@@ -518,6 +518,7 @@ function _showDataPresetPicker(pos) {
       el.props.format = preset.format;
       el.props.fallback = preset.fallback;
       el.props.fontSize = preset.defaultFontSize;
+      if (preset.car) el.props.carSelector = preset.car;
 
       // Override top-level properties
       el.width = preset.defaultWidth;

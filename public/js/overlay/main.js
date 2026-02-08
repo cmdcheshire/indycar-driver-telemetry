@@ -182,6 +182,14 @@ function handleInit(msg) {
     dataBinder.setTargetCars(config.targetCars);
   }
 
+  // Store reference data as a flat array for data binding
+  if (referenceData && referenceData.drivers) {
+    const driversArray = Object.entries(referenceData.drivers).map(([carNum, d]) => ({
+      carNumber: carNum, ...d,
+    }));
+    dataBinder.updateData('referenceData', driversArray);
+  }
+
   // Feed snapshot data (each key is a data type)
   if (snapshot) {
     for (const [dataType, data] of Object.entries(snapshot)) {
@@ -284,6 +292,15 @@ function handleTemplateUpdate(msg) {
 
   if (currentConfig && currentConfig.targetCars) {
     dataBinder.setTargetCars(currentConfig.targetCars);
+  }
+
+  // Store reference data as a flat array for data binding
+  const refData = referenceData || {};
+  if (refData.drivers) {
+    const driversArray = Object.entries(refData.drivers).map(([carNum, d]) => ({
+      carNumber: carNum, ...d,
+    }));
+    dataBinder.updateData('referenceData', driversArray);
   }
 
   // Re-resolve with whatever data we already have

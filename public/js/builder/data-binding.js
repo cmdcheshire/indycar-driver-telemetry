@@ -69,6 +69,19 @@ export const BINDING_SOURCES = [
       { field: 'timeElapsed', label: 'Time Elapsed' },
     ],
   },
+  {
+    source: 'referenceData',
+    label: 'Driver Info',
+    fields: [
+      { field: 'firstName', label: 'First Name' },
+      { field: 'lastName', label: 'Last Name' },
+      { field: 'displayName', label: 'Display Name' },
+      { field: 'team', label: 'Team Name' },
+      { field: 'headshot', label: 'Headshot URL' },
+      { field: 'carLogo', label: 'Car Logo URL' },
+      { field: 'teamLogo', label: 'Team Logo URL' },
+    ],
+  },
 ];
 
 /**
@@ -132,6 +145,14 @@ const PREVIEW_VALUES = {
   'raceState.currentLap': '43',
   'raceState.lapsCompleted': '42',
   'raceState.timeElapsed': '0:45:12.345',
+  // Driver Info (Reference Data)
+  'referenceData.firstName': 'Alex',
+  'referenceData.lastName': 'PALOU',
+  'referenceData.displayName': 'Alex Palou',
+  'referenceData.team': 'Chip Ganassi Racing',
+  'referenceData.headshot': '/uploads/headshot.png',
+  'referenceData.carLogo': '/uploads/car.png',
+  'referenceData.teamLogo': '/uploads/team.png',
 };
 
 /**

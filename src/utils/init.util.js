@@ -37,6 +37,10 @@ async function initializeFirstRun() {
  * Create example overlay templates for new installations.
  */
 function _seedExampleTemplates() {
+  const ANIM_FADE = { enter: { type: 'fadeIn', duration: 400, easing: 'ease' }, exit: { type: 'fadeOut', duration: 300, easing: 'ease' }, update: { type: 'none', duration: 300, easing: 'ease' } };
+  const ANIM_SLIDE_LEFT = { enter: { type: 'slideInLeft', duration: 500, easing: 'ease-out' }, exit: { type: 'slideOutLeft', duration: 400, easing: 'ease-in' }, update: { type: 'none', duration: 300, easing: 'ease' } };
+  const ANIM_SLIDE_UP = { enter: { type: 'slideInUp', duration: 400, easing: 'ease-out' }, exit: { type: 'slideOutDown', duration: 300, easing: 'ease-in' }, update: { type: 'none', duration: 300, easing: 'ease' } };
+
   // Template 1: Driver Card
   overlayService.createTemplate({
     name: 'Driver Card',
@@ -50,6 +54,7 @@ function _seedExampleTemplates() {
           id: 'dc-bg', type: 'shape', name: 'Background',
           x: 2, y: 75, width: 28, height: 18,
           opacity: 0.9, rotation: 0, groupId: null,
+          animation: ANIM_SLIDE_LEFT,
           props: {
             shapeType: 'rectangle', fill: 'rgba(10,10,30,0.85)',
             strokeColor: '#3b82f6', strokeWidth: 2, borderRadius: 8,
@@ -59,60 +64,65 @@ function _seedExampleTemplates() {
           id: 'dc-pos', type: 'data', name: 'Position',
           x: 3, y: 76, width: 5, height: 6,
           opacity: 1, rotation: 0, groupId: null,
+          animation: ANIM_FADE,
           props: {
-            bindingSource: 'leaderboard', bindingField: 'position',
+            bindingSource: 'telemetry', bindingField: 'rank',
             carSelector: 'target1', format: 'ordinal',
             fontFamily: 'Oswald, sans-serif', fontSize: 48, fontWeight: '700',
             color: '#3b82f6', textAlign: 'center', fallback: '--',
-            text: '1st', prefix: '', suffix: '',
+            prefix: '', suffix: '',
           },
         },
         {
           id: 'dc-car', type: 'data', name: 'Car Number',
           x: 9, y: 76, width: 6, height: 4,
           opacity: 1, rotation: 0, groupId: null,
+          animation: ANIM_FADE,
           props: {
-            bindingSource: 'referenceData', bindingField: 'carNumber',
-            carSelector: 'target1',
+            bindingSource: 'telemetry', bindingField: 'carNumber',
+            carSelector: 'target1', format: 'raw',
             fontFamily: 'Oswald, sans-serif', fontSize: 28, fontWeight: '700',
             color: '#FFFFFF', textAlign: 'left', fallback: '#--',
-            text: '#21', prefix: '#', suffix: '',
+            prefix: '#', suffix: '',
           },
         },
         {
           id: 'dc-name', type: 'data', name: 'Driver Name',
           x: 9, y: 80, width: 18, height: 4,
           opacity: 1, rotation: 0, groupId: null,
+          animation: ANIM_FADE,
           props: {
-            bindingSource: 'referenceData', bindingField: 'driverLastName',
-            carSelector: 'target1',
+            bindingSource: 'referenceData', bindingField: 'lastName',
+            carSelector: 'target1', format: 'raw',
             fontFamily: 'Inter, sans-serif', fontSize: 22, fontWeight: '600',
             color: '#FFFFFF', textAlign: 'left', fallback: 'DRIVER',
-            text: 'VAN KALMTHOUT', prefix: '', suffix: '',
+            prefix: '', suffix: '',
           },
         },
         {
           id: 'dc-speed', type: 'data', name: 'Speed',
           x: 9, y: 85, width: 10, height: 4,
           opacity: 1, rotation: 0, groupId: null,
+          animation: ANIM_FADE,
           props: {
             bindingSource: 'telemetry', bindingField: 'speed',
             carSelector: 'target1', format: 'speed',
             fontFamily: 'Roboto Mono, monospace', fontSize: 20, fontWeight: '600',
             color: '#10b981', textAlign: 'left', fallback: '--- mph',
-            text: '224.3 mph', prefix: '', suffix: ' mph',
+            prefix: '', suffix: ' mph',
           },
         },
         {
           id: 'dc-gap', type: 'data', name: 'Gap to Leader',
           x: 20, y: 85, width: 8, height: 4,
           opacity: 1, rotation: 0, groupId: null,
+          animation: ANIM_FADE,
           props: {
-            bindingSource: 'leaderboard', bindingField: 'gapToLeader',
+            bindingSource: 'leaderboard', bindingField: 'Time_Behind',
             carSelector: 'target1', format: 'delta',
             fontFamily: 'Roboto Mono, monospace', fontSize: 20, fontWeight: '500',
             color: '#f59e0b', textAlign: 'right', fallback: '--',
-            text: '+1.234', prefix: '', suffix: '',
+            prefix: '', suffix: '',
           },
         },
       ],
@@ -134,6 +144,7 @@ function _seedExampleTemplates() {
           id: 'tt-header-bg', type: 'shape', name: 'Header BG',
           x: 1, y: 2, width: 14, height: 4,
           opacity: 0.95, rotation: 0, groupId: null,
+          animation: ANIM_SLIDE_LEFT,
           props: {
             shapeType: 'rectangle', fill: '#3b82f6',
             strokeColor: '', strokeWidth: 0, borderRadius: 4,
@@ -143,6 +154,7 @@ function _seedExampleTemplates() {
           id: 'tt-header', type: 'text', name: 'Header Text',
           x: 1.5, y: 2.5, width: 13, height: 3,
           opacity: 1, rotation: 0, groupId: null,
+          animation: ANIM_FADE,
           props: {
             text: 'RACE STANDINGS',
             fontFamily: 'Oswald, sans-serif', fontSize: 22, fontWeight: '700',
@@ -169,6 +181,7 @@ function _seedExampleTemplates() {
           id: 'lt-bg', type: 'shape', name: 'Bar Background',
           x: 5, y: 82, width: 40, height: 10,
           opacity: 0.9, rotation: 0, groupId: null,
+          animation: ANIM_SLIDE_UP,
           props: {
             shapeType: 'rectangle', fill: 'rgba(10,10,30,0.9)',
             strokeColor: '', strokeWidth: 0, borderRadius: 4,
@@ -178,6 +191,7 @@ function _seedExampleTemplates() {
           id: 'lt-accent', type: 'shape', name: 'Accent Bar',
           x: 5, y: 82, width: 0.4, height: 10,
           opacity: 1, rotation: 0, groupId: null,
+          animation: ANIM_SLIDE_UP,
           props: {
             shapeType: 'rectangle', fill: '#3b82f6',
             strokeColor: '', strokeWidth: 0, borderRadius: 0,
@@ -187,48 +201,52 @@ function _seedExampleTemplates() {
           id: 'lt-name', type: 'data', name: 'Driver Name',
           x: 7, y: 83, width: 20, height: 5,
           opacity: 1, rotation: 0, groupId: null,
+          animation: ANIM_FADE,
           props: {
-            bindingSource: 'referenceData', bindingField: 'driverLastName',
-            carSelector: 'target1',
+            bindingSource: 'referenceData', bindingField: 'lastName',
+            carSelector: 'target1', format: 'raw',
             fontFamily: 'Oswald, sans-serif', fontSize: 36, fontWeight: '700',
             color: '#FFFFFF', textAlign: 'left', fallback: 'DRIVER NAME',
-            text: 'VAN KALMTHOUT', prefix: '', suffix: '',
+            prefix: '', suffix: '',
           },
         },
         {
           id: 'lt-team', type: 'data', name: 'Team Name',
           x: 7, y: 88, width: 20, height: 3,
           opacity: 1, rotation: 0, groupId: null,
+          animation: ANIM_FADE,
           props: {
-            bindingSource: 'referenceData', bindingField: 'teamName',
-            carSelector: 'target1',
+            bindingSource: 'referenceData', bindingField: 'team',
+            carSelector: 'target1', format: 'raw',
             fontFamily: 'Inter, sans-serif', fontSize: 16, fontWeight: '400',
             color: '#94a3b8', textAlign: 'left', fallback: 'Team',
-            text: 'Ed Carpenter Racing', prefix: '', suffix: '',
+            prefix: '', suffix: '',
           },
         },
         {
           id: 'lt-gap', type: 'data', name: 'Gap',
           x: 34, y: 83, width: 10, height: 5,
           opacity: 1, rotation: 0, groupId: null,
+          animation: ANIM_FADE,
           props: {
-            bindingSource: 'leaderboard', bindingField: 'gapToLeader',
+            bindingSource: 'leaderboard', bindingField: 'Time_Behind',
             carSelector: 'target1', format: 'delta',
             fontFamily: 'Roboto Mono, monospace', fontSize: 32, fontWeight: '600',
             color: '#f59e0b', textAlign: 'right', fallback: '--',
-            text: '+1.234', prefix: '', suffix: '',
+            prefix: '', suffix: '',
           },
         },
         {
           id: 'lt-pos', type: 'data', name: 'Position',
           x: 34, y: 88, width: 10, height: 3,
           opacity: 1, rotation: 0, groupId: null,
+          animation: ANIM_FADE,
           props: {
-            bindingSource: 'leaderboard', bindingField: 'position',
+            bindingSource: 'telemetry', bindingField: 'rank',
             carSelector: 'target1', format: 'ordinal',
             fontFamily: 'Inter, sans-serif', fontSize: 16, fontWeight: '600',
             color: '#3b82f6', textAlign: 'right', fallback: '--',
-            text: '1st', prefix: '', suffix: '',
+            prefix: '', suffix: '',
           },
         },
       ],
@@ -243,6 +261,7 @@ function _seedExampleTemplates() {
  * Each row uses byRank selector to bind to that leaderboard position.
  */
 function _timingTowerRows(count) {
+  const ANIM_FADE = { enter: { type: 'fadeIn', duration: 400, easing: 'ease' }, exit: { type: 'fadeOut', duration: 300, easing: 'ease' }, update: { type: 'none', duration: 300, easing: 'ease' } };
   const rows = [];
   const startY = 7; // below header
   const rowH = 4.5;
@@ -257,6 +276,7 @@ function _timingTowerRows(count) {
       id: `tt-row${rank}-bg`, type: 'shape', name: `P${rank} BG`,
       x: 1, y, width: 14, height: rowH - 0.5,
       opacity: 0.9, rotation: 0, groupId: null,
+      animation: { enter: { type: 'slideInLeft', duration: 400 + i * 80, easing: 'ease-out' }, exit: { type: 'slideOutLeft', duration: 300, easing: 'ease-in' }, update: { type: 'none', duration: 300, easing: 'ease' } },
       props: {
         shapeType: 'rectangle', fill: rowBg,
         strokeColor: '', strokeWidth: 0, borderRadius: 2,
@@ -268,12 +288,13 @@ function _timingTowerRows(count) {
       id: `tt-row${rank}-pos`, type: 'data', name: `P${rank} Pos`,
       x: 1.5, y: y + 0.3, width: 3, height: rowH - 1,
       opacity: 1, rotation: 0, groupId: null,
+      animation: ANIM_FADE,
       props: {
-        bindingSource: 'leaderboard', bindingField: 'position',
-        carSelector: `byRank:${rank}`,
+        bindingSource: 'telemetry', bindingField: 'rank',
+        carSelector: `byRank:${rank}`, format: 'raw',
         fontFamily: 'Oswald, sans-serif', fontSize: 22, fontWeight: '700',
         color: rank === 1 ? '#f59e0b' : '#FFFFFF', textAlign: 'center',
-        fallback: `${rank}`, text: `${rank}`, prefix: '', suffix: '',
+        fallback: `${rank}`, prefix: '', suffix: '',
       },
     });
 
@@ -282,12 +303,13 @@ function _timingTowerRows(count) {
       id: `tt-row${rank}-car`, type: 'data', name: `P${rank} Car`,
       x: 5, y: y + 0.3, width: 4, height: rowH - 1,
       opacity: 1, rotation: 0, groupId: null,
+      animation: ANIM_FADE,
       props: {
-        bindingSource: 'referenceData', bindingField: 'carNumber',
-        carSelector: `byRank:${rank}`,
+        bindingSource: 'telemetry', bindingField: 'carNumber',
+        carSelector: `byRank:${rank}`, format: 'raw',
         fontFamily: 'Oswald, sans-serif', fontSize: 20, fontWeight: '600',
         color: '#3b82f6', textAlign: 'left',
-        fallback: '--', text: `#${21 + i}`, prefix: '#', suffix: '',
+        fallback: '--', prefix: '#', suffix: '',
       },
     });
 
@@ -296,12 +318,13 @@ function _timingTowerRows(count) {
       id: `tt-row${rank}-gap`, type: 'data', name: `P${rank} Gap`,
       x: 9.5, y: y + 0.3, width: 5, height: rowH - 1,
       opacity: 1, rotation: 0, groupId: null,
+      animation: ANIM_FADE,
       props: {
-        bindingSource: 'leaderboard', bindingField: 'gapToLeader',
+        bindingSource: 'leaderboard', bindingField: 'Time_Behind',
         carSelector: `byRank:${rank}`, format: 'delta',
         fontFamily: 'Roboto Mono, monospace', fontSize: 18, fontWeight: '500',
         color: '#94a3b8', textAlign: 'right',
-        fallback: rank === 1 ? 'Leader' : '--', text: rank === 1 ? 'Leader' : `+${(rank * 0.8).toFixed(3)}`,
+        fallback: rank === 1 ? 'Leader' : '--',
         prefix: '', suffix: '',
       },
     });

@@ -11,30 +11,30 @@ const PRESET_CATEGORIES = [
   {
     name: 'Speed & Performance',
     presets: [
-      { label: 'Speed', desc: 'Current speed in mph', source: 'telemetry', field: 'speed', format: 'speed', fallback: '---', defaultFontSize: 48, defaultWidth: 12 },
-      { label: 'RPM', desc: 'Engine RPM', source: 'telemetry', field: 'rpm', format: 'raw', fallback: '---', defaultFontSize: 36, defaultWidth: 10 },
-      { label: 'Throttle', desc: 'Throttle percentage', source: 'telemetry', field: 'throttle', format: 'percentage', fallback: '---', defaultFontSize: 36, defaultWidth: 8 },
-      { label: 'Brake', desc: 'Brake percentage', source: 'telemetry', field: 'brake', format: 'percentage', fallback: '---', defaultFontSize: 36, defaultWidth: 8 },
-      { label: 'Battery', desc: 'Battery level', source: 'telemetry', field: 'battery', format: 'percentage', fallback: '---', defaultFontSize: 36, defaultWidth: 8 },
+      { label: 'Speed', desc: 'Current speed in mph', source: 'telemetry', field: 'speed', car: 'target1', format: 'speed', fallback: '---', defaultFontSize: 48, defaultWidth: 12 },
+      { label: 'RPM', desc: 'Engine RPM', source: 'telemetry', field: 'rpm', car: 'target1', format: 'raw', fallback: '---', defaultFontSize: 36, defaultWidth: 10 },
+      { label: 'Throttle', desc: 'Throttle percentage', source: 'telemetry', field: 'throttle', car: 'target1', format: 'percentage', fallback: '---', defaultFontSize: 36, defaultWidth: 8 },
+      { label: 'Brake', desc: 'Brake percentage', source: 'telemetry', field: 'brake', car: 'target1', format: 'percentage', fallback: '---', defaultFontSize: 36, defaultWidth: 8 },
+      { label: 'Battery', desc: 'Battery level', source: 'telemetry', field: 'battery', car: 'target1', format: 'percentage', fallback: '---', defaultFontSize: 36, defaultWidth: 8 },
     ],
   },
   {
     name: 'Race Position',
     presets: [
-      { label: 'Position', desc: 'Current race position', source: 'telemetry', field: 'rank', format: 'ordinal', fallback: '---', defaultFontSize: 64, defaultWidth: 8 },
-      { label: 'Car Number', desc: 'Car number', source: 'telemetry', field: 'carNumber', format: 'raw', fallback: '---', defaultFontSize: 48, defaultWidth: 6 },
-      { label: 'Gap to Leader', desc: 'Time behind leader', source: 'leaderboard', field: 'Time_Behind', format: 'delta', fallback: '---', defaultFontSize: 36, defaultWidth: 12 },
-      { label: 'Laps Behind', desc: 'Laps behind leader', source: 'leaderboard', field: 'Laps_Behind', format: 'raw', fallback: '0', defaultFontSize: 36, defaultWidth: 6 },
+      { label: 'Position', desc: 'Current race position', source: 'telemetry', field: 'rank', car: 'target1', format: 'ordinal', fallback: '---', defaultFontSize: 64, defaultWidth: 8 },
+      { label: 'Car Number', desc: 'Car number', source: 'telemetry', field: 'carNumber', car: 'target1', format: 'raw', fallback: '---', defaultFontSize: 48, defaultWidth: 6 },
+      { label: 'Gap to Leader', desc: 'Time behind leader', source: 'leaderboard', field: 'Time_Behind', car: 'target1', format: 'delta', fallback: '---', defaultFontSize: 36, defaultWidth: 12 },
+      { label: 'Laps Behind', desc: 'Laps behind leader', source: 'leaderboard', field: 'Laps_Behind', car: 'target1', format: 'raw', fallback: '0', defaultFontSize: 36, defaultWidth: 6 },
     ],
   },
   {
     name: 'Timing',
     presets: [
-      { label: 'Last Lap Time', desc: 'Most recent lap time', source: 'lapData', field: 'lastLapTime', format: 'lapTime', fallback: '---', defaultFontSize: 36, defaultWidth: 14 },
-      { label: 'Fastest Lap', desc: 'Fastest lap number', source: 'lapData', field: 'fastestLap', format: 'raw', fallback: '---', defaultFontSize: 36, defaultWidth: 8 },
-      { label: 'Lap Delta', desc: 'Last lap time delta', source: 'lapData', field: 'lastLapDelta', format: 'delta', fallback: '---', defaultFontSize: 36, defaultWidth: 12 },
-      { label: 'Total Time', desc: 'Total elapsed time', source: 'lapData', field: 'totalTime', format: 'raw', fallback: '---', defaultFontSize: 32, defaultWidth: 14 },
-      { label: 'Avg Speed', desc: 'Average speed', source: 'lapData', field: 'averageSpeed', format: 'speed', fallback: '---', defaultFontSize: 36, defaultWidth: 12 },
+      { label: 'Last Lap Time', desc: 'Most recent lap time', source: 'lapData', field: 'lastLapTime', car: 'target1', format: 'lapTime', fallback: '---', defaultFontSize: 36, defaultWidth: 14 },
+      { label: 'Fastest Lap', desc: 'Fastest lap number', source: 'lapData', field: 'fastestLap', car: 'target1', format: 'raw', fallback: '---', defaultFontSize: 36, defaultWidth: 8 },
+      { label: 'Lap Delta', desc: 'Last lap time delta', source: 'lapData', field: 'lastLapDelta', car: 'target1', format: 'delta', fallback: '---', defaultFontSize: 36, defaultWidth: 12 },
+      { label: 'Total Time', desc: 'Total elapsed time', source: 'lapData', field: 'totalTime', car: 'target1', format: 'raw', fallback: '---', defaultFontSize: 32, defaultWidth: 14 },
+      { label: 'Avg Speed', desc: 'Average speed', source: 'lapData', field: 'averageSpeed', car: 'target1', format: 'speed', fallback: '---', defaultFontSize: 36, defaultWidth: 12 },
     ],
   },
   {
@@ -47,11 +47,20 @@ const PRESET_CATEGORIES = [
     ],
   },
   {
+    name: 'Driver Info',
+    presets: [
+      { label: 'Last Name', desc: 'Driver last name', source: 'referenceData', field: 'lastName', car: 'target1', format: 'raw', fallback: 'DRIVER', defaultFontSize: 36, defaultWidth: 16 },
+      { label: 'First Name', desc: 'Driver first name', source: 'referenceData', field: 'firstName', car: 'target1', format: 'raw', fallback: 'Driver', defaultFontSize: 28, defaultWidth: 14 },
+      { label: 'Display Name', desc: 'Full display name', source: 'referenceData', field: 'displayName', car: 'target1', format: 'raw', fallback: 'Driver Name', defaultFontSize: 24, defaultWidth: 20 },
+      { label: 'Team Name', desc: 'Team / constructor', source: 'referenceData', field: 'team', car: 'target1', format: 'raw', fallback: 'Team', defaultFontSize: 20, defaultWidth: 18 },
+    ],
+  },
+  {
     name: 'Pit & Status',
     presets: [
-      { label: 'Pit Status', desc: 'In/out of pit lane', source: 'pitStatus', field: 'pitStatus', format: 'raw', fallback: 'Out', defaultFontSize: 36, defaultWidth: 8 },
-      { label: 'Pit Stops', desc: 'Number of pit stops', source: 'pitStatus', field: 'pitStops', format: 'raw', fallback: '0', defaultFontSize: 48, defaultWidth: 6 },
-      { label: 'Car Status', desc: 'Running/DNF status', source: 'carStatus', field: 'carStatus', format: 'raw', fallback: 'Running', defaultFontSize: 36, defaultWidth: 10 },
+      { label: 'Pit Status', desc: 'In/out of pit lane', source: 'pitStatus', field: 'pitStatus', car: 'target1', format: 'raw', fallback: 'Out', defaultFontSize: 36, defaultWidth: 8 },
+      { label: 'Pit Stops', desc: 'Number of pit stops', source: 'pitStatus', field: 'pitStops', car: 'target1', format: 'raw', fallback: '0', defaultFontSize: 48, defaultWidth: 6 },
+      { label: 'Car Status', desc: 'Running/DNF status', source: 'carStatus', field: 'carStatus', car: 'target1', format: 'raw', fallback: 'Running', defaultFontSize: 36, defaultWidth: 10 },
     ],
   },
 ];
