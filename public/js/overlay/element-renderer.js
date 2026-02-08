@@ -190,6 +190,7 @@ function applyTextStyles(wrapper, element) {
   wrapper.style.display        = 'flex';
   wrapper.style.alignItems     = mapVerticalAlign(element.verticalAlign);
   wrapper.style.justifyContent = mapTextAlign(element.textAlign);
+  wrapper.style.textAlign      = element.textAlign || 'left';
   wrapper.style.flexWrap       = 'nowrap';
 
   // Font properties

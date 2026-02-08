@@ -418,6 +418,7 @@ router.post('/rundown/:itemId/take', requireRole('operator', 'admin'), (req, res
         wsService.sendOverlayConfigUpdate(instanceId, configOverrides);
       }
 
+      console.log('[take] TAKE ON — enterAnims:', enterElementAnims.length, 'timeline:', JSON.stringify(timelineConfig));
       wsService.sendOverlayVisibility(instanceId, true, enterAnimation, enterElementAnims, timelineConfig);
       overlayService.setRundownItemOnAir(itemId, true);
     } else if (action === 'resume') {

@@ -326,6 +326,8 @@ function handleVisibility(msg) {
 
   const { visible, elementId, animation, elementAnimations, timeline } = msg.data || {};
 
+  console.log('[overlay] Visibility:', { visible, elementId, animation, elementAnimCount: elementAnimations?.length, timeline });
+
   // Single-element show/hide (not part of the playout lifecycle)
   if (elementId) {
     if (visible) {
@@ -348,20 +350,28 @@ function handleVisibility(msg) {
 
     if (elementAnimations && elementAnimations.length > 0) {
       // Build a GSAP master timeline for the IN phase with pause points
+      console.log('[overlay] Building playout timeline with', elementAnimations.length, 'enter animations');
       buildPlayoutTimeline(elementAnimations, timeline);
     } else if (animation) {
       // Simple root-level animation (no per-element orchestration)
+      console.log('[overlay] Using root-level animation:', animation);
       animationEngine.show('__root__', { type: animation, duration: 400, easing: 'power2.out' });
       // Schedule hold/auto-exit for root-level animation
       if (timeline && !timeline.loop && timeline.holdDuration > 0) {
+        console.log('[overlay] Scheduling hold timer for', 400 + timeline.holdDuration, 'ms');
         holdTimer = setTimeout(() => {
           holdTimer = null;
           performTakeOff();
         }, 400 + timeline.holdDuration);
+      } else {
+        console.log('[overlay] No hold timer — loop:', timeline?.loop, 'holdDuration:', timeline?.holdDuration);
       }
+    } else {
+      console.log('[overlay] No animations and no fallback animation — graphic shown without playout');
     }
   } else {
     // ── TAKE OFF ──
+    console.log('[overlay] TAKE OFF received');
     performTakeOff();
   }
 }
@@ -372,8 +382,10 @@ function handleVisibility(msg) {
  * On completion, enters the HOLD phase (loop or timed auto-exit).
  */
 function buildPlayoutTimeline(elementAnimations, timeline) {
+  let tweenCount = 0;
   const tl = gsap.timeline({
     onComplete: () => {
+      console.log('[overlay] IN phase complete — entering HOLD. Timeline duration was:', tl.duration(), 's, tweens:', tweenCount);
       playoutTimeline = null;
       onEnterComplete(timeline);
     },
@@ -381,7 +393,7 @@ function buildPlayoutTimeline(elementAnimations, timeline) {
 
   for (const config of elementAnimations) {
     const node = domMap ? domMap.get(config.elementId) : null;
-    if (!node) continue;
+    if (!node) { console.warn('[overlay] DOM node not found for', config.elementId); continue; }
 
     const presetName = config.type || 'fadeIn';
     if (presetName === 'none') continue;
@@ -415,7 +427,10 @@ function buildPlayoutTimeline(elementAnimations, timeline) {
         setTimeout(() => { node.style.willChange = ''; }, 5000);
       },
     }, delay);
+    tweenCount++;
   }
+
+  console.log('[overlay] Playout timeline built:', tweenCount, 'tweens, duration:', tl.duration(), 's');
 
   // Add pause points (sorted by time, only within the IN duration)
   if (timeline && Array.isArray(timeline.pausePoints)) {
@@ -440,6 +455,8 @@ function buildPlayoutTimeline(elementAnimations, timeline) {
  * - no holdDuration: hold indefinitely (manual TAKE OFF)
  */
 function onEnterComplete(timeline) {
+  console.log('[overlay] onEnterComplete called with timeline:', JSON.stringify(timeline));
+
   if (timeline && timeline.loop) {
     console.log('[overlay] Entering HOLD (loop — waiting for TAKE OFF)');
     return;
@@ -448,9 +465,12 @@ function onEnterComplete(timeline) {
   if (timeline && timeline.holdDuration > 0) {
     console.log('[overlay] Entering HOLD for', timeline.holdDuration, 'ms');
     holdTimer = setTimeout(() => {
+      console.log('[overlay] Hold timer expired — auto TAKE OFF');
       holdTimer = null;
       performTakeOff();
     }, timeline.holdDuration);
+  } else {
+    console.log('[overlay] Holding indefinitely (no holdDuration or manual mode)');
   }
 }
 
@@ -635,9 +655,10 @@ function applyElementOverrides(overrides) {
     if (props.fontWeight !== undefined) styleMap.fontWeight = String(props.fontWeight);
     if (props.fontFamily !== undefined) styleMap.fontFamily = props.fontFamily;
     if (props.textAlign !== undefined) {
-      // Map text-align to flex justify-content
+      // Map text-align to flex justify-content + set textAlign for multiline
       const alignMap = { left: 'flex-start', center: 'center', right: 'flex-end' };
       styleMap.justifyContent = alignMap[props.textAlign] || 'flex-start';
+      styleMap.textAlign = props.textAlign;
     }
     if (props.strokeColor !== undefined) {
       const sw = props.strokeWidth || 1;
