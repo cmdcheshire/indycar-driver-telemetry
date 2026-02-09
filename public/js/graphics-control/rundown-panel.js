@@ -166,8 +166,8 @@ export function renderRundown(instanceId, items, overlayUrl) {
             exposedHtml += `
               <div class="gc-config-row gc-car-selector-row" data-element-id="${el.id}" data-item-id="${item.id}">
                 <span class="gc-config-label">${escapeHtml(def.label)}</span>
-                <div style="display:flex;gap:4px;flex:1;align-items:center;">
-                  <select class="gc-car-base" style="flex:1;padding:4px 6px;background:var(--surface-2,#2a2d35);border:1px solid var(--border,#3a3d45);border-radius:4px;color:var(--text,#e8eaed);font-size:0.8rem;">${carOpts}</select>
+                <div style="display:flex;gap:4px;flex:1;min-width:0;align-items:center;">
+                  <select class="gc-car-base" style="flex:1;min-width:0;padding:4px 6px;background:var(--surface-2,#2a2d35);border:1px solid var(--border,#3a3d45);border-radius:4px;color:var(--text,#e8eaed);font-size:0.8rem;">${carOpts}</select>
                   <span class="gc-car-secondary-wrap">${secHtml}</span>
                   <input type="hidden" class="gc-exposed-input gc-car-combined"
                          data-element-id="${el.id}" data-prop-key="${settingKey}" data-item-id="${item.id}"
@@ -189,7 +189,7 @@ export function renderRundown(instanceId, items, overlayUrl) {
                 <input type="number" class="gc-config-input gc-exposed-input"
                        data-element-id="${el.id}" data-prop-key="${settingKey}" data-item-id="${item.id}"
                        min="${def.min || 0}" max="${def.max || 999}" step="${def.step || 1}"
-                       value="${currentVal}" style="flex:1;width:auto;">
+                       value="${currentVal}">
               </div>`;
           } else if (def.inputType === 'select' && def.options) {
             const opts = def.options.map(o =>
@@ -200,7 +200,7 @@ export function renderRundown(instanceId, items, overlayUrl) {
                 <span class="gc-config-label">${escapeHtml(def.label)}</span>
                 <select class="gc-config-input gc-exposed-input"
                         data-element-id="${el.id}" data-prop-key="${settingKey}" data-item-id="${item.id}"
-                        style="flex:1;width:auto;">${opts}</select>
+                       >${opts}</select>
               </div>`;
           } else if (def.inputType === 'textarea') {
             exposedHtml += `
@@ -208,7 +208,7 @@ export function renderRundown(instanceId, items, overlayUrl) {
                 <span class="gc-config-label">${escapeHtml(def.label)}</span>
                 <textarea class="gc-config-input gc-exposed-input"
                           data-element-id="${el.id}" data-prop-key="${settingKey}" data-item-id="${item.id}"
-                          rows="2" style="flex:1;width:auto;resize:vertical;">${escapeHtml(String(currentVal))}</textarea>
+                          rows="2" style="resize:vertical;">${escapeHtml(String(currentVal))}</textarea>
               </div>`;
           } else {
             exposedHtml += `
@@ -217,7 +217,7 @@ export function renderRundown(instanceId, items, overlayUrl) {
                 <input type="text" class="gc-config-input gc-exposed-input"
                        data-element-id="${el.id}" data-prop-key="${settingKey}" data-item-id="${item.id}"
                        placeholder="${escapeHtml(String(defaults[settingKey] || ''))}"
-                       value="${escapeHtml(String(currentVal))}" style="flex:1;width:auto;">
+                       value="${escapeHtml(String(currentVal))}">
               </div>`;
           }
         }

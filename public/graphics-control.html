@@ -931,6 +931,7 @@
       padding: 8px 20px 12px 44px;
       background: var(--surface);
       border-top: 1px solid var(--border);
+      overflow: hidden;
     }
 
     .gc-item-config.open {
@@ -942,6 +943,7 @@
       align-items: center;
       gap: 8px;
       margin-bottom: 6px;
+      min-width: 0;
     }
 
     .gc-config-row:last-child {
@@ -957,7 +959,8 @@
     }
 
     .gc-config-input {
-      width: 80px;
+      flex: 1;
+      min-width: 0;
       padding: 3px 6px;
       font-size: 0.8rem;
       background: var(--deep-space);
@@ -965,6 +968,13 @@
       border-radius: var(--radius-sm);
       color: var(--text);
       outline: none;
+      box-sizing: border-box;
+    }
+
+    .gc-config-input[type="color"] {
+      flex: 0 0 40px;
+      width: 40px;
+      padding: 2px;
     }
 
     .gc-config-input:focus {
