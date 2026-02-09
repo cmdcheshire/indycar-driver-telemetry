@@ -505,43 +505,42 @@ function performTakeOff() {
     el => el.exitKeyframeAnimation?.enabled && el.exitKeyframeAnimation.tracks?.length > 0
   );
 
-  if ((exitConfigs.length > 0 || exitKfElements.length > 0) && animationEngine) {
-    // Build a master exit timeline for coordinated exit
-    const exitTl = gsap.timeline({
-      onComplete: () => {
-        exitHideTimer = null;
-        rootEl.style.display = 'none';
-      },
-    });
+  // Separate preset exits from keyframe exits
+  const kfExitIds = new Set(exitKfElements.map(el => el.id));
+  const presetExitConfigs = exitConfigs.filter(c => !kfExitIds.has(c.elementId));
 
-    // Add keyframe exit animations
-    for (const el of exitKfElements) {
-      const exitDelay = (el.exitAnimationDelay || 0) / 1000;
-      const subTl = animationEngine.hideWithKeyframes(el.id, el.exitKeyframeAnimation);
-      if (subTl) {
-        exitTl.add(subTl, exitDelay);
-        console.log('[overlay] Using exit keyframe animation for', el.id);
+  if ((presetExitConfigs.length > 0 || exitKfElements.length > 0) && animationEngine) {
+    // Build exit keyframe timeline if any elements have keyframe exits
+    let kfDurMs = 0;
+    if (exitKfElements.length > 0) {
+      const exitTl = gsap.timeline();
+      for (const el of exitKfElements) {
+        const exitDelay = (el.exitAnimationDelay || 0) / 1000;
+        const subTl = animationEngine.hideWithKeyframes(el.id, el.exitKeyframeAnimation);
+        if (subTl) {
+          exitTl.add(subTl, exitDelay);
+          console.log('[overlay] Using exit keyframe animation for', el.id);
+        }
       }
+      kfDurMs = exitTl.duration() * 1000;
     }
 
-    // Add preset exit animations (skip elements that already have keyframe exits)
-    const kfExitIds = new Set(exitKfElements.map(el => el.id));
-    const presetExitConfigs = exitConfigs.filter(c => !kfExitIds.has(c.elementId));
+    // Fire preset exit animations
     for (const config of presetExitConfigs) {
       animationEngine.hide(config.elementId, config);
     }
 
-    // For preset exits, calculate max duration and use as fallback timeout
-    if (presetExitConfigs.length > 0) {
-      const maxPresetDur = presetExitConfigs.reduce(
-        (max, ea) => Math.max(max, (ea.delay || 0) + (ea.duration || 300)), 0
-      );
-      // Safety fallback: if exit timeline doesn't complete, hide after preset max + buffer
-      exitHideTimer = setTimeout(() => {
-        exitHideTimer = null;
-        rootEl.style.display = 'none';
-      }, Math.max(maxPresetDur + 50, (exitTl.duration() * 1000) + 50));
-    }
+    // Calculate max preset exit duration
+    const maxPresetDur = presetExitConfigs.reduce(
+      (max, ea) => Math.max(max, (ea.delay || 0) + (ea.duration || 300)), 0
+    );
+
+    // Hide root after the longer of keyframe or preset exits finish
+    const hideDurMs = Math.max(kfDurMs, maxPresetDur);
+    exitHideTimer = setTimeout(() => {
+      exitHideTimer = null;
+      rootEl.style.display = 'none';
+    }, hideDurMs + 50);
   } else {
     rootEl.style.display = 'none';
   }
