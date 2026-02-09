@@ -1137,9 +1137,12 @@ async function _save() {
   // Capture thumbnail from canvas
   let thumbnail = null;
   const canvasContainer = document.getElementById('canvasContainer');
+  const canvasWrapper = document.getElementById('canvasWrapper');
+  // Temporarily reset zoom on real DOM — html2canvas uses source layout for measurement
+  const savedZoom = canvasWrapper ? canvasWrapper.style.zoom : '';
   try {
-    // Add class to hide ::after overlay before cloning
     canvasContainer.classList.add('capturing');
+    if (canvasWrapper) canvasWrapper.style.zoom = '1';
     const shot = await html2canvas(canvasContainer, {
       scale: 0.15,
       useCORS: true,
@@ -1149,11 +1152,9 @@ async function _save() {
         const c = clonedDoc.getElementById('canvasContainer');
         if (c) {
           c.classList.add('capturing');
-          // Remove 3D properties that confuse html2canvas positioning
           c.style.perspective = 'none';
           c.style.transformStyle = 'flat';
         }
-        // Reset zoom on the wrapper if present
         const w = clonedDoc.getElementById('canvasWrapper');
         if (w) w.style.zoom = '1';
         const style = clonedDoc.createElement('style');
@@ -1170,6 +1171,7 @@ async function _save() {
     console.warn('Failed to capture thumbnail:', e);
   } finally {
     canvasContainer.classList.remove('capturing');
+    if (canvasWrapper) canvasWrapper.style.zoom = savedZoom;
   }
 
   try {

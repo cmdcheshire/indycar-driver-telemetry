@@ -115,6 +115,9 @@ export function buildOverlay(rootEl, template, referenceData = {}) {
       continue;
     }
 
+    // Skip elements the designer marked as invisible
+    if (element.visible === false) continue;
+
     try {
       const domNode = renderElement(element, referenceData);
 

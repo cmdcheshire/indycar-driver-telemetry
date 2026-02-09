@@ -316,6 +316,11 @@ export function renderTimelinePanel() {
 
   // Render pause points
   _renderPausePoints(timeline.pausePoints || [], inDuration);
+
+  // When idle, keep playhead at HOLD position (editing state)
+  if (_currentPhase === 'idle' && !_isScrubbing && !_masterTl) {
+    _snapPlayheadToHold();
+  }
 }
 
 /* ------------------------------------------------------------------ *
@@ -1112,6 +1117,7 @@ function _finishTakeOff() {
 
     // Snap playhead to HOLD position so it's clear we're back in editing state
     _snapPlayheadToHold();
+    if (_playheadEl) _playheadEl.classList.remove('active');
 
     _updateTransportButtons();
   }, 1000);
@@ -1149,11 +1155,25 @@ function _resetAllElements() {
     const node = document.querySelector(`#canvasContainer [data-element-id="${el.id}"]`);
     if (!node) continue;
 
-    // If element uses keyframes, clear GSAP transforms then re-apply hold state
+    // If element uses keyframes, clear only GSAP transform props + the specific
+    // properties that the keyframes actually animate. Don't blanket-clear
+    // backgroundColor/color/opacity — those are set by canvas-engine, not GSAP.
     const enterKf = _getEnterKf(el);
     const exitKf = el.animation?.exitKeyframes;
     if ((enterKf?.enabled) || (exitKf?.enabled)) {
-      gsap.set(node, { clearProps: 'transform,opacity,clipPath,color,backgroundColor,xPercent,yPercent' });
+      // Build dynamic clearProps from actual keyframe tracks
+      const clearSet = new Set(['transform', 'xPercent', 'yPercent']);
+      const allTracks = [
+        ...(enterKf?.tracks || []),
+        ...(exitKf?.tracks || []),
+      ];
+      for (const track of allTracks) {
+        const gsapProp = track.property === 'x' ? 'xPercent'
+                       : track.property === 'y' ? 'yPercent'
+                       : track.property;
+        clearSet.add(gsapProp);
+      }
+      gsap.set(node, { clearProps: [...clearSet].join(',') });
       _restoreBaseTransform(el, node);
       // Re-apply final keyframe values so element stays in hold state, not CSS rest
       if (enterKf?.enabled && enterKf.tracks?.length > 0) {
@@ -1478,7 +1498,6 @@ function _snapPlayheadToHold() {
 
   const xPos = LABEL_WIDTH + inWidth + 2 + holdWidth * 0.5;
   _playheadEl.style.left = `${xPos}px`;
-  _playheadEl.classList.add('active');
 }
 
 /**
@@ -1486,23 +1505,23 @@ function _snapPlayheadToHold() {
  * Elements appear in their pre-animation state.
  */
 function _goToStart() {
+  // Kill any active GSAP timeline or hold timer
   if (_masterTl) { _masterTl.kill(); _masterTl = null; }
   if (_holdTimer) { clearTimeout(_holdTimer); _holdTimer = null; }
   _isScrubbing = false;
 
-  // Reset all GSAP transforms so elements are in their CSS rest state
+  // Reset all GSAP transforms so elements are back in their hold/editing state
   _resetAllElements();
 
   _currentPhase = 'idle';
   _isPlaying = false;
 
-  // Position playhead at the very start
-  if (_playheadEl) {
-    _playheadEl.style.left = `${LABEL_WIDTH}px`;
-    _playheadEl.classList.remove('active');
-  }
+  // Snap playhead to HOLD (the editing position) and deactivate
+  _snapPlayheadToHold();
+  if (_playheadEl) _playheadEl.classList.remove('active');
 
   _updateTransportButtons();
+  renderTimelinePanel();
 }
 
 function _expandPanel() {
