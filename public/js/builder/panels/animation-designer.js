@@ -39,7 +39,8 @@ const ANIMATABLE_PROPERTIES = [
   // ── WebGL / Three.js (scene3d elements only) ──
   { key: 'cameraFov',            label: 'FOV',        type: 'number', min: 10,    max: 120,  step: 1,    default: 50,  unit: '°',  scene3d: true },
   { key: 'cameraZ',              label: 'Cam Z',      type: 'number', min: 0.5,   max: 20,   step: 0.1,  default: 3,               scene3d: true },
-  { key: 'scene3dRotation',      label: '3D Rot',     type: 'number', min: -720,  max: 720,  step: 1,    default: 0,   unit: '°',  scene3d: true },
+  { key: 'scene3dRotX',           label: '3D Rot X',   type: 'number', min: -720,  max: 720,  step: 1,    default: 0,   unit: '°',  scene3d: true },
+  { key: 'scene3dRotY',           label: '3D Rot Y',   type: 'number', min: -720,  max: 720,  step: 1,    default: 0,   unit: '°',  scene3d: true },
   { key: 'scene3dScale',         label: '3D Scale',   type: 'number', min: 0.01,  max: 5,    step: 0.01, default: 1,               scene3d: true },
   { key: 'rotateSpeed',          label: 'Spin',       type: 'number', min: 0,     max: 0.1,  step: 0.001,default: 0.01,             scene3d: true },
   { key: 'ambientIntensity',     label: 'Amb Light',  type: 'number', min: 0,     max: 3,    step: 0.05, default: 0.6,              scene3d: true },
@@ -707,7 +708,10 @@ function _playPreview(kf) {
     const scene3dKeys = ANIMATABLE_PROPERTIES.filter(p => p.scene3d).map(p => p.key);
     _previewScene3dSnapshot = {};
     for (const key of scene3dKeys) {
-      if (key === 'scene3dRotation') {
+      if (key === 'scene3dRotX') {
+        const target = ctrl._model || ctrl._textMesh;
+        _previewScene3dSnapshot[key] = target ? (target.rotation.x * 180) / Math.PI : 0;
+      } else if (key === 'scene3dRotY') {
         const target = ctrl._model || ctrl._textMesh;
         _previewScene3dSnapshot[key] = target ? (target.rotation.y * 180) / Math.PI : 0;
       } else if (key === 'scene3dScale') {
@@ -823,8 +827,11 @@ function _applyScene3dProp(node, property, value) {
   if (!ctrl) return;
 
   switch (property) {
-    case 'scene3dRotation':
-      ctrl.setBindingValue('rotation', value);
+    case 'scene3dRotX':
+      ctrl.setBindingValue('rotationX', value);
+      break;
+    case 'scene3dRotY':
+      ctrl.setBindingValue('rotationY', value);
       break;
     case 'scene3dScale':
       ctrl.setBindingValue('scale', value);

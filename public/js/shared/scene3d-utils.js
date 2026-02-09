@@ -496,9 +496,15 @@ export class Scene3DController {
    */
   setBindingValue(property, value) {
     switch (property) {
-      case 'rotation': {
+      case 'rotation':
+      case 'rotationY': {
         const target = this._model || this._textMesh;
         if (target) target.rotation.y = (value * Math.PI) / 180;
+        break;
+      }
+      case 'rotationX': {
+        const target = this._model || this._textMesh;
+        if (target) target.rotation.x = (value * Math.PI) / 180;
         break;
       }
       case 'scale': {
