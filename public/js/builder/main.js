@@ -1134,8 +1134,23 @@ async function _save() {
   const type = document.getElementById('templateType').value;
   const { width, height } = canvas.canvasSize;
 
+  // Capture thumbnail from canvas
+  let thumbnail = null;
   try {
-    await templateManager.save(name, type, elements, groups, width, height, timelineData);
+    const canvasContainer = document.getElementById('canvasContainer');
+    const shot = await html2canvas(canvasContainer, {
+      scale: 0.15,
+      useCORS: true,
+      backgroundColor: null,
+      logging: false,
+    });
+    thumbnail = shot.toDataURL('image/webp', 0.7);
+  } catch (e) {
+    console.warn('Failed to capture thumbnail:', e);
+  }
+
+  try {
+    await templateManager.save(name, type, elements, groups, width, height, timelineData, thumbnail);
     showToast('Template saved', 'success');
 
     // Update URL with template ID if new

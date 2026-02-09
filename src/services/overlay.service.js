@@ -5,7 +5,7 @@ const { getDb } = require('../config/database');
 
 function getAllTemplates() {
   return getDb().prepare(
-    'SELECT id, name, overlay_type, description, canvas_width, canvas_height, is_default, folder_id, created_by_id, created_at, updated_at FROM overlay_templates ORDER BY updated_at DESC'
+    'SELECT id, name, overlay_type, description, canvas_width, canvas_height, is_default, folder_id, thumbnail, created_by_id, created_at, updated_at FROM overlay_templates ORDER BY updated_at DESC'
   ).all();
 }
 
@@ -18,7 +18,7 @@ function getTemplate(id) {
 }
 
 function createTemplate(data, userId) {
-  const { name, overlay_type, description, template_data, canvas_width, canvas_height, folder_id } = data;
+  const { name, overlay_type, description, template_data, canvas_width, canvas_height, folder_id, thumbnail } = data;
 
   if (!name || !overlay_type) {
     throw new Error('name and overlay_type required');
@@ -28,9 +28,9 @@ function createTemplate(data, userId) {
   const templateJson = typeof template_data === 'string' ? template_data : JSON.stringify(template_data || { elements: [], groups: [] });
 
   const result = getDb().prepare(
-    `INSERT INTO overlay_templates (name, overlay_type, description, template_data, canvas_width, canvas_height, folder_id, created_by_id, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(name, overlay_type, description || null, templateJson, canvas_width || 1920, canvas_height || 1080, folder_id || null, userId, now, now);
+    `INSERT INTO overlay_templates (name, overlay_type, description, template_data, canvas_width, canvas_height, folder_id, thumbnail, created_by_id, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(name, overlay_type, description || null, templateJson, canvas_width || 1920, canvas_height || 1080, folder_id || null, thumbnail || null, userId, now, now);
 
   return getTemplate(result.lastInsertRowid);
 }
@@ -39,7 +39,7 @@ function updateTemplate(id, data) {
   const existing = getDb().prepare('SELECT id FROM overlay_templates WHERE id = ?').get(id);
   if (!existing) return null;
 
-  const { name, overlay_type, description, template_data, canvas_width, canvas_height, folder_id } = data;
+  const { name, overlay_type, description, template_data, canvas_width, canvas_height, folder_id, thumbnail } = data;
   const now = new Date().toISOString();
 
   const sets = [];
@@ -55,6 +55,7 @@ function updateTemplate(id, data) {
   if (canvas_width !== undefined) { sets.push('canvas_width = ?'); params.push(canvas_width); }
   if (canvas_height !== undefined) { sets.push('canvas_height = ?'); params.push(canvas_height); }
   if (folder_id !== undefined) { sets.push('folder_id = ?'); params.push(folder_id); }
+  if (thumbnail !== undefined) { sets.push('thumbnail = ?'); params.push(thumbnail); }
 
   sets.push('updated_at = ?');
   params.push(now);
@@ -80,6 +81,7 @@ function duplicateTemplate(id, userId) {
     template_data: original.template_data,
     canvas_width: original.canvas_width,
     canvas_height: original.canvas_height,
+    thumbnail: original.thumbnail,
   }, userId);
 }
 

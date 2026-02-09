@@ -192,6 +192,13 @@ function initializeDatabase() {
     // Column already exists — ignore
   }
 
+  // Add thumbnail column to overlay_templates for preview images
+  try {
+    db.exec('ALTER TABLE overlay_templates ADD COLUMN thumbnail TEXT');
+  } catch (e) {
+    // Column already exists — ignore
+  }
+
   // Migrate overlay_instances to allow nullable template_id (existing DBs have NOT NULL)
   try {
     const colInfo = db.pragma('table_info(overlay_instances)');

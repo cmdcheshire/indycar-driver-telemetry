@@ -447,11 +447,15 @@ function renderTemplateGrid() {
       : '';
     const timeStr = relativeTime(tmpl.updated_at || tmpl.created_at);
 
+    const thumbContent = tmpl.thumbnail
+      ? `<img src="${tmpl.thumbnail}" alt="" loading="lazy">`
+      : iconSvg;
+
     html += `
       <div class="tmpl-card" data-template-id="${tmpl.id}" draggable="true">
         <button class="tmpl-card-dots" data-template-id="${tmpl.id}" title="More actions">&#8943;</button>
         <div class="tmpl-card-thumb">
-          ${iconSvg}
+          ${thumbContent}
         </div>
         <div class="tmpl-card-info">
           <div class="tmpl-card-name" title="${escapeHtml(tmpl.name)}">${escapeHtml(tmpl.name)}</div>

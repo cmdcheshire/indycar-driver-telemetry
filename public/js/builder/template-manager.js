@@ -32,7 +32,7 @@ export class TemplateManager {
    * @param {object} [timeline] - Timeline settings (holdDuration, pausePoints, loopRegion)
    * @returns {Promise<object>} Saved template data
    */
-  async save(name, type, elements, groups, canvasW = 1920, canvasH = 1080, timeline = null) {
+  async save(name, type, elements, groups, canvasW = 1920, canvasH = 1080, timeline = null, thumbnail = null) {
     const payload = {
       name,
       overlay_type: type,
@@ -46,6 +46,10 @@ export class TemplateManager {
       canvas_width: canvasW,
       canvas_height: canvasH,
     };
+
+    if (thumbnail) {
+      payload.thumbnail = thumbnail;
+    }
 
     let res;
     if (this.#currentId) {
