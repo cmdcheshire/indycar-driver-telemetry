@@ -383,8 +383,10 @@ function _initPanels() {
 }
 
 function _initToolbar() {
-  // Save
+  // Save / Import / Export
   document.getElementById('btnSave').addEventListener('click', () => _save());
+  document.getElementById('btnImport').addEventListener('click', () => _importTemplate());
+  document.getElementById('btnExport').addEventListener('click', () => _exportTemplate());
 
   // Undo / Redo
   document.getElementById('btnUndo').addEventListener('click', () => _undo());
@@ -1151,11 +1153,15 @@ async function _loadFromUrl() {
   const pathMatch = window.location.pathname.match(/\/builder\/(\d+)/);
   const id = pathMatch ? pathMatch[1] : new URLSearchParams(window.location.search).get('id');
 
-  if (!id) {
+  // /builder/new is valid — blank canvas for imported templates
+  if (!id && !window.location.pathname.includes('/builder/new')) {
     // No template specified — redirect to templates page
     window.location.href = '/templates';
     return;
   }
+
+  // Nothing to load for /builder/new — start with empty canvas
+  if (!id) return;
 
   try {
     const template = await templateManager.load(id);
@@ -1183,6 +1189,80 @@ async function _loadFromUrl() {
     showToast(`Failed to load template: ${err.message}`, 'error');
     console.error('Load error:', err);
   }
+}
+
+/**
+ * Import a template from a local JSON file.
+ */
+function _importTemplate() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  input.style.display = 'none';
+
+  input.addEventListener('change', async () => {
+    const file = input.files[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const json = JSON.parse(text);
+      const template = templateManager.importFromJson(json);
+
+      document.getElementById('templateName').value = template.name || 'Imported Template';
+      document.getElementById('templateType').value = template.type || 'custom';
+      elements = template.elements || [];
+      groups = Array.isArray(template.groups) ? template.groups : [];
+      timelineData = template.timeline || { holdDuration: 5000, pausePoints: [], loopRegion: { enabled: false, start: 0, end: 3000 } };
+
+      elements.forEach((el, i) => {
+        if (el.zIndex === undefined) el.zIndex = i;
+        if (el.type === 'data' && el.props && !el.props._previewValue) {
+          el.props._previewValue = resolveBindingPreview(el.props);
+        }
+      });
+
+      canvas.loadElements(elements);
+      _applyKeyframeHoldState();
+      history.clear();
+      history.push(_snapshotState());
+      _refreshPanels();
+
+      // Clear URL since this is a new unsaved template
+      window.history.replaceState({}, '', '/builder/new');
+
+      showToast(`Imported "${template.name}"`, 'success');
+    } catch (err) {
+      showToast(`Import failed: ${err.message}`, 'error');
+      console.error('Import error:', err);
+    }
+
+    input.remove();
+  });
+
+  document.body.appendChild(input);
+  input.click();
+}
+
+/**
+ * Export the current template as a downloadable JSON file.
+ */
+function _exportTemplate() {
+  const name = document.getElementById('templateName').value.trim() || 'Untitled Template';
+  const type = document.getElementById('templateType').value;
+  const { width, height } = canvas.canvasSize;
+
+  const json = templateManager.exportToJson(name, type, elements, groups, width, height, timelineData);
+  const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${name.replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+
+  showToast('Template exported', 'success');
 }
 
 /**

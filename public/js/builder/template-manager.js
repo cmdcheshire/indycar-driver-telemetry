@@ -148,6 +148,62 @@ export class TemplateManager {
   }
 
   /**
+   * Import a template from a parsed JSON object (local file).
+   * Resets currentId so subsequent save creates a new DB entry.
+   * @param {object} json - Parsed JSON with { name, overlay_type, template_data, ... }
+   * @returns {{ name: string, type: string, elements: object[], groups: object[], canvas: object, timeline: object|null }}
+   */
+  importFromJson(json) {
+    // Reset ID — imported templates are new until explicitly saved
+    this.#currentId = null;
+
+    let templateData = json.template_data;
+    if (typeof templateData === 'string') {
+      templateData = JSON.parse(templateData);
+    }
+    if (!templateData || !Array.isArray(templateData.elements)) {
+      throw new Error('Invalid template: missing template_data.elements array');
+    }
+
+    return {
+      id: null,
+      name: json.name || 'Imported Template',
+      type: json.overlay_type || json.type || 'custom',
+      elements: templateData.elements || [],
+      groups: templateData.groups || [],
+      canvas: templateData.canvas || { width: 1920, height: 1080 },
+      timeline: templateData.timeline || null,
+    };
+  }
+
+  /**
+   * Export current template data as a JSON object suitable for file download.
+   * @param {string} name
+   * @param {string} type
+   * @param {object[]} elements
+   * @param {object[]} groups
+   * @param {number} canvasW
+   * @param {number} canvasH
+   * @param {object} [timeline]
+   * @returns {object}
+   */
+  exportToJson(name, type, elements, groups, canvasW = 1920, canvasH = 1080, timeline = null) {
+    return {
+      name,
+      overlay_type: type,
+      canvas_width: canvasW,
+      canvas_height: canvasH,
+      template_data: {
+        elements,
+        groups,
+        canvas: { width: canvasW, height: canvasH },
+        ...(timeline ? { timeline } : {}),
+        version: 1,
+      },
+    };
+  }
+
+  /**
    * Delete a template.
    * @param {string} id - Template ID to delete
    * @returns {Promise<void>}
