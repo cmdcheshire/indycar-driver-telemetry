@@ -239,8 +239,8 @@ function _addTextProps(p) {
     ? [...builtInFonts, ...customFonts]
     : builtInFonts;
 
-  // Font selector row with upload button
-  const fontRow = _selectInput('Font', p.fontFamily || 'Inter, sans-serif', allFontOptions,
+  // Font selector row with upload button (custom dropdown for font preview)
+  const fontRow = _fontSelectInput('Font', p.fontFamily || 'Inter, sans-serif', allFontOptions,
     (v) => _emitProp({ fontFamily: v }));
 
   const uploadFontBtn = document.createElement('button');
@@ -273,6 +273,12 @@ function _addTextProps(p) {
       { value: 'center', label: 'Center' },
       { value: 'right', label: 'Right' },
     ], (v) => _emitProp({ textAlign: v })),
+    _selectInput('Transform', p.textTransform || '', [
+      { value: '', label: 'None' },
+      { value: 'uppercase', label: 'Uppercase' },
+      { value: 'lowercase', label: 'Lowercase' },
+      { value: 'capitalize', label: 'Capitalize' },
+    ], (v) => _emitProp({ textTransform: v })),
     _checkboxInput('Fit Text', !!p.fitText, (v) => _emitProp({ fitText: v })),
     _selectInput('Overflow', p.overflow || 'hidden', [
       { value: 'hidden', label: 'Clip' },
@@ -851,6 +857,68 @@ function _textareaInput(label, value, onChange) {
   textarea.value = value;
   textarea.addEventListener('input', () => onChange(textarea.value));
   wrapper.appendChild(textarea);
+  return wrapper;
+}
+
+/**
+ * Custom font selector dropdown that renders each option in its own typeface.
+ */
+function _fontSelectInput(label, value, options, onChange) {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'prop-row';
+  wrapper.style.flex = '1';
+
+  const lbl = document.createElement('label');
+  lbl.textContent = label;
+  wrapper.appendChild(lbl);
+
+  const container = document.createElement('div');
+  container.className = 'font-select-wrapper';
+
+  // Trigger button (shows selected font in its own typeface)
+  const trigger = document.createElement('div');
+  trigger.className = 'font-select-trigger';
+  const selectedOpt = options.find(o => o.value === value) || options[0];
+  trigger.innerHTML = `<span class="font-label">${selectedOpt ? selectedOpt.label : ''}</span><span class="chevron">\u25BC</span>`;
+  if (selectedOpt) trigger.querySelector('.font-label').style.fontFamily = selectedOpt.value;
+  container.appendChild(trigger);
+
+  // Dropdown list
+  const dropdown = document.createElement('div');
+  dropdown.className = 'font-select-dropdown';
+
+  for (const opt of options) {
+    const item = document.createElement('div');
+    item.className = 'font-select-option' + (opt.value === value ? ' selected' : '');
+    item.textContent = opt.label;
+    item.style.fontFamily = opt.value;
+    item.dataset.value = opt.value;
+    item.addEventListener('click', (e) => {
+      e.stopPropagation();
+      trigger.querySelector('.font-label').textContent = opt.label;
+      trigger.querySelector('.font-label').style.fontFamily = opt.value;
+      dropdown.querySelectorAll('.font-select-option').forEach(el => el.classList.remove('selected'));
+      item.classList.add('selected');
+      dropdown.classList.remove('open');
+      onChange(opt.value);
+    });
+    dropdown.appendChild(item);
+  }
+  container.appendChild(dropdown);
+
+  // Toggle on click
+  trigger.addEventListener('click', (e) => {
+    e.stopPropagation();
+    dropdown.classList.toggle('open');
+  });
+
+  // Close on outside click
+  const closeHandler = (e) => {
+    if (!container.contains(e.target)) dropdown.classList.remove('open');
+  };
+  document.addEventListener('click', closeHandler);
+
+  wrapper.appendChild(container);
   return wrapper;
 }
 

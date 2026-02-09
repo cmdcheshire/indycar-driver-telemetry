@@ -36,6 +36,12 @@ export const EXPOSABLE_SETTINGS = {
       { value: 'center', label: 'Center' },
       { value: 'right', label: 'Right' },
     ]},
+    { key: 'textTransform', label: 'Transform', inputType: 'select', options: [
+      { value: '', label: 'None' },
+      { value: 'uppercase', label: 'Uppercase' },
+      { value: 'lowercase', label: 'Lowercase' },
+      { value: 'capitalize', label: 'Capitalize' },
+    ]},
     { key: 'overflow', label: 'Overflow', inputType: 'select', options: [
       { value: 'hidden', label: 'Clip' },
       { value: 'visible', label: 'Visible' },
@@ -91,6 +97,12 @@ export const EXPOSABLE_SETTINGS = {
       { value: 'left', label: 'Left' },
       { value: 'center', label: 'Center' },
       { value: 'right', label: 'Right' },
+    ]},
+    { key: 'textTransform', label: 'Transform', inputType: 'select', options: [
+      { value: '', label: 'None' },
+      { value: 'uppercase', label: 'Uppercase' },
+      { value: 'lowercase', label: 'Lowercase' },
+      { value: 'capitalize', label: 'Capitalize' },
     ]},
     { key: 'overflow', label: 'Overflow', inputType: 'select', options: [
       { value: 'hidden', label: 'Clip' },

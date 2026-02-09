@@ -651,6 +651,67 @@
       font-variant-numeric: tabular-nums;
     }
 
+    /* ---- Font Preview Dropdown ---- */
+    .font-select-wrapper {
+      position: relative;
+      flex: 1;
+      min-width: 0;
+    }
+    .font-select-trigger {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      padding: 4px 8px;
+      font-size: 0.8rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm, 4px);
+      background: var(--surface-alt, #1A1F2E);
+      color: var(--text, #F3F4F6);
+      cursor: pointer;
+      min-height: 28px;
+      box-sizing: border-box;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .font-select-trigger:hover { border-color: var(--border-light, #374151); }
+    .font-select-trigger .chevron {
+      flex-shrink: 0;
+      font-size: 0.6rem;
+      margin-left: 4px;
+      opacity: 0.5;
+    }
+    .font-select-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      max-height: 220px;
+      overflow-y: auto;
+      background: var(--surface, #111827);
+      border: 1px solid var(--border, #2D3748);
+      border-radius: var(--radius-sm, 4px);
+      z-index: 1000;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      display: none;
+    }
+    .font-select-dropdown.open { display: block; }
+    .font-select-option {
+      padding: 6px 10px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      color: var(--text, #F3F4F6);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .font-select-option:hover { background: var(--accent-light, rgba(88,101,242,0.1)); }
+    .font-select-option.selected {
+      background: var(--accent-light, rgba(88,101,242,0.15));
+      color: var(--accent, #5865f2);
+    }
+
     /* ---- Animation Controls ---- */
     .anim-preview-btn {
       display: flex;

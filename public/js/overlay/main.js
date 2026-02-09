@@ -664,6 +664,11 @@ function applyElementOverrides(overrides) {
       }
     }
 
+    // Text transform (uppercase, lowercase, capitalize)
+    if (props.textTransform !== undefined) {
+      node.style.textTransform = props.textTransform || '';
+    }
+
     // Overflow (textbox clipping)
     if (props.overflow !== undefined) {
       node.style.overflow = props.overflow;
