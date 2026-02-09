@@ -432,6 +432,7 @@ export function createScene3dElement(x = 10, y = 10, subType = 'text3d') {
       modelColor: '#5865f2',
       metalness: 0.3,
       roughness: 0.6,
+      modelDepth: 0.2,
       // 3D text props
       text3d: '3D',
       text3dColor: '#ffffff',

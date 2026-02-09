@@ -2,13 +2,15 @@
  * Three.js scene controller for scene3d overlay elements.
  *
  * Manages a WebGL scene with transparent background for:
- *  - 3D Model Viewer (GLTF/GLB from graphics library)
+ *  - 3D Model Viewer (GLTF/GLB from graphics library, or extruded PNG)
  *  - Extruded 3D Text
  *  - Particle systems
  *
  * Used by both builder (canvas-engine) and overlay (element-renderer).
- * Requires Three.js + GLTFLoader loaded as global scripts.
+ * Requires Three.js loaded as global scripts.
  */
+
+import { traceImageContours, buildExtrudedMesh } from '/js/shared/image-extrude.js';
 
 // ---------------------------------------------------------------------------
 // Sub-type definitions
@@ -19,6 +21,16 @@ export const SCENE3D_SUBTYPES = [
   { value: 'text3d',      label: '3D Text' },
   { value: 'particles',   label: 'Particles' },
 ];
+
+/**
+ * Check if a URL points to an image file.
+ */
+function _isImageUrl(url) {
+  if (!url) return false;
+  if (url.startsWith('data:image/')) return true;
+  const ext = url.split('?')[0].split('#')[0].split('.').pop().toLowerCase();
+  return ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(ext);
+}
 
 // ---------------------------------------------------------------------------
 // Scene3DController
@@ -142,9 +154,13 @@ export class Scene3DController {
     this._autoRotate = props.autoRotate !== false;
     this._rotateSpeed = props.rotateSpeed ?? 0.01;
 
-    // Load model if URL provided
+    // Load model or image if URL provided
     if (props.modelUrl) {
-      this.loadModel(props.modelUrl);
+      if (_isImageUrl(props.modelUrl)) {
+        this._loadImageModel(props.modelUrl, props);
+      } else {
+        this.loadModel(props.modelUrl);
+      }
     }
   }
 
@@ -288,6 +304,48 @@ export class Scene3DController {
     }
   }
 
+  /**
+   * Load an image URL and create an extruded 3D shape from its alpha outline.
+   * @param {string} url - Image URL
+   * @param {object} props - Element properties
+   */
+  async _loadImageModel(url, props) {
+    try {
+      const contourData = await traceImageContours(url, 256);
+      const mesh = buildExtrudedMesh(contourData, props.modelDepth ?? 0.2, props);
+
+      // Remove placeholder / old model
+      if (this._model) {
+        this._scene.remove(this._model);
+        if (this._model.geometry) this._model.geometry.dispose();
+        if (this._model.material) {
+          if (Array.isArray(this._model.material)) {
+            this._model.material.forEach(m => m.dispose());
+          } else {
+            this._model.material.dispose();
+          }
+        }
+      }
+
+      this._model = mesh;
+      this._isImageSlab = true;
+      this._imageUrl = url; // cache for depth rebuild
+
+      // Auto-scale to fit in view
+      const box = new THREE.Box3().setFromObject(this._model);
+      const size = box.getSize(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z);
+      if (maxDim > 0) {
+        const scale = 2 / maxDim;
+        this._model.scale.setScalar(scale);
+      }
+
+      this._scene.add(this._model);
+    } catch (err) {
+      console.error('[scene3d] Failed to load image model:', err);
+    }
+  }
+
   // -----------------------------------------------------------------------
   // Render loop
   // -----------------------------------------------------------------------
@@ -374,8 +432,19 @@ export class Scene3DController {
     }
 
     // Model URL change
-    if (newProps.modelUrl) {
-      this.loadModel(newProps.modelUrl);
+    if (newProps.modelUrl !== undefined) {
+      if (newProps.modelUrl && _isImageUrl(newProps.modelUrl)) {
+        this._loadImageModel(newProps.modelUrl, this._props);
+      } else if (newProps.modelUrl) {
+        this._isImageSlab = false;
+        this._imageUrl = null;
+        this.loadModel(newProps.modelUrl);
+      }
+    }
+
+    // Model depth change (image slab only)
+    if (newProps.modelDepth !== undefined && this._isImageSlab && this._imageUrl) {
+      this._loadImageModel(this._imageUrl, this._props);
     }
 
     // 3D text content change

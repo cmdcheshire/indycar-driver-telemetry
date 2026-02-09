@@ -156,6 +156,7 @@ export const EXPOSABLE_SETTINGS = {
     { key: 'modelUrl', label: 'Model URL', inputType: 'text' },
     { key: 'modelColor', label: 'Model Color', inputType: 'color' },
     { key: 'particleColor', label: 'Particle Color', inputType: 'color' },
+    { key: 'modelDepth', label: 'Depth', inputType: 'number', min: 0.01, max: 2, step: 0.01 },
     { key: 'autoRotate', label: 'Auto Rotate', inputType: 'select', options: [
       { value: 'true', label: 'On' },
       { value: 'false', label: 'Off' },

@@ -756,6 +756,7 @@ function _addScene3dProps(p) {
           _numberInput('Metal', p.metalness ?? 0.3, 0, 1, 0.05, (v) => _emitProp({ metalness: v })),
           _numberInput('Rough', p.roughness ?? 0.6, 0, 1, 0.05, (v) => _emitProp({ roughness: v })),
         ]),
+        _numberInput('Depth', p.modelDepth ?? 0.2, 0.01, 2, 0.01, (v) => _emitProp({ modelDepth: v })),
       ]);
       break;
 
