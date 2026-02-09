@@ -386,7 +386,7 @@ export function buildLayerTree(elements, groups) {
 
     // Collect child groups at this level
     const childGroups = groups
-      .filter(g => g.parentGroupId === parentId)
+      .filter(g => (g.parentGroupId ?? null) === parentId)
       .sort((a, b) => a.name.localeCompare(b.name));
 
     for (const group of childGroups) {

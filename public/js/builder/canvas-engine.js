@@ -428,8 +428,14 @@ export class CanvasEngine {
     if (element.clipMask?.elementId) {
       const maskEntry = this.#elements.get(element.clipMask.elementId);
       if (maskEntry) {
-        node.style.clipPath = computeClipPath(element, maskEntry.element) || '';
+        const cp = computeClipPath(element, maskEntry.element);
+        console.log('[canvas-engine] clipMask applied:', element.id, '→ mask:', element.clipMask.elementId,
+          'clipped:', { x: element.x, y: element.y, w: element.width, h: element.height },
+          'mask:', { x: maskEntry.element.x, y: maskEntry.element.y, w: maskEntry.element.width, h: maskEntry.element.height },
+          'clipPath:', cp);
+        node.style.clipPath = cp || '';
       } else {
+        console.warn('[canvas-engine] clipMask: mask element not found:', element.clipMask.elementId);
         node.style.clipPath = '';
       }
     } else {

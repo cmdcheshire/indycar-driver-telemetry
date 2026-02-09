@@ -38,6 +38,20 @@ let _isScrubbing = false;
 let _currentPhase = 'idle'; // 'idle' | 'in' | 'hold' | 'out'
 let _holdTimer = null;
 
+/**
+ * Recompute and restore canvas-engine base transform for an element node.
+ * Must be called after gsap clearProps to prevent losing rotation/3D transforms.
+ */
+function _restoreBaseTransform(el, node) {
+  const transforms = [];
+  if (el.rotation) transforms.push(`rotate(${el.rotation}deg)`);
+  if (el.rotationX) transforms.push(`rotateX(${el.rotationX}deg)`);
+  if (el.rotationY) transforms.push(`rotateY(${el.rotationY}deg)`);
+  if (el.z) transforms.push(`translateZ(${el.z}px)`);
+  node.style.transform = transforms.join(' ');
+  if (el.opacity !== undefined) node.style.opacity = String(el.opacity);
+}
+
 const LABEL_WIDTH = 90;
 const TRACK_HEIGHT = 24;
 const MIN_PHASE_MS = 500;
@@ -769,11 +783,15 @@ function _takeOn() {
       const duration = (anim.duration || 300) / 1000;
       const easing = anim.easing || preset.defaultEase || 'power2.out';
       const safeClearProps = preset.clearProps || Object.keys(preset.vars).join(',');
+      const elRef = el; // capture for closure
       _masterTl.from(node, {
         ...preset.vars,
         duration,
         ease: easing,
-        clearProps: safeClearProps,
+        onComplete: () => {
+          gsap.set(node, { clearProps: safeClearProps });
+          _restoreBaseTransform(elRef, node);
+        },
       }, delay);
     }
   }
@@ -917,6 +935,7 @@ function _goToHold() {
       if (preset) {
         const safeClearProps = preset.clearProps || Object.keys(preset.vars).join(',');
         gsap.set(node, { clearProps: safeClearProps });
+        _restoreBaseTransform(el, node);
       }
     }
   }
@@ -985,6 +1004,7 @@ function _resetAllElements() {
     const exitKf = el.animation?.exitKeyframes;
     if ((enterKf?.enabled) || (exitKf?.enabled)) {
       gsap.set(node, { clearProps: 'transform,opacity,clipPath,color,backgroundColor' });
+      _restoreBaseTransform(el, node);
       // Re-apply final keyframe values so element stays in hold state, not CSS rest
       if (enterKf?.enabled && enterKf.tracks?.length > 0) {
         const endState = {};
@@ -1014,6 +1034,7 @@ function _resetAllElements() {
 
     if (propsToReset.size > 0) {
       gsap.set(node, { clearProps: [...propsToReset].join(',') });
+      _restoreBaseTransform(el, node);
     }
   }
 }

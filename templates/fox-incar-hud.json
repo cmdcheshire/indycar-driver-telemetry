@@ -13,13 +13,13 @@
       "loopRegion": { "enabled": false, "start": 0, "end": 0 }
     },
     "groups": [
-      { "id": "g0000001-0000-4000-8000-000000000001", "name": "RPM Indicator", "expanded": true, "visible": true, "locked": false },
-      { "id": "g0000002-0000-4000-8000-000000000002", "name": "Speed Display", "expanded": true, "visible": true, "locked": false },
-      { "id": "g0000003-0000-4000-8000-000000000003", "name": "Position Badge", "expanded": true, "visible": true, "locked": false },
-      { "id": "g0000004-0000-4000-8000-000000000004", "name": "Throttle", "expanded": true, "visible": true, "locked": false },
-      { "id": "g0000005-0000-4000-8000-000000000005", "name": "Brake", "expanded": true, "visible": true, "locked": false },
-      { "id": "g0000006-0000-4000-8000-000000000006", "name": "Driver Info Bar", "expanded": true, "visible": true, "locked": false },
-      { "id": "g0000007-0000-4000-8000-000000000007", "name": "Side Data", "expanded": true, "visible": true, "locked": false }
+      { "id": "g0000001-0000-4000-8000-000000000001", "name": "RPM Indicator", "parentGroupId": null, "expanded": true, "visible": true, "locked": false },
+      { "id": "g0000002-0000-4000-8000-000000000002", "name": "Speed Display", "parentGroupId": null, "expanded": true, "visible": true, "locked": false },
+      { "id": "g0000003-0000-4000-8000-000000000003", "name": "Position Badge", "parentGroupId": null, "expanded": true, "visible": true, "locked": false },
+      { "id": "g0000004-0000-4000-8000-000000000004", "name": "Throttle", "parentGroupId": null, "expanded": true, "visible": true, "locked": false },
+      { "id": "g0000005-0000-4000-8000-000000000005", "name": "Brake", "parentGroupId": null, "expanded": true, "visible": true, "locked": false },
+      { "id": "g0000006-0000-4000-8000-000000000006", "name": "Driver Info Bar", "parentGroupId": null, "expanded": true, "visible": true, "locked": false },
+      { "id": "g0000007-0000-4000-8000-000000000007", "name": "Side Data", "parentGroupId": null, "expanded": true, "visible": true, "locked": false }
     ],
     "elements": [
 
