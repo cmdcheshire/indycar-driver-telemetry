@@ -257,6 +257,7 @@ export class CanvasEngine {
         node.style.display = 'flex';
         node.style.alignItems = 'center';
         node.style.justifyContent = this.#mapTextAlign(p.textAlign);
+        node.style.textTransform = p.textTransform || '';
         node.style.overflow = p.fitText ? 'hidden' : (p.overflow || '');
         if (p.textShadow) node.style.textShadow = p.textShadow;
         if (p.textStroke) node.style.webkitTextStroke = p.textStroke;
@@ -312,6 +313,7 @@ export class CanvasEngine {
         node.style.display = 'flex';
         node.style.alignItems = 'center';
         node.style.justifyContent = this.#mapTextAlign(p.textAlign);
+        node.style.textTransform = p.textTransform || '';
         node.style.overflow = p.fitText ? 'hidden' : (p.overflow || '');
         if (p.textShadow) node.style.textShadow = p.textShadow;
         if (p.textStroke) node.style.webkitTextStroke = p.textStroke;

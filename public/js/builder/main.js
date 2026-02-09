@@ -494,6 +494,7 @@ function _initKeyboardShortcuts() {
             el.x = Math.round((el.x + dx) * 10) / 10;
             el.y = Math.round((el.y + dy) * 10) / 10;
             canvas.updateElement(id, { x: el.x, y: el.y });
+            selection.updateSelectionHandles(el);
           }
         }
         _refreshPanels();
