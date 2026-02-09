@@ -174,8 +174,19 @@ export const EXPOSABLE_SETTINGS = {
  * @param {string} type
  * @returns {Array<{key: string, label: string, inputType: string}>}
  */
+/** Universal setting available for all element types */
+const VISIBILITY_SETTING = {
+  key: 'visibility', label: 'Visibility', inputType: 'select', options: [
+    { value: 'visible', label: 'Visible' },
+    { value: 'hidden', label: 'Hidden' },
+  ],
+};
+
 export function getExposableSettings(type) {
-  const settings = EXPOSABLE_SETTINGS[type] || [];
+  const typeSettings = EXPOSABLE_SETTINGS[type] || [];
+
+  // Prepend the universal visibility setting for all types
+  const settings = [VISIBILITY_SETTING, ...typeSettings];
 
   // Dynamically merge custom fonts into fontFamily options
   const customFonts = getCustomFontOptions();
@@ -196,6 +207,8 @@ export function getExposableSettings(type) {
  * @returns {object|null}
  */
 export function getSettingDef(type, key) {
+  // Check universal settings first
+  if (key === VISIBILITY_SETTING.key) return VISIBILITY_SETTING;
   const settings = EXPOSABLE_SETTINGS[type] || [];
   return settings.find(s => s.key === key) || null;
 }

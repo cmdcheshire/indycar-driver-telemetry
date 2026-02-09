@@ -797,6 +797,8 @@ export class GsapAnimationEngine {
           onComplete: () => {
             this._channels.delete(posChannel);
             gsap.set(node, { clearProps: 'transform' });
+            // Restore base transform (rotation etc.) after clearProps wiped it
+            if (node.dataset.baseTransform) node.style.transform = node.dataset.baseTransform;
             this._clearWillChange(elementId, node);
           },
         },
@@ -914,6 +916,7 @@ export class GsapAnimationEngine {
     if (node.dataset.baseColor) node.style.color = node.dataset.baseColor;
     if (node.dataset.baseBg) node.style.backgroundColor = node.dataset.baseBg;
     if (node.dataset.baseTextShadow) node.style.textShadow = node.dataset.baseTextShadow;
+    if (node.dataset.baseTransform) node.style.transform = node.dataset.baseTransform;
   }
 
   /**

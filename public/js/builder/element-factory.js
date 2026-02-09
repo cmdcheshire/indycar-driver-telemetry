@@ -97,6 +97,7 @@ export function createImageElement(x = 10, y = 10) {
       src: '',
       alt: '',
       fit: 'contain', // contain | cover | fill
+      blendMode: 'normal',
     },
     bindings: [],
     animation: {
@@ -142,6 +143,7 @@ export function createShapeElement(x = 10, y = 10) {
       strokeColor: '',
       strokeWidth: 0,
       borderRadius: 0,
+      blendMode: 'normal',
     },
     bindings: [],
     animation: {

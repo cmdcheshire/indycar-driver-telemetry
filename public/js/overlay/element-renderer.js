@@ -46,7 +46,11 @@ export function renderElement(element, referenceData = {}) {
     if (element.rotationX) transforms.push(`rotateX(${element.rotationX}deg)`);
     if (element.rotationY) transforms.push(`rotateY(${element.rotationY}deg)`);
     if (element.z)         transforms.push(`translateZ(${element.z}px)`);
-    if (transforms.length) wrapper.style.transform = transforms.join(' ');
+    if (transforms.length) {
+      const baseTransform = transforms.join(' ');
+      wrapper.style.transform = baseTransform;
+      wrapper.dataset.baseTransform = baseTransform;
+    }
   }
 
   // ── 3D perspective ──
@@ -165,6 +169,11 @@ function renderImage(wrapper, element, referenceData) {
   // Prevent drag
   img.draggable = false;
 
+  // Blend mode
+  if (element.blendMode && element.blendMode !== 'normal') {
+    wrapper.style.mixBlendMode = element.blendMode;
+  }
+
   wrapper.appendChild(img);
 }
 
@@ -193,6 +202,11 @@ function renderShape(wrapper, element) {
   // Box shadow
   if (element.boxShadow) {
     wrapper.style.boxShadow = element.boxShadow;
+  }
+
+  // Blend mode
+  if (element.blendMode && element.blendMode !== 'normal') {
+    wrapper.style.mixBlendMode = element.blendMode;
   }
 }
 

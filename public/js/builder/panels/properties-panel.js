@@ -40,6 +40,26 @@ let currentElement = null;
 /** Persisted collapsed state for sections */
 const _sectionState = {};
 
+/** CSS mix-blend-mode options for image and shape layers */
+const BLEND_MODE_OPTIONS = [
+  { value: 'normal', label: 'Normal' },
+  { value: 'multiply', label: 'Multiply' },
+  { value: 'screen', label: 'Screen' },
+  { value: 'overlay', label: 'Overlay' },
+  { value: 'darken', label: 'Darken' },
+  { value: 'lighten', label: 'Lighten' },
+  { value: 'color-dodge', label: 'Color Dodge' },
+  { value: 'color-burn', label: 'Color Burn' },
+  { value: 'hard-light', label: 'Hard Light' },
+  { value: 'soft-light', label: 'Soft Light' },
+  { value: 'difference', label: 'Difference' },
+  { value: 'exclusion', label: 'Exclusion' },
+  { value: 'hue', label: 'Hue' },
+  { value: 'saturation', label: 'Saturation' },
+  { value: 'color', label: 'Color' },
+  { value: 'luminosity', label: 'Luminosity' },
+];
+
 
 /**
  * Initialize the properties panel.
@@ -389,6 +409,8 @@ function _addImageProps(p) {
       { value: 'fill', label: 'Fill' },
       { value: 'none', label: 'None' },
     ], (v) => _emitProp({ fit: v })),
+    _selectInput('Blend Mode', p.blendMode || 'normal', BLEND_MODE_OPTIONS,
+      (v) => _emitProp({ blendMode: v })),
   ]);
 }
 
@@ -677,6 +699,8 @@ function _addShapeProps(p) {
       _numberInput('Stroke W', p.strokeWidth || 0, 0, 20, 1, (v) => _emitProp({ strokeWidth: v })),
       _numberInput('Radius', p.borderRadius || 0, 0, 100, 1, (v) => _emitProp({ borderRadius: v })),
     ]),
+    _selectInput('Blend Mode', p.blendMode || 'normal', BLEND_MODE_OPTIONS,
+      (v) => _emitProp({ blendMode: v })),
   ]);
 }
 

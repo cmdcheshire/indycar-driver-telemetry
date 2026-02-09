@@ -287,6 +287,7 @@ export class CanvasEngine {
         img.src = p.src || '';
         img.alt = p.alt || '';
         img.style.objectFit = p.fit || 'contain';
+        node.style.mixBlendMode = (p.blendMode && p.blendMode !== 'normal') ? p.blendMode : '';
         break;
       }
 
@@ -304,6 +305,7 @@ export class CanvasEngine {
         } else {
           node.style.border = 'none';
         }
+        node.style.mixBlendMode = (p.blendMode && p.blendMode !== 'normal') ? p.blendMode : '';
         break;
       }
 

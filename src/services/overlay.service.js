@@ -303,7 +303,10 @@ function _getExposedDefaults(el) {
 
   const defaults = {};
   for (const key of settings) {
-    if (p[key] !== undefined) {
+    if (key === 'visibility') {
+      // Virtual setting — element visibility, not in props
+      defaults[key] = 'visible';
+    } else if (p[key] !== undefined) {
       defaults[key] = p[key];
     }
   }

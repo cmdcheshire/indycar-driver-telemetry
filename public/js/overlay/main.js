@@ -361,10 +361,14 @@ function handleVisibility(msg) {
     // Reset display on ALL elements (not just animated ones) so scene3d and
     // other elements hidden by exit animations become visible again.
     // Skip mask elements that are intentionally hidden by clip-path system.
+    // Also restore mask clip-paths that may have been cleared by killed exit animations.
     if (domMap) {
       for (const [, node] of domMap) {
-        if (node.style.display === 'none' && node.dataset.maskHidden !== 'true') {
+        if (node.style.display === 'none' && node.dataset.maskHidden !== 'true' && node.dataset.operatorHidden !== 'true') {
           node.style.display = node.dataset.baseDisplay || '';
+        }
+        if (node.dataset.maskClipPath) {
+          node.style.clipPath = node.dataset.maskClipPath;
         }
       }
     }
@@ -416,6 +420,9 @@ function buildPlayoutTimeline(elementAnimations, timeline) {
     if (node.dataset.baseColor) node.style.color = node.dataset.baseColor;
     if (node.dataset.baseBg) node.style.backgroundColor = node.dataset.baseBg;
     if (node.dataset.baseTextShadow) node.style.textShadow = node.dataset.baseTextShadow;
+    if (node.dataset.baseTransform) node.style.transform = node.dataset.baseTransform;
+    // Restore mask clip-path (may have been cleared by killed exit animation)
+    if (node.dataset.maskClipPath) node.style.clipPath = node.dataset.maskClipPath;
     node.style.willChange = 'transform, opacity';
 
     // ── Check for keyframe animation override (enter) ──
@@ -462,9 +469,9 @@ function buildPlayoutTimeline(elementAnimations, timeline) {
         if (node.dataset.baseColor) node.style.color = node.dataset.baseColor;
         if (node.dataset.baseBg) node.style.backgroundColor = node.dataset.baseBg;
         if (node.dataset.baseTextShadow) node.style.textShadow = node.dataset.baseTextShadow;
+        if (node.dataset.baseTransform) node.style.transform = node.dataset.baseTransform;
         // Restore mask clip-path if set
-        const maskClip = node.dataset?.maskClipPath;
-        if (maskClip) node.style.clipPath = maskClip;
+        if (node.dataset.maskClipPath) node.style.clipPath = node.dataset.maskClipPath;
         // Schedule GPU layer cleanup
         setTimeout(() => { node.style.willChange = ''; }, 5000);
       },
@@ -699,6 +706,17 @@ function applyElementOverrides(overrides) {
   for (const [elementId, props] of Object.entries(overrides)) {
     const node = domMap.get(elementId);
     if (!node) continue;
+
+    // Element visibility (operator toggle)
+    if (props.visibility !== undefined) {
+      if (props.visibility === 'hidden') {
+        node.style.display = 'none';
+        node.dataset.operatorHidden = 'true';
+      } else {
+        delete node.dataset.operatorHidden;
+        node.style.display = node.dataset.baseDisplay || '';
+      }
+    }
 
     // Text content
     if (props.text !== undefined) {

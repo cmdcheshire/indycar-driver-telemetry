@@ -174,6 +174,7 @@ function _applyClipPaths(elements, domMap) {
     };
 
     const clipPath = computeClipPath(clippedBounds, maskBounds);
+    console.log(`[template-loader] clipMask: ${el.id} → mask=${el.clipMask.elementId}, clipPath=${clipPath}`);
     if (clipPath) {
       domNode.style.clipPath = clipPath;
       // Store mask clip-path so the animation engine can restore it after clearProps
