@@ -432,6 +432,11 @@ export class Scene3DController {
       this._dirLight.intensity = newProps.directionalIntensity;
     }
 
+    // Camera Z position (dolly / zoom)
+    if (newProps.cameraZ !== undefined && this._camera) {
+      this._camera.position.z = newProps.cameraZ;
+    }
+
     // Auto-rotate
     if (newProps.autoRotate !== undefined) this._autoRotate = newProps.autoRotate;
     if (newProps.rotateSpeed !== undefined) this._rotateSpeed = newProps.rotateSpeed;
@@ -443,9 +448,15 @@ export class Scene3DController {
       }
     }
 
-    // Particle color
+    // Particle updates
     if (newProps.particleColor !== undefined && this._particles?.material) {
       this._particles.material.color.set(newProps.particleColor);
+    }
+    if (newProps.particleOpacity !== undefined && this._particles?.material) {
+      this._particles.material.opacity = newProps.particleOpacity;
+    }
+    if (newProps.particleSize !== undefined && this._particles?.material) {
+      this._particles.material.size = newProps.particleSize;
     }
 
     // Model URL change — only trigger load when URL actually changed

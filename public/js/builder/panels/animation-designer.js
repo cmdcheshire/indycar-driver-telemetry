@@ -36,6 +36,16 @@ const ANIMATABLE_PROPERTIES = [
   { key: 'borderRadius', label: 'Radius', type: 'number', min: 0, max: 100, step: 1, default: 0, unit: '%' },
   { key: 'blur',       label: 'Blur',     type: 'number', min: 0, max: 50, step: 0.5, default: 0, unit: 'px' },
   { key: 'brightness', label: 'Bright',   type: 'number', min: 0, max: 3, step: 0.05, default: 1 },
+  // ── WebGL / Three.js (scene3d elements only) ──
+  { key: 'cameraFov',            label: 'FOV',        type: 'number', min: 10,    max: 120,  step: 1,    default: 50,  unit: '°',  scene3d: true },
+  { key: 'cameraZ',              label: 'Cam Z',      type: 'number', min: 0.5,   max: 20,   step: 0.1,  default: 3,               scene3d: true },
+  { key: 'scene3dRotation',      label: '3D Rot',     type: 'number', min: -720,  max: 720,  step: 1,    default: 0,   unit: '°',  scene3d: true },
+  { key: 'scene3dScale',         label: '3D Scale',   type: 'number', min: 0.01,  max: 5,    step: 0.01, default: 1,               scene3d: true },
+  { key: 'rotateSpeed',          label: 'Spin',       type: 'number', min: 0,     max: 0.1,  step: 0.001,default: 0.01,             scene3d: true },
+  { key: 'ambientIntensity',     label: 'Amb Light',  type: 'number', min: 0,     max: 3,    step: 0.05, default: 0.6,              scene3d: true },
+  { key: 'directionalIntensity', label: 'Dir Light',  type: 'number', min: 0,     max: 5,    step: 0.05, default: 1.0,              scene3d: true },
+  { key: 'particleOpacity',      label: 'Part Opac',  type: 'number', min: 0,     max: 1,    step: 0.01, default: 0.8,              scene3d: true },
+  { key: 'particleSize',         label: 'Part Size',  type: 'number', min: 0.01,  max: 1,    step: 0.01, default: 0.05,             scene3d: true },
 ];
 
 // ---------------------------------------------------------------------------
@@ -51,6 +61,7 @@ let _previewTimeline = null;
 let _selectedKeyframe = null;   // { trackIndex, keyframeIndex }
 let _isPlaying = false;
 let _isLooping = false;
+let _previewScene3dSnapshot = null; // Original scene3d prop values before preview
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -220,8 +231,11 @@ function _render() {
   addSelect.appendChild(defaultOpt);
 
   const existingKeys = new Set(kf.tracks.map(t => t.property));
+  const isScene3d = _element?.type === 'scene3d';
   for (const prop of ANIMATABLE_PROPERTIES) {
     if (existingKeys.has(prop.key)) continue;
+    // Scene3d properties only available for scene3d elements
+    if (prop.scene3d && !isScene3d) continue;
     const opt = document.createElement('option');
     opt.value = prop.key;
     opt.textContent = prop.label;
@@ -687,6 +701,28 @@ function _playPreview(kf) {
   const node = document.querySelector(`#canvasContainer [data-element-id="${_element.id}"]`);
   if (!node) return;
 
+  // Snapshot scene3d property values before preview so we can restore on kill
+  const ctrl = node.__scene3dController;
+  if (ctrl) {
+    const scene3dKeys = ANIMATABLE_PROPERTIES.filter(p => p.scene3d).map(p => p.key);
+    _previewScene3dSnapshot = {};
+    for (const key of scene3dKeys) {
+      if (key === 'scene3dRotation') {
+        const target = ctrl._model || ctrl._textMesh;
+        _previewScene3dSnapshot[key] = target ? (target.rotation.y * 180) / Math.PI : 0;
+      } else if (key === 'scene3dScale') {
+        const target = ctrl._model || ctrl._textMesh;
+        _previewScene3dSnapshot[key] = target ? target.scale.x : 1;
+      } else if (key === 'cameraFov') {
+        _previewScene3dSnapshot[key] = ctrl._camera?.fov ?? 50;
+      } else if (key === 'cameraZ') {
+        _previewScene3dSnapshot[key] = ctrl._camera?.position.z ?? 3;
+      } else if (ctrl._props[key] !== undefined) {
+        _previewScene3dSnapshot[key] = ctrl._props[key];
+      }
+    }
+  }
+
   const tl = _buildGsapTimeline(node, kf);
   if (_isLooping) tl.repeat(-1);
 
@@ -708,6 +744,14 @@ function _killPreview() {
     const node = document.querySelector(`#canvasContainer [data-element-id="${_element.id}"]`);
     if (node) {
       gsap.set(node, { clearProps: 'transform,opacity,clipPath,color,backgroundColor,borderRadius,filter' });
+
+      // Restore scene3d properties from snapshot
+      if (_previewScene3dSnapshot) {
+        for (const [key, val] of Object.entries(_previewScene3dSnapshot)) {
+          _applyScene3dProp(node, key, val);
+        }
+        _previewScene3dSnapshot = null;
+      }
     }
   }
 }
@@ -718,14 +762,29 @@ function _killPreview() {
 
 function _buildGsapTimeline(node, kfData) {
   const tl = gsap.timeline();
+  const proxy = {}; // Proxy object for scene3d (WebGL) properties
 
   for (const track of kfData.tracks) {
     const sorted = [...track.keyframes].sort((a, b) => a.time - b.time);
     if (sorted.length < 2) continue;
 
+    const propDef = ANIMATABLE_PROPERTIES.find(p => p.key === track.property);
+    const isScene3d = propDef?.scene3d;
+    const target = isScene3d ? proxy : node;
+
+    if (isScene3d) {
+      proxy[track.property] = sorted[0].value;
+    }
+
     // Set the initial value inside the timeline so it fires at playback time,
     // not at build time (prevents flash when sub-timeline has a delay)
-    tl.set(node, { [track.property]: sorted[0].value }, 0);
+    if (isScene3d) {
+      const initProp = track.property;
+      const initVal = sorted[0].value;
+      tl.call(() => { proxy[initProp] = initVal; _applyScene3dProp(node, initProp, initVal); }, null, 0);
+    } else {
+      tl.set(node, { [track.property]: sorted[0].value }, 0);
+    }
 
     // Build tweens between consecutive keyframes
     for (let i = 0; i < sorted.length - 1; i++) {
@@ -735,15 +794,47 @@ function _buildGsapTimeline(node, kfData) {
       const pos = from.time / 1000;
       const ease = to.easing && to.easing !== 'none' ? resolveEasing(to.easing) : 'none';
 
-      tl.to(node, {
-        [track.property]: to.value,
-        duration: dur,
-        ease,
-      }, pos);
+      if (isScene3d) {
+        const prop = track.property;
+        tl.to(proxy, {
+          [prop]: to.value,
+          duration: dur,
+          ease,
+          onUpdate() { _applyScene3dProp(node, prop, proxy[prop]); },
+        }, pos);
+      } else {
+        tl.to(node, {
+          [track.property]: to.value,
+          duration: dur,
+          ease,
+        }, pos);
+      }
     }
   }
 
   return tl;
+}
+
+/**
+ * Route a scene3d property value to the Three.js controller on the DOM node.
+ */
+function _applyScene3dProp(node, property, value) {
+  const ctrl = node.__scene3dController;
+  if (!ctrl) return;
+
+  switch (property) {
+    case 'scene3dRotation':
+      ctrl.setBindingValue('rotation', value);
+      break;
+    case 'scene3dScale':
+      ctrl.setBindingValue('scale', value);
+      break;
+    default:
+      // cameraFov, cameraZ, rotateSpeed, ambientIntensity,
+      // directionalIntensity, particleOpacity, particleSize
+      ctrl.updateProps({ [property]: value });
+      break;
+  }
 }
 
 // ---------------------------------------------------------------------------
