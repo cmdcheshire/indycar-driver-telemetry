@@ -11,7 +11,7 @@
  */
 
 import { getEnterPreset, getExitPreset } from '/js/shared/animation-presets.js';
-import { buildGsapTimeline } from './animation-designer.js';
+import { buildGsapTimeline, SCENE3D_KEYS, applyScene3dProp } from './animation-designer.js';
 import { computeClipPath, offsetMaskBounds } from '/js/shared/clip-path.js';
 
 /* ------------------------------------------------------------------ *
@@ -32,6 +32,7 @@ import { computeClipPath, offsetMaskBounds } from '/js/shared/clip-path.js';
 
 let _collapsed = true;
 let _loopEnabled = false;
+let _atStartPosition = false;
 
 /** @type {gsap.core.Timeline|null} */ let _masterTl = null;
 let _isPlaying = false;
@@ -317,9 +318,13 @@ export function renderTimelinePanel() {
   // Render pause points
   _renderPausePoints(timeline.pausePoints || [], inDuration);
 
-  // When idle, keep playhead at HOLD position (editing state)
+  // When idle, position playhead: at START if user clicked GO TO START, else at HOLD
   if (_currentPhase === 'idle' && !_isScrubbing && !_masterTl) {
-    _snapPlayheadToHold();
+    if (_atStartPosition) {
+      if (_playheadEl) _playheadEl.style.left = `${LABEL_WIDTH}px`;
+    } else {
+      _snapPlayheadToHold();
+    }
   }
 }
 
@@ -882,6 +887,7 @@ function _addPausePointDrag(marker, pp, inMs, inWidth) {
  * ------------------------------------------------------------------ */
 
 function _takeOn() {
+  _atStartPosition = false;
   if (_currentPhase !== 'idle' || _masterTl) _hardReset();
   if (!_getElements || !_getTimeline) return;
 
@@ -1048,6 +1054,7 @@ function _takeOff() {
  * and go straight to HOLD.
  */
 function _goToHold() {
+  _atStartPosition = false;
   if (_currentPhase !== 'idle' || _masterTl) _hardReset();
   if (!_getElements) return;
 
@@ -1068,10 +1075,15 @@ function _goToHold() {
       for (const track of enterKf.tracks) {
         if (track.keyframes.length > 0) {
           const last = track.keyframes.reduce((a, b) => a.time > b.time ? a : b);
-          const gsapProp = track.property === 'x' ? 'xPercent'
-                         : track.property === 'y' ? 'yPercent'
-                         : track.property;
-          endState[gsapProp] = last.value;
+          if (SCENE3D_KEYS.has(track.property)) {
+            // Route scene3d properties directly to Three.js controller
+            applyScene3dProp(node, track.property, last.value);
+          } else {
+            const gsapProp = track.property === 'x' ? 'xPercent'
+                           : track.property === 'y' ? 'yPercent'
+                           : track.property;
+            endState[gsapProp] = last.value;
+          }
         }
       }
       if (Object.keys(endState).length > 0) {
@@ -1158,16 +1170,18 @@ function _resetAllElements() {
     // If element uses keyframes, clear only GSAP transform props + the specific
     // properties that the keyframes actually animate. Don't blanket-clear
     // backgroundColor/color/opacity — those are set by canvas-engine, not GSAP.
+    // Scene3d properties (Three.js) are routed through applyScene3dProp, not GSAP.
     const enterKf = _getEnterKf(el);
     const exitKf = el.animation?.exitKeyframes;
     if ((enterKf?.enabled) || (exitKf?.enabled)) {
-      // Build dynamic clearProps from actual keyframe tracks
+      // Build dynamic clearProps from actual keyframe tracks (skip scene3d — not CSS)
       const clearSet = new Set(['transform', 'xPercent', 'yPercent']);
       const allTracks = [
         ...(enterKf?.tracks || []),
         ...(exitKf?.tracks || []),
       ];
       for (const track of allTracks) {
+        if (SCENE3D_KEYS.has(track.property)) continue;
         const gsapProp = track.property === 'x' ? 'xPercent'
                        : track.property === 'y' ? 'yPercent'
                        : track.property;
@@ -1181,10 +1195,14 @@ function _resetAllElements() {
         for (const track of enterKf.tracks) {
           if (track.keyframes.length > 0) {
             const last = track.keyframes.reduce((a, b) => a.time > b.time ? a : b);
-            const gsapProp = track.property === 'x' ? 'xPercent'
-                           : track.property === 'y' ? 'yPercent'
-                           : track.property;
-            endState[gsapProp] = last.value;
+            if (SCENE3D_KEYS.has(track.property)) {
+              applyScene3dProp(node, track.property, last.value);
+            } else {
+              const gsapProp = track.property === 'x' ? 'xPercent'
+                             : track.property === 'y' ? 'yPercent'
+                             : track.property;
+              endState[gsapProp] = last.value;
+            }
           }
         }
         if (Object.keys(endState).length > 0) {
@@ -1501,8 +1519,8 @@ function _snapPlayheadToHold() {
 }
 
 /**
- * Go to Start — reset everything to idle state (before IN animations).
- * Elements appear in their pre-animation state.
+ * Go to Start — reset everything to idle state and position playhead
+ * at the beginning of the timeline (before IN animations).
  */
 function _goToStart() {
   // Kill any active GSAP timeline or hold timer
@@ -1510,18 +1528,20 @@ function _goToStart() {
   if (_holdTimer) { clearTimeout(_holdTimer); _holdTimer = null; }
   _isScrubbing = false;
 
-  // Reset all GSAP transforms so elements are back in their hold/editing state
+  // Reset all GSAP transforms so elements are back in their editing state
   _resetAllElements();
 
   _currentPhase = 'idle';
   _isPlaying = false;
+  _atStartPosition = true;
 
-  // Snap playhead to HOLD (the editing position) and deactivate
-  _snapPlayheadToHold();
-  if (_playheadEl) _playheadEl.classList.remove('active');
+  // Snap playhead to the START of the timeline (left edge) and deactivate
+  if (_playheadEl) {
+    _playheadEl.style.left = `${LABEL_WIDTH}px`;
+    _playheadEl.classList.remove('active');
+  }
 
   _updateTransportButtons();
-  renderTimelinePanel();
 }
 
 function _expandPanel() {

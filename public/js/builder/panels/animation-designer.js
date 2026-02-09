@@ -115,6 +115,16 @@ export function buildGsapTimeline(node, kfData) {
   return _buildGsapTimeline(node, kfData);
 }
 
+/** Set of property keys that route to Three.js (not GSAP CSS). */
+export const SCENE3D_KEYS = new Set(
+  ANIMATABLE_PROPERTIES.filter(p => p.scene3d).map(p => p.key)
+);
+
+/** Route a scene3d property value to the Three.js controller on a DOM node. */
+export function applyScene3dProp(node, property, value) {
+  return _applyScene3dProp(node, property, value);
+}
+
 // ---------------------------------------------------------------------------
 // Data helpers
 // ---------------------------------------------------------------------------
