@@ -360,16 +360,26 @@ export class CanvasEngine {
       }
 
       case 'scene3d': {
-        // Dispose old controller if sub-type or key props changed
         if (node.__scene3dController) {
-          node.__scene3dController.dispose();
-          node.__scene3dController = null;
+          // If sub-type changed, full rebuild required
+          const oldSub = node.__scene3dController._props?.subType;
+          if (oldSub !== (p.subType || 'text3d')) {
+            node.__scene3dController.dispose();
+            node.__scene3dController = null;
+            node.innerHTML = '';
+            const ctrl = createScene3D(node, p);
+            node.__scene3dController = ctrl;
+            requestAnimationFrame(() => ctrl.resize());
+          } else {
+            // Live-update props without recreating the WebGL context
+            node.__scene3dController.updateProps(p);
+          }
+        } else {
+          node.innerHTML = '';
+          const ctrl = createScene3D(node, p);
+          node.__scene3dController = ctrl;
+          requestAnimationFrame(() => ctrl.resize());
         }
-        node.innerHTML = '';
-        const ctrl = createScene3D(node, p);
-        node.__scene3dController = ctrl;
-        // Resize after layout settles
-        requestAnimationFrame(() => ctrl.resize());
         break;
       }
 

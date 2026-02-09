@@ -597,7 +597,8 @@ async function _browseLibraryAsset(onSelect) {
       card.appendChild(label);
 
       card.addEventListener('click', () => {
-        const url = `/api/library/assets/${asset.id}/file`;
+        const fn = encodeURIComponent(asset.original_name || asset.filename);
+        const url = `/api/library/assets/${asset.id}/file?fn=${fn}`;
         onSelect(url);
         overlay.remove();
       });

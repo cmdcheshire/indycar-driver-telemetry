@@ -24,12 +24,26 @@ export const SCENE3D_SUBTYPES = [
 
 /**
  * Check if a URL points to an image file.
+ * Supports direct URLs with extensions and library asset URLs with ?fn= hint.
  */
+const _IMAGE_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg']);
+
 function _isImageUrl(url) {
   if (!url) return false;
   if (url.startsWith('data:image/')) return true;
+
+  // Check for ?fn= query parameter (library asset URL hint)
+  try {
+    const u = new URL(url, location.origin);
+    const fn = u.searchParams.get('fn');
+    if (fn) {
+      const ext = fn.split('.').pop().toLowerCase();
+      return _IMAGE_EXTS.has(ext);
+    }
+  } catch (e) { /* not a valid URL, fall through */ }
+
   const ext = url.split('?')[0].split('#')[0].split('.').pop().toLowerCase();
-  return ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(ext);
+  return _IMAGE_EXTS.has(ext);
 }
 
 // ---------------------------------------------------------------------------
@@ -394,6 +408,7 @@ export class Scene3DController {
    * Live-update props from properties panel or data bindings.
    */
   updateProps(newProps) {
+    const prev = { ...this._props };
     Object.assign(this._props, newProps);
 
     // Camera
@@ -421,9 +436,11 @@ export class Scene3DController {
     if (newProps.autoRotate !== undefined) this._autoRotate = newProps.autoRotate;
     if (newProps.rotateSpeed !== undefined) this._rotateSpeed = newProps.rotateSpeed;
 
-    // Model color
-    if (newProps.modelColor !== undefined && this._model?.material) {
-      this._model.material.color.set(newProps.modelColor);
+    // Model color (only for non-image-slab models with simple material)
+    if (newProps.modelColor !== undefined && this._model?.material && !this._isImageSlab) {
+      if (!Array.isArray(this._model.material)) {
+        this._model.material.color.set(newProps.modelColor);
+      }
     }
 
     // Particle color
@@ -431,8 +448,8 @@ export class Scene3DController {
       this._particles.material.color.set(newProps.particleColor);
     }
 
-    // Model URL change
-    if (newProps.modelUrl !== undefined) {
+    // Model URL change — only trigger load when URL actually changed
+    if (newProps.modelUrl !== undefined && newProps.modelUrl !== prev.modelUrl) {
       if (newProps.modelUrl && _isImageUrl(newProps.modelUrl)) {
         this._loadImageModel(newProps.modelUrl, this._props);
       } else if (newProps.modelUrl) {
@@ -442,17 +459,20 @@ export class Scene3DController {
       }
     }
 
-    // Model depth change (image slab only)
-    if (newProps.modelDepth !== undefined && this._isImageSlab && this._imageUrl) {
+    // Model depth change (image slab only) — only when depth actually changed
+    const depthChanged = newProps.modelDepth !== undefined && newProps.modelDepth !== prev.modelDepth;
+    if (depthChanged && this._isImageSlab && this._imageUrl) {
       this._loadImageModel(this._imageUrl, this._props);
     }
 
-    // 3D text content change
-    if (newProps.text3d !== undefined && this._textMesh) {
+    // 3D text content or color change
+    const textChanged = (newProps.text3d !== undefined && newProps.text3d !== prev.text3d) ||
+                        (newProps.text3dColor !== undefined && newProps.text3dColor !== prev.text3dColor);
+    if (textChanged && this._textMesh) {
       this._scene.remove(this._textMesh);
       if (this._textMesh.geometry) this._textMesh.geometry.dispose();
       this._createCanvasText(
-        newProps.text3d,
+        this._props.text3d || '3D',
         this._props.text3dColor || '#ffffff',
         this._props.text3dDepth || 0.3,
         this._props,
