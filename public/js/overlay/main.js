@@ -396,8 +396,7 @@ function buildPlayoutTimeline(elementAnimations, timeline) {
     const rawEasing = config.easing || preset.defaultEase || 'power2.out';
     const easing = resolveEasing(migrateEasing(rawEasing));
 
-    // Make element visible
-    node.style.display = '';
+    // Reset opacity and promote to GPU layer for animation
     node.style.opacity = '';
     node.style.willChange = 'transform, opacity';
 
