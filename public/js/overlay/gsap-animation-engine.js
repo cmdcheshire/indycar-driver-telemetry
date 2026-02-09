@@ -125,12 +125,9 @@ export class GsapAnimationEngine {
         onComplete: () => {
           this._channels.delete(elementId);
           // Clear GSAP-set inline transforms so element returns to CSS-defined position
-          if (preset.clearProps) {
-            gsap.set(node, { clearProps: preset.clearProps });
-            this._restoreBaseStyles(node);
-          } else {
-            gsap.set(node, { clearProps: 'transform,opacity' });
-          }
+          const clearStr = preset.clearProps || 'transform,opacity';
+          gsap.set(node, { clearProps: clearStr });
+          this._restoreBaseStyles(node);
           // Restore mask clip-path if clipping mask system set one
           this._restoreMaskClipPath(node);
           this._clearWillChange(elementId, node);
@@ -189,11 +186,13 @@ export class GsapAnimationEngine {
         ease: easing,
         overwrite: 'auto',
         onComplete: () => {
-          node.style.display = 'none';
           this._channels.delete(elementId);
           gsap.set(node, { clearProps: 'transform,opacity,clipPath' });
           this._restoreBaseStyles(node);
           this._restoreMaskClipPath(node);
+          // display:none MUST come after _restoreBaseStyles which restores
+          // baseDisplay — otherwise the element briefly reappears
+          node.style.display = 'none';
           this._clearWillChange(elementId, node);
         },
       });
@@ -448,11 +447,13 @@ export class GsapAnimationEngine {
     const tlFn = () => {
       tl = gsap.timeline({
         onComplete: () => {
-          node.style.display = 'none';
           this._channels.delete(elementId);
           gsap.set(node, { clearProps: 'transform,opacity,clipPath,color,backgroundColor' });
           this._restoreBaseStyles(node);
           this._restoreMaskClipPath(node);
+          // display:none MUST come after _restoreBaseStyles which restores
+          // baseDisplay — otherwise the element briefly reappears
+          node.style.display = 'none';
           this._clearWillChange(elementId, node);
         },
       });
