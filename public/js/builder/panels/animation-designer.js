@@ -47,6 +47,7 @@ const ANIMATABLE_PROPERTIES = [
   { key: 'directionalIntensity', label: 'Dir Light',  type: 'number', min: 0,     max: 5,    step: 0.05, default: 1.0,              scene3d: true },
   { key: 'particleOpacity',      label: 'Part Opac',  type: 'number', min: 0,     max: 1,    step: 0.01, default: 0.8,              scene3d: true },
   { key: 'particleSize',         label: 'Part Size',  type: 'number', min: 0.01,  max: 1,    step: 0.01, default: 0.05,             scene3d: true },
+  { key: 'shadowOpacity',        label: 'Shadow',     type: 'number', min: 0,     max: 1,    step: 0.05, default: 0.35,             scene3d: true },
 ];
 
 // ---------------------------------------------------------------------------
@@ -318,10 +319,25 @@ function _renderTimeline(kf) {
     delBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       const currentKf = _getKeyframes();
+      const removedTrack = currentKf.tracks[ti];
       const newTracks = [...currentKf.tracks];
       newTracks.splice(ti, 1);
       _setKeyframes({ ...currentKf, tracks: newTracks });
       _selectedKeyframe = null;
+
+      // Reset the removed property to its default value on the element
+      if (removedTrack && _element) {
+        const node = document.querySelector(`#canvasContainer [data-element-id="${_element.id}"]`);
+        if (node) {
+          const propDef = ANIMATABLE_PROPERTIES.find(p => p.key === removedTrack.property);
+          if (propDef?.scene3d) {
+            _applyScene3dProp(node, removedTrack.property, propDef.default);
+          } else {
+            gsap.set(node, { [removedTrack.property]: propDef?.default ?? '' });
+          }
+        }
+      }
+
       _render();
     });
     label.appendChild(delBtn);

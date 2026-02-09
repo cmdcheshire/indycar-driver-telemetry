@@ -106,10 +106,20 @@ export class Scene3DController {
     this._renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this._renderer.setClearColor(0x000000, 0);
     this._renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+    // Shadow mapping
+    this._renderer.shadowMap.enabled = true;
+    this._renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
     container.appendChild(this._renderer.domElement);
 
     // Lighting
     this._setupLighting(props);
+
+    // Shadow-catching ground plane
+    if (props.dropShadow !== false) {
+      this._setupShadowPlane(props);
+    }
 
     // Sub-type setup
     const subType = props.subType || 'text3d';
@@ -140,13 +150,35 @@ export class Scene3DController {
     this._ambientLight = new THREE.AmbientLight(ambientColor, ambientIntensity);
     this._scene.add(this._ambientLight);
 
-    // Directional light
+    // Directional light (with shadow casting)
     const dirColor = props.directionalColor || '#ffffff';
     const dirIntensity = props.directionalIntensity ?? 1.0;
     this._dirLight = new THREE.DirectionalLight(dirColor, dirIntensity);
     const dirPos = props.directionalPosition || { x: 2, y: 3, z: 5 };
     this._dirLight.position.set(dirPos.x, dirPos.y, dirPos.z);
+    this._dirLight.castShadow = true;
+    this._dirLight.shadow.mapSize.width = 1024;
+    this._dirLight.shadow.mapSize.height = 1024;
+    this._dirLight.shadow.camera.near = 0.1;
+    this._dirLight.shadow.camera.far = 20;
+    this._dirLight.shadow.camera.left = -3;
+    this._dirLight.shadow.camera.right = 3;
+    this._dirLight.shadow.camera.top = 3;
+    this._dirLight.shadow.camera.bottom = -3;
+    this._dirLight.shadow.bias = -0.002;
     this._scene.add(this._dirLight);
+  }
+
+  _setupShadowPlane(props) {
+    const shadowOpacity = props.shadowOpacity ?? 0.35;
+    const shadowY = props.shadowY ?? -1.2;
+    const planeGeo = new THREE.PlaneGeometry(8, 8);
+    const planeMat = new THREE.ShadowMaterial({ opacity: shadowOpacity });
+    this._shadowPlane = new THREE.Mesh(planeGeo, planeMat);
+    this._shadowPlane.rotation.x = -Math.PI / 2;
+    this._shadowPlane.position.y = shadowY;
+    this._shadowPlane.receiveShadow = true;
+    this._scene.add(this._shadowPlane);
   }
 
   // -----------------------------------------------------------------------
@@ -162,6 +194,7 @@ export class Scene3DController {
       roughness: props.roughness ?? 0.6,
     });
     this._model = new THREE.Mesh(geo, mat);
+    this._model.castShadow = true;
     this._scene.add(this._model);
 
     // Auto-rotation
@@ -232,6 +265,7 @@ export class Scene3DController {
     const geo = new THREE.BoxGeometry(aspect, 1, depth);
     const materials = [sideMat, sideMat, sideMat, sideMat, frontMat, sideMat]; // +x, -x, +y, -y, +z (front), -z
     this._textMesh = new THREE.Mesh(geo, materials);
+    this._textMesh.castShadow = true;
     this._scene.add(this._textMesh);
   }
 
@@ -300,6 +334,7 @@ export class Scene3DController {
       }
 
       this._model = gltf.scene;
+      this._model.traverse(child => { if (child.isMesh) child.castShadow = true; });
 
       // Auto-scale to fit in view
       const box = new THREE.Box3().setFromObject(this._model);
@@ -342,6 +377,7 @@ export class Scene3DController {
       }
 
       this._model = mesh;
+      this._model.castShadow = true;
       this._isImageSlab = true;
       this._imageUrl = url; // cache for depth rebuild
 
@@ -440,6 +476,24 @@ export class Scene3DController {
     // Auto-rotate
     if (newProps.autoRotate !== undefined) this._autoRotate = newProps.autoRotate;
     if (newProps.rotateSpeed !== undefined) this._rotateSpeed = newProps.rotateSpeed;
+
+    // Drop shadow
+    if (newProps.shadowOpacity !== undefined && this._shadowPlane) {
+      this._shadowPlane.material.opacity = newProps.shadowOpacity;
+    }
+    if (newProps.shadowY !== undefined && this._shadowPlane) {
+      this._shadowPlane.position.y = newProps.shadowY;
+    }
+    if (newProps.dropShadow !== undefined) {
+      if (newProps.dropShadow && !this._shadowPlane) {
+        this._setupShadowPlane(this._props);
+      } else if (!newProps.dropShadow && this._shadowPlane) {
+        this._scene.remove(this._shadowPlane);
+        this._shadowPlane.geometry.dispose();
+        this._shadowPlane.material.dispose();
+        this._shadowPlane = null;
+      }
+    }
 
     // Model color (only for non-image-slab models with simple material)
     if (newProps.modelColor !== undefined && this._model?.material && !this._isImageSlab) {

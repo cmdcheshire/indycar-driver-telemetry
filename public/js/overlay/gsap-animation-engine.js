@@ -18,6 +18,35 @@ import {
 } from '/js/shared/animation-presets.js';
 import { resolveEasing } from '/js/shared/motorsport-easings.js';
 
+// Scene3d property keys that need proxy-object tweening instead of DOM tweening
+const SCENE3D_PROPS = new Set([
+  'cameraFov', 'cameraZ', 'scene3dRotX', 'scene3dRotY', 'scene3dScale',
+  'rotateSpeed', 'ambientIntensity', 'directionalIntensity',
+  'particleOpacity', 'particleSize', 'shadowOpacity',
+]);
+
+/**
+ * Route a scene3d property value to the Three.js controller on a DOM node.
+ */
+function _applyScene3dProp(node, property, value) {
+  const ctrl = node.__scene3dController;
+  if (!ctrl) return;
+  switch (property) {
+    case 'scene3dRotX':
+      ctrl.setBindingValue('rotationX', value);
+      break;
+    case 'scene3dRotY':
+      ctrl.setBindingValue('rotationY', value);
+      break;
+    case 'scene3dScale':
+      ctrl.setBindingValue('scale', value);
+      break;
+    default:
+      ctrl.updateProps({ [property]: value });
+      break;
+  }
+}
+
 export class GsapAnimationEngine {
   /**
    * @param {Map<string, HTMLElement>} domMap - Map of element ID -> DOM node.
@@ -336,13 +365,24 @@ export class GsapAnimationEngine {
         },
       });
 
+      const proxy = {}; // Proxy object for scene3d (WebGL) properties
+
       for (const track of keyframeData.tracks) {
         const sorted = [...track.keyframes].sort((a, b) => a.time - b.time);
         if (sorted.length < 2) continue;
 
+        const isScene3d = SCENE3D_PROPS.has(track.property);
+
         // Set initial value inside the timeline so it fires at playback time,
         // not at build time (prevents flash when added with a delay)
-        tl.set(node, { [track.property]: sorted[0].value }, 0);
+        if (isScene3d) {
+          const initProp = track.property;
+          const initVal = sorted[0].value;
+          proxy[initProp] = initVal;
+          tl.call(() => { proxy[initProp] = initVal; _applyScene3dProp(node, initProp, initVal); }, null, 0);
+        } else {
+          tl.set(node, { [track.property]: sorted[0].value }, 0);
+        }
 
         // Build tweens between consecutive keyframes
         for (let i = 0; i < sorted.length - 1; i++) {
@@ -354,11 +394,21 @@ export class GsapAnimationEngine {
             ? resolveEasing(migrateEasing(to.easing))
             : 'none';
 
-          tl.to(node, {
-            [track.property]: to.value,
-            duration: dur,
-            ease,
-          }, pos);
+          if (isScene3d) {
+            const prop = track.property;
+            tl.to(proxy, {
+              [prop]: to.value,
+              duration: dur,
+              ease,
+              onUpdate() { _applyScene3dProp(node, prop, proxy[prop]); },
+            }, pos);
+          } else {
+            tl.to(node, {
+              [track.property]: to.value,
+              duration: dur,
+              ease,
+            }, pos);
+          }
         }
       }
 
@@ -403,12 +453,23 @@ export class GsapAnimationEngine {
         },
       });
 
+      const proxy = {};
+
       for (const track of keyframeData.tracks) {
         const sorted = [...track.keyframes].sort((a, b) => a.time - b.time);
         if (sorted.length < 2) continue;
 
+        const isScene3d = SCENE3D_PROPS.has(track.property);
+
         // Set initial value inside the timeline so it fires at playback time
-        tl.set(node, { [track.property]: sorted[0].value }, 0);
+        if (isScene3d) {
+          const initProp = track.property;
+          const initVal = sorted[0].value;
+          proxy[initProp] = initVal;
+          tl.call(() => { proxy[initProp] = initVal; _applyScene3dProp(node, initProp, initVal); }, null, 0);
+        } else {
+          tl.set(node, { [track.property]: sorted[0].value }, 0);
+        }
 
         // Build tweens between consecutive keyframes
         for (let i = 0; i < sorted.length - 1; i++) {
@@ -420,11 +481,21 @@ export class GsapAnimationEngine {
             ? resolveEasing(migrateEasing(to.easing))
             : 'none';
 
-          tl.to(node, {
-            [track.property]: to.value,
-            duration: dur,
-            ease,
-          }, pos);
+          if (isScene3d) {
+            const prop = track.property;
+            tl.to(proxy, {
+              [prop]: to.value,
+              duration: dur,
+              ease,
+              onUpdate() { _applyScene3dProp(node, prop, proxy[prop]); },
+            }, pos);
+          } else {
+            tl.to(node, {
+              [track.property]: to.value,
+              duration: dur,
+              ease,
+            }, pos);
+          }
         }
       }
 

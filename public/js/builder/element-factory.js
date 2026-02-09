@@ -424,6 +424,10 @@ export function createScene3dElement(x = 10, y = 10, subType = 'text3d') {
       directionalColor: '#ffffff',
       directionalIntensity: 1.0,
       directionalPosition: { x: 2, y: 3, z: 5 },
+      // Drop shadow
+      dropShadow: true,
+      shadowOpacity: 0.35,
+      shadowY: -1.2,
       // Auto-rotation
       autoRotate: true,
       rotateSpeed: 0.01,

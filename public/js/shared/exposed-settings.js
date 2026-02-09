@@ -162,6 +162,10 @@ export const EXPOSABLE_SETTINGS = {
       { value: 'false', label: 'Off' },
     ]},
     { key: 'carSelector', label: 'Car Selector', inputType: 'carSelector' },
+    { key: 'dropShadow', label: 'Drop Shadow', inputType: 'select', options: [
+      { value: 'true', label: 'On' },
+      { value: 'false', label: 'Off' },
+    ]},
   ],
 };
 

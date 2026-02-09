@@ -319,9 +319,41 @@ function _addTextProps(p) {
     _textareaInput('Text', p.text || '', (v) => _emitProp({ text: v })),
   ]);
 
+  // Parse existing textShadow: "Xpx Ypx Bpx color"
+  const shadowParts = _parseTextShadow(p.textShadow || '');
+  const strokeParts = _parseTextStroke(p.textStroke || '');
+
   _addCollapsibleGroup('Effects', [
-    _textInput('Shadow', p.textShadow || '', (v) => _emitProp({ textShadow: v })),
-    _textInput('Stroke', p.textStroke || '', (v) => _emitProp({ textStroke: v })),
+    _row([
+      _numberInput('Sh X', shadowParts.x, -20, 20, 1, (v) => {
+        shadowParts.x = v;
+        _emitProp({ textShadow: _buildTextShadow(shadowParts) });
+      }),
+      _numberInput('Sh Y', shadowParts.y, -20, 20, 1, (v) => {
+        shadowParts.y = v;
+        _emitProp({ textShadow: _buildTextShadow(shadowParts) });
+      }),
+    ]),
+    _row([
+      _numberInput('Blur', shadowParts.blur, 0, 30, 1, (v) => {
+        shadowParts.blur = v;
+        _emitProp({ textShadow: _buildTextShadow(shadowParts) });
+      }),
+      _colorInputWithSwatch('Color', shadowParts.color, (v) => {
+        shadowParts.color = v;
+        _emitProp({ textShadow: _buildTextShadow(shadowParts) });
+      }),
+    ]),
+    _row([
+      _numberInput('Stroke', strokeParts.width, 0, 10, 0.5, (v) => {
+        strokeParts.width = v;
+        _emitProp({ textStroke: _buildTextStroke(strokeParts) });
+      }),
+      _colorInputWithSwatch('Color', strokeParts.color, (v) => {
+        strokeParts.color = v;
+        _emitProp({ textStroke: _buildTextStroke(strokeParts) });
+      }),
+    ]),
   ], true); // collapsed by default
 }
 
@@ -926,6 +958,16 @@ function _addScene3dProps(p) {
       { value: 'false', label: 'Off' },
     ], (v) => _emitProp({ autoRotate: v === 'true' })),
     _numberInput('Speed', p.rotateSpeed ?? 0.01, 0, 0.1, 0.001, (v) => _emitProp({ rotateSpeed: v })),
+  ], true);
+
+  // Drop shadow controls
+  _addCollapsibleGroup('Shadow', [
+    _selectInput('Drop Shadow', p.dropShadow !== false ? 'true' : 'false', [
+      { value: 'true', label: 'On' },
+      { value: 'false', label: 'Off' },
+    ], (v) => _emitProp({ dropShadow: v === 'true' })),
+    _numberInput('Opacity', p.shadowOpacity ?? 0.35, 0, 1, 0.05, (v) => _emitProp({ shadowOpacity: v })),
+    _numberInput('Floor Y', p.shadowY ?? -1.2, -5, 0, 0.1, (v) => _emitProp({ shadowY: v })),
   ], true);
 
   // Sub-type specific controls
@@ -2219,6 +2261,33 @@ function _readonlyInput(label, value) {
 /**
  * Normalize a color string to a hex value suitable for an <input type="color">.
  */
+// Parse "Xpx Ypx Bpx #color" or "" → { x, y, blur, color }
+function _parseTextShadow(val) {
+  if (!val) return { x: 0, y: 0, blur: 0, color: '#000000' };
+  // Match patterns like "2px 2px 4px #ff0000" or "2px 2px 4px rgba(0,0,0,0.5)"
+  const m = val.match(/^(-?\d+(?:\.\d+)?)\s*px\s+(-?\d+(?:\.\d+)?)\s*px\s+(\d+(?:\.\d+)?)\s*px\s+(.+)$/);
+  if (m) return { x: parseFloat(m[1]), y: parseFloat(m[2]), blur: parseFloat(m[3]), color: m[4].trim() };
+  return { x: 0, y: 0, blur: 0, color: '#000000' };
+}
+
+function _buildTextShadow(p) {
+  if (p.x === 0 && p.y === 0 && p.blur === 0) return '';
+  return `${p.x}px ${p.y}px ${p.blur}px ${p.color}`;
+}
+
+// Parse "Wpx #color" or "" → { width, color }
+function _parseTextStroke(val) {
+  if (!val) return { width: 0, color: '#000000' };
+  const m = val.match(/^(\d+(?:\.\d+)?)\s*px\s+(.+)$/);
+  if (m) return { width: parseFloat(m[1]), color: m[2].trim() };
+  return { width: 0, color: '#000000' };
+}
+
+function _buildTextStroke(p) {
+  if (p.width === 0) return '';
+  return `${p.width}px ${p.color}`;
+}
+
 function _normalizeColor(color) {
   if (!color || color === 'transparent') return '#000000';
   if (color.startsWith('#') && (color.length === 7 || color.length === 4)) return color;
