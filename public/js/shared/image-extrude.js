@@ -14,16 +14,40 @@
 
 /**
  * Load an image from a URL.
+ * For same-origin/library URLs that may 302-redirect to S3, fetch as blob
+ * first to avoid CORS issues with presigned URLs.
  * @param {string} url
  * @returns {Promise<HTMLImageElement>}
  */
-function _loadImage(url) {
+async function _loadImage(url) {
+  let src = url;
+
+  // Same-origin URLs (library assets) may redirect to S3 without CORS headers.
+  // Fetch as blob so the resulting objectURL is same-origin and canvas-safe.
+  if (url.startsWith('/') || url.startsWith(location.origin)) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      src = URL.createObjectURL(blob);
+    } catch (e) {
+      throw new Error(`[image-extrude] Failed to fetch: ${url} (${e.message})`);
+    }
+  }
+
+  const isBlob = src !== url;
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error(`[image-extrude] Failed to load: ${url}`));
-    img.src = url;
+    if (!isBlob) img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      if (isBlob) URL.revokeObjectURL(src);
+      resolve(img);
+    };
+    img.onerror = () => {
+      if (isBlob) URL.revokeObjectURL(src);
+      reject(new Error(`[image-extrude] Failed to load: ${url}`));
+    };
+    img.src = src;
   });
 }
 

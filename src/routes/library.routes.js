@@ -276,7 +276,7 @@ router.put('/assets/:id/move', authenticateToken, requireRole('operator', 'admin
 });
 
 // GET /api/library/assets/:id/file - serve the actual file (public, no auth)
-// S3 mode: 302 redirect to a presigned URL (24h expiry, cached by browser)
+// S3 mode: proxy through server to avoid CORS issues with canvas/WebGL/font-face
 // Local mode: serve directly from disk
 router.get('/assets/:id/file', async (req, res) => {
   try {
@@ -285,21 +285,14 @@ router.get('/assets/:id/file', async (req, res) => {
     if (!asset) return res.status(404).json({ error: 'Asset not found' });
 
     if (useS3) {
-      // Proxy font files through the server to avoid S3 CORS issues with @font-face
+      // Proxy all files through the server to avoid S3 CORS issues
+      // (fonts need same-origin for @font-face, images for canvas/WebGL, models for fetch)
       const resolvedMime = _resolveMimeType(asset.filename, asset.mime_type);
-      const isFontFile = resolvedMime && resolvedMime.startsWith('font/');
-
-      if (isFontFile) {
-        const s3File = await s3.getFileStream(asset.filename);
-        res.setHeader('Content-Type', resolvedMime);
-        if (s3File.contentLength) res.setHeader('Content-Length', s3File.contentLength);
-        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-        s3File.body.pipe(res);
-      } else {
-        const presignedUrl = await s3.getPresignedUrl(asset.filename, 86400); // 24h
-        res.setHeader('Cache-Control', 'public, max-age=3600'); // cache redirect 1h
-        res.redirect(302, presignedUrl);
-      }
+      const s3File = await s3.getFileStream(asset.filename);
+      if (resolvedMime) res.setHeader('Content-Type', resolvedMime);
+      if (s3File.contentLength) res.setHeader('Content-Length', s3File.contentLength);
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      s3File.body.pipe(res);
     } else {
       const filePath = path.join(LIBRARY_UPLOAD_DIR, path.basename(asset.filename));
       if (!fs.existsSync(filePath)) {
