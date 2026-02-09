@@ -1146,13 +1146,21 @@ async function _save() {
       backgroundColor: null,
       logging: false,
       onclone: (clonedDoc) => {
-        // Belt-and-suspenders: ensure ::after is hidden in the clone too
         const c = clonedDoc.getElementById('canvasContainer');
-        if (c) c.classList.add('capturing');
+        if (c) {
+          c.classList.add('capturing');
+          // Remove 3D properties that confuse html2canvas positioning
+          c.style.perspective = 'none';
+          c.style.transformStyle = 'flat';
+        }
+        // Reset zoom on the wrapper if present
+        const w = clonedDoc.getElementById('canvasWrapper');
+        if (w) w.style.zoom = '1';
         const style = clonedDoc.createElement('style');
         style.textContent = `
           .canvas-container.capturing::after { content: none !important; display: none !important; box-shadow: none !important; }
-          .selection-handle, .snap-guide { display: none !important; }
+          .selection-handle, .selection-outline, .rotation-handle, .snap-guide { display: none !important; }
+          .canvas-element.has-bindings::after { content: none !important; }
         `;
         clonedDoc.head.appendChild(style);
       },

@@ -102,7 +102,7 @@ function _addClipPathAnimations(tl, elements) {
         onComplete: () => {
           // Snap to final static clip-path
           const cp = computeClipPath(el, maskEl);
-          clippedNode.style.clipPath = cp || '';
+          clippedNode.style.clipPath = cp || 'none';
         },
       }, delay);
       continue;
@@ -148,8 +148,10 @@ function _addClipPathAnimations(tl, elements) {
  * Used by keyframe clip-path tracking (onUpdate).
  */
 function _getEffectiveMaskBounds(maskEl, maskNode, canvasW, canvasH) {
-  const gsapX = gsap.getProperty(maskNode, 'x') || 0;
-  const gsapY = gsap.getProperty(maskNode, 'y') || 0;
+  const gsapXpx = gsap.getProperty(maskNode, 'x') || 0;
+  const gsapYpx = gsap.getProperty(maskNode, 'y') || 0;
+  const gsapXpct = gsap.getProperty(maskNode, 'xPercent') || 0;
+  const gsapYpct = gsap.getProperty(maskNode, 'yPercent') || 0;
   const gsapScaleX = gsap.getProperty(maskNode, 'scaleX');
   const gsapScaleY = gsap.getProperty(maskNode, 'scaleY');
   const gsapRotation = gsap.getProperty(maskNode, 'rotation') || 0;
@@ -157,9 +159,13 @@ function _getEffectiveMaskBounds(maskEl, maskNode, canvasW, canvasH) {
   const scaleX = (gsapScaleX != null && gsapScaleX !== '') ? gsapScaleX : 1;
   const scaleY = (gsapScaleY != null && gsapScaleY !== '') ? gsapScaleY : 1;
 
-  // Convert pixel transform offsets to canvas percentage
-  const offsetXPct = (gsapX / canvasW) * 100;
-  const offsetYPct = (gsapY / canvasH) * 100;
+  // Combine pixel + percentage offsets into canvas percentage
+  const maskPxW = (maskEl.width / 100) * canvasW;
+  const maskPxH = (maskEl.height / 100) * canvasH;
+  const totalPxX = gsapXpx + (gsapXpct / 100) * maskPxW;
+  const totalPxY = gsapYpx + (gsapYpct / 100) * maskPxH;
+  const offsetXPct = (totalPxX / canvasW) * 100;
+  const offsetYPct = (totalPxY / canvasH) * 100;
 
   // Compute effective width/height (scale from center)
   const effectiveW = maskEl.width * scaleX;
@@ -223,7 +229,10 @@ export function initTimelinePanel(opts) {
     });
   }
 
-  // Transport: TAKE ON / RESUME / TAKE OFF
+  // Transport: GO TO START / TAKE ON / RESUME / TAKE OFF
+  const goStartBtn = document.getElementById('tlGoStartBtn');
+  if (goStartBtn) goStartBtn.addEventListener('click', () => { _expandPanel(); _goToStart(); });
+
   const takeOnBtn = document.getElementById('tlTakeOnBtn');
   if (takeOnBtn) takeOnBtn.addEventListener('click', () => { _expandPanel(); _takeOn(); });
 
@@ -1054,7 +1063,10 @@ function _goToHold() {
       for (const track of enterKf.tracks) {
         if (track.keyframes.length > 0) {
           const last = track.keyframes.reduce((a, b) => a.time > b.time ? a : b);
-          endState[track.property] = last.value;
+          const gsapProp = track.property === 'x' ? 'xPercent'
+                         : track.property === 'y' ? 'yPercent'
+                         : track.property;
+          endState[gsapProp] = last.value;
         }
       }
       if (Object.keys(endState).length > 0) {
@@ -1097,6 +1109,10 @@ function _finishTakeOff() {
 
     _currentPhase = 'idle';
     _isPlaying = false;
+
+    // Snap playhead to HOLD position so it's clear we're back in editing state
+    _snapPlayheadToHold();
+
     _updateTransportButtons();
   }, 1000);
 }
@@ -1137,7 +1153,7 @@ function _resetAllElements() {
     const enterKf = _getEnterKf(el);
     const exitKf = el.animation?.exitKeyframes;
     if ((enterKf?.enabled) || (exitKf?.enabled)) {
-      gsap.set(node, { clearProps: 'transform,opacity,clipPath,color,backgroundColor' });
+      gsap.set(node, { clearProps: 'transform,opacity,clipPath,color,backgroundColor,xPercent,yPercent' });
       _restoreBaseTransform(el, node);
       // Re-apply final keyframe values so element stays in hold state, not CSS rest
       if (enterKf?.enabled && enterKf.tracks?.length > 0) {
@@ -1145,7 +1161,10 @@ function _resetAllElements() {
         for (const track of enterKf.tracks) {
           if (track.keyframes.length > 0) {
             const last = track.keyframes.reduce((a, b) => a.time > b.time ? a : b);
-            endState[track.property] = last.value;
+            const gsapProp = track.property === 'x' ? 'xPercent'
+                           : track.property === 'y' ? 'yPercent'
+                           : track.property;
+            endState[gsapProp] = last.value;
           }
         }
         if (Object.keys(endState).length > 0) {
@@ -1189,7 +1208,7 @@ function _restoreStaticClipPaths(elements) {
     const clippedNode = document.querySelector(`#canvasContainer [data-element-id="${el.id}"]`);
     if (!clippedNode) continue;
     const cp = computeClipPath(el, maskEl);
-    clippedNode.style.clipPath = cp || '';
+    clippedNode.style.clipPath = cp || 'none';
   }
 }
 
@@ -1441,6 +1460,50 @@ function _updatePlayhead() {
 /* ------------------------------------------------------------------ *
  *  Helpers
  * ------------------------------------------------------------------ */
+
+/**
+ * Snap playhead to the HOLD position (middle of the HOLD column).
+ * Used after playback finishes to show editing state visually.
+ */
+function _snapPlayheadToHold() {
+  if (!_playheadEl || !_rulerTrack || !_getElements || !_getTimeline) return;
+  const totalWidth = _rulerTrack.clientWidth;
+  if (totalWidth <= 0) return;
+
+  const elements = _getElements();
+  const timeline = _getTimeline();
+  const { inDuration: inMs, outDuration: outMs } = _computePhases(elements);
+  const holdMs = timeline.holdDuration || 0;
+  const { inWidth, holdWidth } = _phaseWidths(inMs, holdMs, outMs, totalWidth);
+
+  const xPos = LABEL_WIDTH + inWidth + 2 + holdWidth * 0.5;
+  _playheadEl.style.left = `${xPos}px`;
+  _playheadEl.classList.add('active');
+}
+
+/**
+ * Go to Start — reset everything to idle state (before IN animations).
+ * Elements appear in their pre-animation state.
+ */
+function _goToStart() {
+  if (_masterTl) { _masterTl.kill(); _masterTl = null; }
+  if (_holdTimer) { clearTimeout(_holdTimer); _holdTimer = null; }
+  _isScrubbing = false;
+
+  // Reset all GSAP transforms so elements are in their CSS rest state
+  _resetAllElements();
+
+  _currentPhase = 'idle';
+  _isPlaying = false;
+
+  // Position playhead at the very start
+  if (_playheadEl) {
+    _playheadEl.style.left = `${LABEL_WIDTH}px`;
+    _playheadEl.classList.remove('active');
+  }
+
+  _updateTransportButtons();
+}
 
 function _expandPanel() {
   if (!_collapsed) return;
