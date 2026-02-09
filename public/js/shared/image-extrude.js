@@ -415,9 +415,10 @@ export function buildExtrudedMesh(contourData, depth, props) {
   texture.needsUpdate = true;
 
   // Front/back caps: textured with the image
+  // Use alphaTest without transparent to keep opaque depth pass (avoids back-cap
+  // rendering over front-cap due to transparent sort order)
   const frontBackMat = new THREE.MeshStandardMaterial({
     map: texture,
-    transparent: true,
     alphaTest: 0.1,
     metalness: props.metalness ?? 0.3,
     roughness: props.roughness ?? 0.6,
