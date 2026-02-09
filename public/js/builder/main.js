@@ -668,8 +668,8 @@ function _createElementAtMouse(tool, event) {
       _showDataPresetPicker(pos);
       return; // Don't fall through to the rest of the function
     case 'gauge':
-      // Show gauge type picker
-      _showGaugeTypePicker(pos);
+      // Show gauge type picker near mouse position
+      _showGaugeTypePicker(pos, event);
       return;
     default:
       return;
@@ -750,15 +750,16 @@ function _showDataPresetPicker(pos) {
 /**
  * Show a gauge type picker and create the chosen gauge element.
  * @param {{ x: number, y: number }} pos - Canvas position where the element should be placed.
+ * @param {MouseEvent} [event] - Original mouse event for positioning the picker.
  */
-function _showGaugeTypePicker(pos) {
+function _showGaugeTypePicker(pos, event) {
   const canvasArea = document.getElementById('canvasArea');
 
-  // Create a simple floating picker
+  // Create a floating picker near the canvas click position
   const picker = document.createElement('div');
   picker.className = 'gauge-type-picker';
   picker.style.cssText = `
-    position:fixed; left:50%; top:50%; transform:translate(-50%,-50%);
+    position:fixed;
     background:var(--bg-secondary,#1e1f2e); border:1px solid var(--border,#2d2e3e);
     border-radius:8px; padding:12px; display:flex; gap:8px; z-index:9999;
     box-shadow:0 8px 32px rgba(0,0,0,0.4);
@@ -807,6 +808,23 @@ function _showGaugeTypePicker(pos) {
   setTimeout(() => document.addEventListener('mousedown', closeHandler), 0);
 
   document.body.appendChild(picker);
+
+  // Position near the mouse click, clamped to viewport bounds
+  if (event) {
+    const rect = picker.getBoundingClientRect();
+    let left = event.clientX - rect.width / 2;
+    let top = event.clientY - rect.height - 12;
+    // Clamp to viewport
+    left = Math.max(8, Math.min(left, window.innerWidth - rect.width - 8));
+    top = Math.max(8, Math.min(top, window.innerHeight - rect.height - 8));
+    picker.style.left = `${left}px`;
+    picker.style.top = `${top}px`;
+  } else {
+    // Fallback: center on screen
+    picker.style.left = '50%';
+    picker.style.top = '50%';
+    picker.style.transform = 'translate(-50%,-50%)';
+  }
 }
 
 function _deleteSelected() {

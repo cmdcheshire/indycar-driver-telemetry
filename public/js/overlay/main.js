@@ -387,18 +387,19 @@ function buildPlayoutTimeline(elementAnimations, timeline) {
     const node = domMap ? domMap.get(config.elementId) : null;
     if (!node) { console.warn('[overlay] DOM node not found for', config.elementId); continue; }
 
-    // ── Check for keyframe animation override ──
+    // ── Check for keyframe animation override (enter) ──
     const templateEl = currentTemplate?.elements?.find(e => e.id === config.elementId);
-    if (templateEl?.keyframeAnimation?.enabled && templateEl.keyframeAnimation.tracks?.length > 0) {
+    const enterKf = templateEl?.enterKeyframeAnimation || templateEl?.keyframeAnimation;
+    if (enterKf?.enabled && enterKf.tracks?.length > 0) {
       node.style.opacity = '';
       node.style.willChange = 'transform, opacity';
 
-      const subTl = animationEngine.showWithKeyframes(config.elementId, templateEl.keyframeAnimation);
+      const subTl = animationEngine.showWithKeyframes(config.elementId, enterKf);
       if (subTl) {
         const delay = (config.delay || 0) / 1000;
         tl.add(subTl, delay);
         tweenCount++;
-        console.log('[overlay] Using keyframe animation for', config.elementId);
+        console.log('[overlay] Using enter keyframe animation for', config.elementId);
       }
       continue;
     }
@@ -499,15 +500,48 @@ function performTakeOff() {
   // Extract exit animations from the current template
   const exitConfigs = extractExitAnimations(currentTemplate);
 
-  if (exitConfigs.length > 0 && animationEngine) {
-    animationEngine.hideAll(exitConfigs);
-    const maxDur = exitConfigs.reduce(
-      (max, ea) => Math.max(max, (ea.delay || 0) + (ea.duration || 300)), 0
-    );
-    exitHideTimer = setTimeout(() => {
-      exitHideTimer = null;
-      rootEl.style.display = 'none';
-    }, maxDur + 50);
+  // Check for exit keyframe animations
+  const exitKfElements = (currentTemplate?.elements || []).filter(
+    el => el.exitKeyframeAnimation?.enabled && el.exitKeyframeAnimation.tracks?.length > 0
+  );
+
+  if ((exitConfigs.length > 0 || exitKfElements.length > 0) && animationEngine) {
+    // Build a master exit timeline for coordinated exit
+    const exitTl = gsap.timeline({
+      onComplete: () => {
+        exitHideTimer = null;
+        rootEl.style.display = 'none';
+      },
+    });
+
+    // Add keyframe exit animations
+    for (const el of exitKfElements) {
+      const exitDelay = (el.exitAnimationDelay || 0) / 1000;
+      const subTl = animationEngine.hideWithKeyframes(el.id, el.exitKeyframeAnimation);
+      if (subTl) {
+        exitTl.add(subTl, exitDelay);
+        console.log('[overlay] Using exit keyframe animation for', el.id);
+      }
+    }
+
+    // Add preset exit animations (skip elements that already have keyframe exits)
+    const kfExitIds = new Set(exitKfElements.map(el => el.id));
+    const presetExitConfigs = exitConfigs.filter(c => !kfExitIds.has(c.elementId));
+    for (const config of presetExitConfigs) {
+      animationEngine.hide(config.elementId, config);
+    }
+
+    // For preset exits, calculate max duration and use as fallback timeout
+    if (presetExitConfigs.length > 0) {
+      const maxPresetDur = presetExitConfigs.reduce(
+        (max, ea) => Math.max(max, (ea.delay || 0) + (ea.duration || 300)), 0
+      );
+      // Safety fallback: if exit timeline doesn't complete, hide after preset max + buffer
+      exitHideTimer = setTimeout(() => {
+        exitHideTimer = null;
+        rootEl.style.display = 'none';
+      }, Math.max(maxPresetDur + 50, (exitTl.duration() * 1000) + 50));
+    }
   } else {
     rootEl.style.display = 'none';
   }

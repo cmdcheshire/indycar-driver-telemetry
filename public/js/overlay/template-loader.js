@@ -62,6 +62,17 @@ function normalizeElement(el) {
       if (anim.emphasis.repeat != null) flat.emphasisRepeat = anim.emphasis.repeat;
     }
     // Pass through keyframe animation data (advanced choreography)
+    // New: separate enter/exit keyframes
+    if (anim.enterKeyframes) {
+      flat.enterKeyframeAnimation = anim.enterKeyframes;
+    } else if (anim.keyframes) {
+      // Legacy migration: old single keyframes → enter
+      flat.enterKeyframeAnimation = anim.keyframes;
+    }
+    if (anim.exitKeyframes) {
+      flat.exitKeyframeAnimation = anim.exitKeyframes;
+    }
+    // Keep legacy field for backward compatibility during transition
     if (anim.keyframes) {
       flat.keyframeAnimation = anim.keyframes;
     }

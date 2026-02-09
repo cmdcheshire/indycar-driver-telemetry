@@ -858,6 +858,40 @@ function _addAnimationSection(element) {
   const update = anim.update || { type: 'none', duration: 300, easing: 'power1.inOut' };
   const emphasis = anim.emphasis || { type: 'none', duration: 400, trigger: 'onChange', repeat: 0 };
 
+  // ── Enter keyframe Advanced button ──
+  const enterKfEnabled = anim.enterKeyframes?.enabled || (!anim.enterKeyframes && anim.keyframes?.enabled);
+  const enterAdvBtn = document.createElement('button');
+  enterAdvBtn.className = 'anim-preview-btn';
+  enterAdvBtn.style.cssText = 'width:100%; justify-content:center; margin-top:2px;';
+  enterAdvBtn.innerHTML = enterKfEnabled
+    ? '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M1 3h14v2H1zM3 7h10v2H3zM5 11h6v2H5z"/></svg> Enter Keyframes (On)'
+    : '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 3h14M3 8h10M5 13h6"/></svg> Enter Advanced...';
+  enterAdvBtn.addEventListener('click', () => {
+    openAnimationDesigner(element, {
+      onPropertyChange: onPropertyChange,
+      onClose: () => updatePropertiesPanel(currentElement),
+      panelEl: panelEl,
+      mode: 'enter',
+    });
+  });
+
+  // ── Exit keyframe Advanced button ──
+  const exitKfEnabled = anim.exitKeyframes?.enabled;
+  const exitAdvBtn = document.createElement('button');
+  exitAdvBtn.className = 'anim-preview-btn';
+  exitAdvBtn.style.cssText = 'width:100%; justify-content:center; margin-top:2px;';
+  exitAdvBtn.innerHTML = exitKfEnabled
+    ? '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M1 3h14v2H1zM3 7h10v2H3zM5 11h6v2H5z"/></svg> Exit Keyframes (On)'
+    : '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 3h14M3 8h10M5 13h6"/></svg> Exit Advanced...';
+  exitAdvBtn.addEventListener('click', () => {
+    openAnimationDesigner(element, {
+      onPropertyChange: onPropertyChange,
+      onClose: () => updatePropertiesPanel(currentElement),
+      panelEl: panelEl,
+      mode: 'exit',
+    });
+  });
+
   const children = [
     // ── Enter ──
     _groupedSelectInput('Enter', enter.type, ENTER_ANIMATION_CATEGORIES, (v) => {
@@ -876,6 +910,7 @@ function _addAnimationSection(element) {
     _groupedEasingSelect('Easing', enter.easing, (v) => {
       _emitAnimation({ enter: { easing: v } });
     }),
+    enterAdvBtn,
 
     _separator(),
 
@@ -896,6 +931,7 @@ function _addAnimationSection(element) {
     _groupedEasingSelect('Easing', exit.easing, (v) => {
       _emitAnimation({ exit: { easing: v } });
     }),
+    exitAdvBtn,
   ];
 
   // ── Update transition (data elements only) ──
@@ -972,26 +1008,6 @@ function _addAnimationSection(element) {
   }
 
   children.push(previewRow);
-
-  // ── Advanced keyframe editor ──
-  const kfEnabled = element.animation?.keyframes?.enabled;
-  const advancedBtn = document.createElement('button');
-  advancedBtn.className = 'anim-preview-btn';
-  advancedBtn.style.cssText = 'width:100%; justify-content:center; margin-top:2px;';
-  advancedBtn.innerHTML = kfEnabled
-    ? '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M1 3h14v2H1zM3 7h10v2H3zM5 11h6v2H5z"/></svg> Keyframes (On)'
-    : '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 3h14M3 8h10M5 13h6"/></svg> Advanced...';
-  advancedBtn.addEventListener('click', () => {
-    openAnimationDesigner(element, {
-      onPropertyChange: onPropertyChange,
-      onClose: () => {
-        // Re-render properties panel with updated element
-        updatePropertiesPanel(currentElement);
-      },
-      panelEl: panelEl,
-    });
-  });
-  children.push(advancedBtn);
 
   _addCollapsibleGroup('Animation', children, true);
 }

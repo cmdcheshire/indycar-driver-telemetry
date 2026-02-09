@@ -372,6 +372,72 @@ export class GsapAnimationEngine {
     return tl;
   }
 
+  /**
+   * Hide an element using a keyframe animation definition instead of a preset.
+   * Builds a GSAP timeline from per-property tracks with timed keyframes.
+   * On complete, hides the element and clears inline transforms.
+   *
+   * @param {string} elementId
+   * @param {object} keyframeData - { duration, tracks: [{ property, keyframes: [{ time, value, easing }] }] }
+   * @returns {gsap.core.Timeline|null} The built timeline (for adding to a parent timeline)
+   */
+  hideWithKeyframes(elementId, keyframeData) {
+    const node = this._getNode(elementId);
+    if (!node || !keyframeData || !keyframeData.tracks) return null;
+
+    this._killChannel(elementId);
+
+    this._setWillChange(elementId, node);
+
+    let tl;
+    const tlFn = () => {
+      tl = gsap.timeline({
+        onComplete: () => {
+          node.style.display = 'none';
+          this._channels.delete(elementId);
+          gsap.set(node, { clearProps: 'transform,opacity,clipPath,color,backgroundColor' });
+          this._restoreMaskClipPath(node);
+          this._clearWillChange(elementId, node);
+        },
+      });
+
+      for (const track of keyframeData.tracks) {
+        const sorted = [...track.keyframes].sort((a, b) => a.time - b.time);
+        if (sorted.length < 2) continue;
+
+        // Set the initial value for this property
+        gsap.set(node, { [track.property]: sorted[0].value });
+
+        // Build tweens between consecutive keyframes
+        for (let i = 0; i < sorted.length - 1; i++) {
+          const from = sorted[i];
+          const to = sorted[i + 1];
+          const dur = (to.time - from.time) / 1000;
+          const pos = from.time / 1000;
+          const ease = to.easing && to.easing !== 'none'
+            ? resolveEasing(migrateEasing(to.easing))
+            : 'none';
+
+          tl.to(node, {
+            [track.property]: to.value,
+            duration: dur,
+            ease,
+          }, pos);
+        }
+      }
+
+      this._channels.set(elementId, tl);
+    };
+
+    if (this._ctx) {
+      this._ctx.add(tlFn);
+    } else {
+      tlFn();
+    }
+
+    return tl;
+  }
+
   // -----------------------------------------------------------------------
   // Gauge transitions
   // -----------------------------------------------------------------------

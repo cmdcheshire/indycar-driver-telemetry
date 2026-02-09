@@ -1455,6 +1455,22 @@
       cursor: grabbing;
     }
 
+    .tl-bar.keyframe {
+      background: linear-gradient(90deg, var(--accent, #6c63ff), rgba(108,99,255,0.5));
+      border: 1px solid var(--accent, #6c63ff);
+    }
+
+    .tl-bar-diamond {
+      position: absolute;
+      top: 50%;
+      width: 6px;
+      height: 6px;
+      background: #ffeb3b;
+      transform: translate(-50%, -50%) rotate(45deg);
+      pointer-events: none;
+      z-index: 1;
+    }
+
     .tl-bar-label {
       font-size: 0.55rem;
       color: #fff;

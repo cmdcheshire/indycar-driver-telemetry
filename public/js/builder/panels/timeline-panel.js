@@ -11,6 +11,7 @@
  */
 
 import { getEnterPreset, getExitPreset } from '/js/shared/animation-presets.js';
+import { buildGsapTimeline } from './animation-designer.js';
 
 /* ------------------------------------------------------------------ *
  *  Module state
@@ -180,9 +181,20 @@ function _computePhases(elements) {
     if (enter?.type && enter.type !== 'none') {
       inDuration = Math.max(inDuration, (enter.delay || 0) + (enter.duration || 300));
     }
+    // Enter keyframes may be longer than preset duration
+    const enterKf = _getEnterKf(el);
+    if (enterKf?.enabled && enterKf.tracks?.length > 0) {
+      inDuration = Math.max(inDuration, (enter?.delay || 0) + enterKf.duration);
+    }
+
     const exit = el.animation?.exit;
     if (exit?.type && exit.type !== 'none') {
       outDuration = Math.max(outDuration, (exit.delay || 0) + (exit.duration || 300));
+    }
+    // Exit keyframes
+    const exitKf = el.animation?.exitKeyframes;
+    if (exitKf?.enabled && exitKf.tracks?.length > 0) {
+      outDuration = Math.max(outDuration, (exit?.delay || 0) + exitKf.duration);
     }
   }
 
@@ -190,6 +202,24 @@ function _computePhases(elements) {
     inDuration: Math.max(inDuration, MIN_PHASE_MS),
     outDuration: Math.max(outDuration, MIN_PHASE_MS),
   };
+}
+
+/** Get enter keyframes for an element (new field or legacy fallback). */
+function _getEnterKf(el) {
+  return el.animation?.enterKeyframes || el.animation?.keyframes || null;
+}
+
+/** Check if element has any animation (presets or keyframes). */
+function _hasEnterAnim(el) {
+  const enter = el.animation?.enter;
+  const kf = _getEnterKf(el);
+  return (enter?.type && enter.type !== 'none') || (kf?.enabled && kf.tracks?.length > 0);
+}
+
+function _hasExitAnim(el) {
+  const exit = el.animation?.exit;
+  const kf = el.animation?.exitKeyframes;
+  return (exit?.type && exit.type !== 'none') || (kf?.enabled && kf.tracks?.length > 0);
 }
 
 /* ------------------------------------------------------------------ *
@@ -288,12 +318,8 @@ function _renderTracks(elements, inMs, holdMs, outMs) {
 
   const { inWidth, holdWidth, outWidth } = _phaseWidths(inMs, holdMs, outMs, totalWidth);
 
-  // Filter elements that have any animation
-  const animatedElements = elements.filter(el => {
-    const enter = el.animation?.enter;
-    const exit = el.animation?.exit;
-    return (enter?.type && enter.type !== 'none') || (exit?.type && exit.type !== 'none');
-  });
+  // Filter elements that have any animation (presets or keyframes)
+  const animatedElements = elements.filter(el => _hasEnterAnim(el) || _hasExitAnim(el));
 
   if (animatedElements.length === 0) {
     const empty = document.createElement('div');
@@ -325,8 +351,12 @@ function _renderTracks(elements, inMs, holdMs, outMs) {
     const inPhase = document.createElement('div');
     inPhase.className = 'tl-track-phase in';
     inPhase.style.width = `${inWidth}px`;
+    const enterKf = _getEnterKf(el);
     const enterAnim = el.animation?.enter;
-    if (enterAnim?.type && enterAnim.type !== 'none') {
+    if (enterKf?.enabled && enterKf.tracks?.length > 0) {
+      const bar = _createKeyframeBar(el, enterKf, enterAnim, inMs, 'enter');
+      inPhase.appendChild(bar);
+    } else if (enterAnim?.type && enterAnim.type !== 'none') {
       const bar = _createBar(el, enterAnim, inMs, 'enter');
       inPhase.appendChild(bar);
     }
@@ -352,8 +382,12 @@ function _renderTracks(elements, inMs, holdMs, outMs) {
     const outPhase = document.createElement('div');
     outPhase.className = 'tl-track-phase out';
     outPhase.style.width = `${outWidth}px`;
+    const exitKf = el.animation?.exitKeyframes;
     const exitAnim = el.animation?.exit;
-    if (exitAnim?.type && exitAnim.type !== 'none') {
+    if (exitKf?.enabled && exitKf.tracks?.length > 0) {
+      const bar = _createKeyframeBar(el, exitKf, exitAnim, outMs, 'exit');
+      outPhase.appendChild(bar);
+    } else if (exitAnim?.type && exitAnim.type !== 'none') {
       const bar = _createBar(el, exitAnim, outMs, 'exit');
       outPhase.appendChild(bar);
     }
@@ -418,6 +452,52 @@ function _createBar(element, anim, phaseMs, mode) {
 
   // Resize handle → change duration
   _addResizeDrag(handle, bar, element, anim, phaseMs, mode);
+
+  return bar;
+}
+
+/**
+ * Create a keyframe-style bar with diamond markers for the timeline.
+ */
+function _createKeyframeBar(element, kfData, presetAnim, phaseMs, mode) {
+  const bar = document.createElement('div');
+  bar.className = `tl-bar ${mode} keyframe`;
+
+  const delay = presetAnim?.delay || 0;
+  const duration = kfData.duration || 2000;
+  const leftPct = (delay / phaseMs) * 100;
+  const widthPct = (duration / phaseMs) * 100;
+
+  bar.style.left = `${leftPct}%`;
+  bar.style.width = `${Math.max(widthPct, 2)}%`;
+  bar.title = `Keyframes — ${delay}ms delay, ${duration}ms`;
+
+  // Label
+  const label = document.createElement('span');
+  label.className = 'tl-bar-label';
+  label.textContent = 'Keyframes';
+  bar.appendChild(label);
+
+  // Diamond markers for each unique keyframe time
+  const times = new Set();
+  for (const track of kfData.tracks) {
+    for (const kf of track.keyframes) {
+      times.add(kf.time);
+    }
+  }
+  for (const time of times) {
+    const diamond = document.createElement('div');
+    diamond.className = 'tl-bar-diamond';
+    diamond.style.left = `${(time / duration) * 100}%`;
+    bar.appendChild(diamond);
+  }
+
+  // Drag bar → change delay (same as preset bar, using the preset anim delay)
+  if (presetAnim) {
+    _addBarDrag(bar, element, presetAnim, phaseMs, mode);
+  }
+
+  // No resize handle — duration is controlled in the designer
 
   return bar;
 }
@@ -636,10 +716,7 @@ function _takeOn() {
   const { inDuration } = _computePhases(elements);
 
   // Build IN-phase-only timeline
-  const enterElements = elements.filter(el => {
-    const a = el.animation?.enter;
-    return a?.type && a.type !== 'none';
-  });
+  const enterElements = elements.filter(el => _hasEnterAnim(el));
 
   if (enterElements.length === 0) {
     // No enter animations — go straight to hold
@@ -656,24 +733,30 @@ function _takeOn() {
   });
 
   for (const el of enterElements) {
-    const anim = el.animation.enter;
-    const preset = getEnterPreset(anim.type);
-    if (!preset) continue;
-
     const node = document.querySelector(`#canvasContainer [data-element-id="${el.id}"]`);
     if (!node) continue;
 
+    const enterKf = _getEnterKf(el);
+    const anim = el.animation?.enter || {};
     const delay = (anim.delay || 0) / 1000;
-    const duration = (anim.duration || 300) / 1000;
-    const easing = anim.easing || preset.defaultEase || 'power2.out';
-    const safeClearProps = preset.clearProps || Object.keys(preset.vars).join(',');
 
-    _masterTl.from(node, {
-      ...preset.vars,
-      duration,
-      ease: easing,
-      clearProps: safeClearProps,
-    }, delay);
+    // Use keyframes if enabled, otherwise use preset
+    if (enterKf?.enabled && enterKf.tracks?.length > 0) {
+      const subTl = buildGsapTimeline(node, enterKf);
+      _masterTl.add(subTl, delay);
+    } else {
+      const preset = getEnterPreset(anim.type);
+      if (!preset) continue;
+      const duration = (anim.duration || 300) / 1000;
+      const easing = anim.easing || preset.defaultEase || 'power2.out';
+      const safeClearProps = preset.clearProps || Object.keys(preset.vars).join(',');
+      _masterTl.from(node, {
+        ...preset.vars,
+        duration,
+        ease: easing,
+        clearProps: safeClearProps,
+      }, delay);
+    }
   }
 
   // Add pause points during IN phase
@@ -738,10 +821,7 @@ function _takeOff() {
   const { outDuration } = _computePhases(elements);
 
   // Build OUT-phase-only timeline
-  const exitElements = elements.filter(el => {
-    const a = el.animation?.exit;
-    return a?.type && a.type !== 'none';
-  });
+  const exitElements = elements.filter(el => _hasExitAnim(el));
 
   if (exitElements.length === 0) {
     _hardReset();
@@ -757,22 +837,27 @@ function _takeOff() {
   });
 
   for (const el of exitElements) {
-    const anim = el.animation.exit;
-    const preset = getExitPreset(anim.type);
-    if (!preset) continue;
-
     const node = document.querySelector(`#canvasContainer [data-element-id="${el.id}"]`);
     if (!node) continue;
 
+    const exitKf = el.animation?.exitKeyframes;
+    const anim = el.animation?.exit || {};
     const delay = (anim.delay || 0) / 1000;
-    const duration = (anim.duration || 300) / 1000;
-    const easing = anim.easing || preset.defaultEase || 'power2.in';
 
-    _masterTl.to(node, {
-      ...preset.vars,
-      duration,
-      ease: easing,
-    }, delay);
+    if (exitKf?.enabled && exitKf.tracks?.length > 0) {
+      const subTl = buildGsapTimeline(node, exitKf);
+      _masterTl.add(subTl, delay);
+    } else {
+      const preset = getExitPreset(anim.type);
+      if (!preset) continue;
+      const duration = (anim.duration || 300) / 1000;
+      const easing = anim.easing || preset.defaultEase || 'power2.in';
+      _masterTl.to(node, {
+        ...preset.vars,
+        duration,
+        ease: easing,
+      }, delay);
+    }
   }
 }
 
@@ -787,19 +872,23 @@ function _goToHold() {
   const elements = _getElements();
 
   // Snap all enter animations to their end state (elements fully visible)
-  const enterElements = elements.filter(el => {
-    const a = el.animation?.enter;
-    return a?.type && a.type !== 'none';
-  });
+  const enterElements = elements.filter(el => _hasEnterAnim(el));
 
   for (const el of enterElements) {
     const node = document.querySelector(`#canvasContainer [data-element-id="${el.id}"]`);
     if (!node) continue;
-    const anim = el.animation.enter;
-    const preset = getEnterPreset(anim.type);
-    if (preset) {
-      const safeClearProps = preset.clearProps || Object.keys(preset.vars).join(',');
-      gsap.set(node, { clearProps: safeClearProps });
+
+    const enterKf = _getEnterKf(el);
+    if (enterKf?.enabled && enterKf.tracks?.length > 0) {
+      // Keyframe: clear transform/opacity so element is at rest state
+      gsap.set(node, { clearProps: 'transform,opacity,clipPath,color,backgroundColor' });
+    } else {
+      const anim = el.animation?.enter;
+      const preset = anim?.type ? getEnterPreset(anim.type) : null;
+      if (preset) {
+        const safeClearProps = preset.clearProps || Object.keys(preset.vars).join(',');
+        gsap.set(node, { clearProps: safeClearProps });
+      }
     }
   }
 
@@ -817,28 +906,7 @@ function _finishTakeOff() {
   }
 
   // Reset GSAP transforms so elements are visible for editing
-  if (_getElements) {
-    const elements = _getElements();
-    for (const el of elements) {
-      const node = document.querySelector(`#canvasContainer [data-element-id="${el.id}"]`);
-      if (!node) continue;
-
-      const enterPreset = el.animation?.enter?.type ? getEnterPreset(el.animation.enter.type) : null;
-      const exitPreset = el.animation?.exit?.type ? getExitPreset(el.animation.exit.type) : null;
-
-      const propsToReset = new Set();
-      if (enterPreset) {
-        (enterPreset.clearProps || Object.keys(enterPreset.vars).join(',')).split(',').forEach(p => propsToReset.add(p.trim()));
-      }
-      if (exitPreset) {
-        (exitPreset.clearProps || Object.keys(exitPreset.vars).join(',')).split(',').forEach(p => propsToReset.add(p.trim()));
-      }
-
-      if (propsToReset.size > 0) {
-        gsap.set(node, { clearProps: [...propsToReset].join(',') });
-      }
-    }
-  }
+  _resetAllElements();
 
   _currentPhase = 'idle';
   _isPlaying = false;
@@ -866,30 +934,41 @@ function _hardReset() {
   }
 
   // Reset any GSAP-applied transforms on canvas elements
-  if (_getElements) {
-    const elements = _getElements();
-    for (const el of elements) {
-      const node = document.querySelector(`#canvasContainer [data-element-id="${el.id}"]`);
-      if (!node) continue;
-
-      const enterPreset = el.animation?.enter?.type ? getEnterPreset(el.animation.enter.type) : null;
-      const exitPreset = el.animation?.exit?.type ? getExitPreset(el.animation.exit.type) : null;
-
-      const propsToReset = new Set();
-      if (enterPreset) {
-        (enterPreset.clearProps || Object.keys(enterPreset.vars).join(',')).split(',').forEach(p => propsToReset.add(p.trim()));
-      }
-      if (exitPreset) {
-        (exitPreset.clearProps || Object.keys(exitPreset.vars).join(',')).split(',').forEach(p => propsToReset.add(p.trim()));
-      }
-
-      if (propsToReset.size > 0) {
-        gsap.set(node, { clearProps: [...propsToReset].join(',') });
-      }
-    }
-  }
+  _resetAllElements();
 
   _updateTransportButtons();
+}
+
+function _resetAllElements() {
+  if (!_getElements) return;
+  const elements = _getElements();
+  for (const el of elements) {
+    const node = document.querySelector(`#canvasContainer [data-element-id="${el.id}"]`);
+    if (!node) continue;
+
+    // If element uses keyframes, clear the common animatable props
+    const enterKf = _getEnterKf(el);
+    const exitKf = el.animation?.exitKeyframes;
+    if ((enterKf?.enabled) || (exitKf?.enabled)) {
+      gsap.set(node, { clearProps: 'transform,opacity,clipPath,color,backgroundColor' });
+      continue;
+    }
+
+    const enterPreset = el.animation?.enter?.type ? getEnterPreset(el.animation.enter.type) : null;
+    const exitPreset = el.animation?.exit?.type ? getExitPreset(el.animation.exit.type) : null;
+
+    const propsToReset = new Set();
+    if (enterPreset) {
+      (enterPreset.clearProps || Object.keys(enterPreset.vars).join(',')).split(',').forEach(p => propsToReset.add(p.trim()));
+    }
+    if (exitPreset) {
+      (exitPreset.clearProps || Object.keys(exitPreset.vars).join(',')).split(',').forEach(p => propsToReset.add(p.trim()));
+    }
+
+    if (propsToReset.size > 0) {
+      gsap.set(node, { clearProps: [...propsToReset].join(',') });
+    }
+  }
 }
 
 function _updateTransportButtons() {
@@ -991,28 +1070,26 @@ function _buildScrubTimeline() {
   const tl = gsap.timeline({ paused: true });
 
   // IN phase
-  const enterElements = elements.filter(el => {
-    const a = el.animation?.enter;
-    return a?.type && a.type !== 'none';
-  });
+  const enterElements = elements.filter(el => _hasEnterAnim(el));
 
   for (const el of enterElements) {
-    const anim = el.animation.enter;
-    const preset = getEnterPreset(anim.type);
-    if (!preset) continue;
-
     const node = document.querySelector(`#canvasContainer [data-element-id="${el.id}"]`);
     if (!node) continue;
 
+    const enterKf = _getEnterKf(el);
+    const anim = el.animation?.enter || {};
     const delay = (anim.delay || 0) / 1000;
-    const duration = (anim.duration || 300) / 1000;
-    const easing = anim.easing || preset.defaultEase || 'power2.out';
 
-    tl.from(node, {
-      ...preset.vars,
-      duration,
-      ease: easing,
-    }, delay);
+    if (enterKf?.enabled && enterKf.tracks?.length > 0) {
+      const subTl = buildGsapTimeline(node, enterKf);
+      tl.add(subTl, delay);
+    } else {
+      const preset = getEnterPreset(anim.type);
+      if (!preset) continue;
+      const duration = (anim.duration || 300) / 1000;
+      const easing = anim.easing || preset.defaultEase || 'power2.out';
+      tl.from(node, { ...preset.vars, duration, ease: easing }, delay);
+    }
   }
 
   // HOLD phase (empty tween to advance timeline)
@@ -1022,30 +1099,28 @@ function _buildScrubTimeline() {
   }
 
   // OUT phase
-  const exitElements = elements.filter(el => {
-    const a = el.animation?.exit;
-    return a?.type && a.type !== 'none';
-  });
+  const exitElements = elements.filter(el => _hasExitAnim(el));
 
   const outStart = holdStart + (holdMs > 0 ? holdMs / 1000 : 0.001);
 
   for (const el of exitElements) {
-    const anim = el.animation.exit;
-    const preset = getExitPreset(anim.type);
-    if (!preset) continue;
-
     const node = document.querySelector(`#canvasContainer [data-element-id="${el.id}"]`);
     if (!node) continue;
 
+    const exitKf = el.animation?.exitKeyframes;
+    const anim = el.animation?.exit || {};
     const delay = (anim.delay || 0) / 1000;
-    const duration = (anim.duration || 300) / 1000;
-    const easing = anim.easing || preset.defaultEase || 'power2.in';
 
-    tl.to(node, {
-      ...preset.vars,
-      duration,
-      ease: easing,
-    }, outStart + delay);
+    if (exitKf?.enabled && exitKf.tracks?.length > 0) {
+      const subTl = buildGsapTimeline(node, exitKf);
+      tl.add(subTl, outStart + delay);
+    } else {
+      const preset = getExitPreset(anim.type);
+      if (!preset) continue;
+      const duration = (anim.duration || 300) / 1000;
+      const easing = anim.easing || preset.defaultEase || 'power2.in';
+      tl.to(node, { ...preset.vars, duration, ease: easing }, outStart + delay);
+    }
   }
 
   return tl;

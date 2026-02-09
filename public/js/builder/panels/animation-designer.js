@@ -2,10 +2,10 @@
  * Animation Designer — keyframe-based animation editor.
  *
  * Opens in place of the properties panel for detailed per-element
- * entrance choreography. Each "track" controls one animatable property
- * (opacity, x, y, scale, rotation, etc.) across keyframes in time.
+ * enter or exit choreography. Each "track" controls one animatable
+ * property (opacity, x, y, scale, rotation, etc.) across keyframes in time.
  *
- * Data model stored on element.animation.keyframes:
+ * Data model stored on element.animation.enterKeyframes / exitKeyframes:
  *   { enabled, duration, tracks: [{ property, keyframes: [{ time, value, easing }] }] }
  */
 
@@ -41,6 +41,7 @@ let _panelEl = null;
 let _element = null;
 let _onPropertyChange = null;
 let _onClose = null;
+let _mode = 'enter';            // 'enter' | 'exit'
 let _previewTimeline = null;
 let _selectedKeyframe = null;   // { trackIndex, keyframeIndex }
 let _isPlaying = false;
@@ -57,12 +58,14 @@ let _isLooping = false;
  * @param {Function} opts.onPropertyChange - (elementId, changes)
  * @param {Function} opts.onClose - Called when user clicks Back
  * @param {HTMLElement} opts.panelEl - The container to render into
+ * @param {'enter'|'exit'} [opts.mode='enter'] - Which keyframe set to edit
  */
-export function openAnimationDesigner(element, { onPropertyChange, onClose, panelEl }) {
+export function openAnimationDesigner(element, { onPropertyChange, onClose, panelEl, mode }) {
   _element = element;
   _onPropertyChange = onPropertyChange;
   _onClose = onClose;
   _panelEl = panelEl;
+  _mode = mode || 'enter';
   _selectedKeyframe = null;
   _isPlaying = false;
 
@@ -78,6 +81,7 @@ export function closeAnimationDesigner() {
   _element = null;
   _onPropertyChange = null;
   _onClose = null;
+  _mode = 'enter';
   _selectedKeyframe = null;
 }
 
@@ -97,13 +101,27 @@ export function buildGsapTimeline(node, kfData) {
 // Data helpers
 // ---------------------------------------------------------------------------
 
+function _keyField() {
+  return _mode === 'exit' ? 'exitKeyframes' : 'enterKeyframes';
+}
+
 function _getKeyframes() {
-  return _element?.animation?.keyframes || { enabled: false, duration: 2000, tracks: [] };
+  const field = _keyField();
+  const anim = _element?.animation;
+  // New field first, then legacy fallback for enter
+  return anim?.[field]
+    || (_mode === 'enter' && anim?.keyframes)
+    || { enabled: false, duration: 2000, tracks: [] };
 }
 
 function _setKeyframes(kf) {
   if (!_element || !_onPropertyChange) return;
-  const animation = { ...(_element.animation || {}), keyframes: kf };
+  const field = _keyField();
+  const animation = { ...(_element.animation || {}), [field]: kf };
+  // If migrating from legacy, clear old field
+  if (_mode === 'enter' && animation.keyframes && !animation.enterKeyframes) {
+    delete animation.keyframes;
+  }
   _element.animation = animation;
   _onPropertyChange(_element.id, { animation });
 }
@@ -127,7 +145,7 @@ function _render() {
   header.appendChild(backBtn);
 
   const title = _el('span', 'anim-designer-title');
-  title.textContent = 'Keyframe Animation';
+  title.textContent = _mode === 'exit' ? 'Exit Keyframes' : 'Enter Keyframes';
   header.appendChild(title);
 
   const enableLabel = _el('label', 'anim-designer-enable');
@@ -159,7 +177,15 @@ function _render() {
   durInput.addEventListener('input', () => {
     const v = parseInt(durInput.value, 10);
     if (!isNaN(v) && v > 0) {
-      _setKeyframes({ ..._getKeyframes(), duration: v });
+      const currentKf = _getKeyframes();
+      // Clamp any keyframes beyond the new duration (don't delete them)
+      const clampedTracks = currentKf.tracks.map(track => ({
+        ...track,
+        keyframes: track.keyframes.map(kf =>
+          kf.time > v ? { ...kf, time: v } : kf
+        ),
+      }));
+      _setKeyframes({ ...currentKf, duration: v, tracks: clampedTracks });
     }
   });
   durRow.appendChild(durInput);
