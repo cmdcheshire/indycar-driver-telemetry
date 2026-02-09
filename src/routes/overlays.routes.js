@@ -364,13 +364,17 @@ router.post('/rundown/:itemId/take', requireRole('operator', 'admin'), (req, res
           for (const el of tData.elements) {
             if (!el.animation) continue;
             const anim = el.animation;
-            if (anim.enter && anim.enter.type && anim.enter.type !== 'none') {
+            // Include elements with standard enter presets OR keyframe enter animations
+            const hasEnterPreset = anim.enter && anim.enter.type && anim.enter.type !== 'none';
+            const hasEnterKeyframes = anim.enterKeyframes && anim.enterKeyframes.enabled
+              && Array.isArray(anim.enterKeyframes.tracks) && anim.enterKeyframes.tracks.length > 0;
+            if (hasEnterPreset || hasEnterKeyframes) {
               enterElementAnims.push({
                 elementId: el.id,
-                type: anim.enter.type,
-                duration: anim.enter.duration || 300,
-                delay: anim.enter.delay || 0,
-                easing: anim.enter.easing || 'power2.out',
+                type: (anim.enter && anim.enter.type) || 'none',
+                duration: (anim.enter && anim.enter.duration) || 300,
+                delay: (anim.enter && anim.enter.delay) || 0,
+                easing: (anim.enter && anim.enter.easing) || 'power2.out',
               });
             }
             if (anim.exit && anim.exit.type && anim.exit.type !== 'none') {

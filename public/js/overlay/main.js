@@ -359,10 +359,11 @@ function handleVisibility(msg) {
     rootEl.style.display = '';
 
     // Reset display on ALL elements (not just animated ones) so scene3d and
-    // other elements hidden by exit animations become visible again
+    // other elements hidden by exit animations become visible again.
+    // Skip mask elements that are intentionally hidden by clip-path system.
     if (domMap) {
       for (const [, node] of domMap) {
-        if (node.style.display === 'none') {
+        if (node.style.display === 'none' && node.dataset.maskHidden !== 'true') {
           node.style.display = node.dataset.baseDisplay || '';
         }
       }
@@ -405,10 +406,13 @@ function buildPlayoutTimeline(elementAnimations, timeline) {
     const node = domMap ? domMap.get(config.elementId) : null;
     if (!node) { console.warn('[overlay] DOM node not found for', config.elementId); continue; }
 
-    // Reset display (exit animations set display:none) — restore the base display
-    // value so text/data elements keep their 'flex' display for alignment
+    // Kill any lingering tweens on this node (e.g. exit animations from a
+    // previous TAKE OFF whose onComplete would set display:none mid-TAKE ON)
+    gsap.killTweensOf(node);
+
+    // Reset display and restore base styles (exit animations may have altered them)
     node.style.display = node.dataset.baseDisplay || '';
-    node.style.opacity = '';
+    node.style.opacity = node.dataset.baseOpacity || '';
     if (node.dataset.baseColor) node.style.color = node.dataset.baseColor;
     if (node.dataset.baseBg) node.style.backgroundColor = node.dataset.baseBg;
     if (node.dataset.baseTextShadow) node.style.textShadow = node.dataset.baseTextShadow;
@@ -452,8 +456,9 @@ function buildPlayoutTimeline(elementAnimations, timeline) {
         // Clear GSAP-set inline transforms so element returns to CSS-defined position
         const clearStr = preset.clearProps || Object.keys(preset.vars).join(',');
         gsap.set(node, { clearProps: clearStr });
-        // Restore base styles after clearProps (prevents color loss on repeat cycles)
+        // Restore base styles after clearProps (prevents loss on repeat cycles)
         if (node.dataset.baseDisplay) node.style.display = node.dataset.baseDisplay;
+        if (node.dataset.baseOpacity) node.style.opacity = node.dataset.baseOpacity;
         if (node.dataset.baseColor) node.style.color = node.dataset.baseColor;
         if (node.dataset.baseBg) node.style.backgroundColor = node.dataset.baseBg;
         if (node.dataset.baseTextShadow) node.style.textShadow = node.dataset.baseTextShadow;
@@ -610,6 +615,12 @@ function handleTemplateUpdate(msg) {
   }
 
   currentTemplate = template;
+
+  // Clean up playout state from previous template (prevents zombie timelines
+  // running on detached DOM nodes if CUE fires mid-playout)
+  if (playoutTimeline) { playoutTimeline.kill(); playoutTimeline = null; }
+  if (holdTimer)       { clearTimeout(holdTimer); holdTimer = null; }
+  if (exitHideTimer)   { clearTimeout(exitHideTimer); exitHideTimer = null; }
 
   // Kill previous animation engine (reverts gsap.context, frees GPU memory)
   if (animationEngine) animationEngine.killAll();

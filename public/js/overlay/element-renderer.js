@@ -36,6 +36,7 @@ export function renderElement(element, referenceData = {}) {
   // ── Opacity ──
   if (element.opacity !== undefined && element.opacity !== null) {
     wrapper.style.opacity = String(element.opacity);
+    wrapper.dataset.baseOpacity = String(element.opacity);
   }
 
   // ── Transform (rotation + 3D) ──

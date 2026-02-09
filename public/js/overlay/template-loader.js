@@ -185,6 +185,8 @@ function _applyClipPaths(elements, domMap) {
       const maskDom = domMap.get(el.clipMask.elementId);
       if (maskDom) {
         maskDom.style.display = 'none';
+        // Mark as intentionally hidden so TAKE ON display restoration skips it
+        maskDom.dataset.maskHidden = 'true';
       }
     }
   }

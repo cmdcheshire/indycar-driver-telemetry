@@ -95,7 +95,7 @@ export class GsapAnimationEngine {
     // Make visible and restore base styles so GSAP from() captures correct targets
     // Use baseDisplay to preserve 'flex' on text/data elements (not '')
     node.style.display = node.dataset.baseDisplay || '';
-    node.style.opacity = '';
+    node.style.opacity = node.dataset.baseOpacity || '';
     this._restoreBaseStyles(node);
 
     const config = animConfig || {};
@@ -225,7 +225,7 @@ export class GsapAnimationEngine {
       const node = this._getNode(config.elementId);
       if (node) {
         node.style.display = node.dataset.baseDisplay || '';
-        node.style.opacity = '';
+        node.style.opacity = node.dataset.baseOpacity || '';
       }
       this.show(config.elementId, config);
     }
@@ -351,7 +351,7 @@ export class GsapAnimationEngine {
 
     // Make visible — use baseDisplay to preserve 'flex' on text/data elements
     node.style.display = node.dataset.baseDisplay || '';
-    node.style.opacity = '';
+    node.style.opacity = node.dataset.baseOpacity || '';
 
     this._setWillChange(elementId, node);
 
@@ -909,6 +909,7 @@ export class GsapAnimationEngine {
   _restoreBaseStyles(node) {
     if (!node?.dataset) return;
     if (node.dataset.baseDisplay) node.style.display = node.dataset.baseDisplay;
+    if (node.dataset.baseOpacity) node.style.opacity = node.dataset.baseOpacity;
     if (node.dataset.baseColor) node.style.color = node.dataset.baseColor;
     if (node.dataset.baseBg) node.style.backgroundColor = node.dataset.baseBg;
     if (node.dataset.baseTextShadow) node.style.textShadow = node.dataset.baseTextShadow;
