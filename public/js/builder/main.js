@@ -1143,6 +1143,15 @@ async function _save() {
       useCORS: true,
       backgroundColor: null,
       logging: false,
+      onclone: (clonedDoc) => {
+        // Hide the frame overlay (::after), selection handles, and snap guides
+        const style = clonedDoc.createElement('style');
+        style.textContent = `
+          #canvasContainer::after { display: none !important; }
+          .selection-handle, .snap-guide { display: none !important; }
+        `;
+        clonedDoc.head.appendChild(style);
+      },
     });
     thumbnail = shot.toDataURL('image/webp', 0.7);
   } catch (e) {
