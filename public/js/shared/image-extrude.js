@@ -202,10 +202,12 @@ function _findContours(mask, w, h) {
     }
   }
 
-  // Classify contours: compute signed area to determine winding direction
+  // Classify contours: compute signed area to determine winding direction.
+  // Moore neighbor tracing traces outer contours CW in screen coords (positive area)
+  // and inner contours (holes) CCW (negative area).
   const classified = contours.map(pts => {
     const area = _signedArea(pts);
-    return { points: pts, area, isHole: area > 0 }; // CW = positive = hole in screen coords
+    return { points: pts, area, isHole: area < 0 }; // CCW = negative = hole in screen coords
   });
 
   const outers = classified.filter(c => !c.isHole).map(c => c.points);
@@ -216,7 +218,7 @@ function _findContours(mask, w, h) {
 
 /**
  * Compute signed area of a polygon (shoelace formula).
- * Negative = CCW (outer), Positive = CW (hole) in screen coordinates.
+ * Positive = CW (outer contour), Negative = CCW (hole) in screen coordinates.
  */
 function _signedArea(pts) {
   let area = 0;
@@ -404,12 +406,15 @@ export function buildExtrudedMesh(contourData, depth, props) {
 
   // Create materials
   // Front/back: textured with the image
+  const imgW = image.naturalWidth || image.width || w;
+  const imgH = image.naturalHeight || image.height || h;
   const canvas = document.createElement('canvas');
-  canvas.width = image.naturalWidth || image.width;
-  canvas.height = image.naturalHeight || image.height;
+  canvas.width = imgW;
+  canvas.height = imgH;
   const ctx = canvas.getContext('2d');
-  ctx.drawImage(image, 0, 0);
+  ctx.drawImage(image, 0, 0, imgW, imgH);
   const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
   texture.needsUpdate = true;
 
   const frontBackMat = new THREE.MeshStandardMaterial({
