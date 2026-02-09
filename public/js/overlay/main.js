@@ -358,6 +358,16 @@ function handleVisibility(msg) {
     const rootEl = document.getElementById('overlay-root');
     rootEl.style.display = '';
 
+    // Reset display on ALL elements (not just animated ones) so scene3d and
+    // other elements hidden by exit animations become visible again
+    if (domMap) {
+      for (const [, node] of domMap) {
+        if (node.style.display === 'none') {
+          node.style.display = node.dataset.baseDisplay || '';
+        }
+      }
+    }
+
     if (elementAnimations && elementAnimations.length > 0) {
       // Build a GSAP master timeline for the IN phase with pause points
       console.log('[overlay] Building playout timeline with', elementAnimations.length, 'enter animations');
@@ -395,9 +405,9 @@ function buildPlayoutTimeline(elementAnimations, timeline) {
     const node = domMap ? domMap.get(config.elementId) : null;
     if (!node) { console.warn('[overlay] DOM node not found for', config.elementId); continue; }
 
-    // Reset display (exit animations set display:none) and restore base styles
-    // so GSAP from() captures the correct target values (prevents black text flash)
-    node.style.display = '';
+    // Reset display (exit animations set display:none) — restore the base display
+    // value so text/data elements keep their 'flex' display for alignment
+    node.style.display = node.dataset.baseDisplay || '';
     node.style.opacity = '';
     if (node.dataset.baseColor) node.style.color = node.dataset.baseColor;
     if (node.dataset.baseBg) node.style.backgroundColor = node.dataset.baseBg;
@@ -431,15 +441,19 @@ function buildPlayoutTimeline(elementAnimations, timeline) {
     const easing = resolveEasing(migrateEasing(rawEasing));
 
     // Add enter animation to the master timeline at absolute offset
+    // immediateRender: true ensures from-state is applied at t=0 (prevents flash
+    // where element is visible in final state during its delay period)
     tl.from(node, {
       ...preset.vars,
       duration,
       ease: easing,
+      immediateRender: true,
       onComplete: () => {
         // Clear GSAP-set inline transforms so element returns to CSS-defined position
         const clearStr = preset.clearProps || Object.keys(preset.vars).join(',');
         gsap.set(node, { clearProps: clearStr });
         // Restore base styles after clearProps (prevents color loss on repeat cycles)
+        if (node.dataset.baseDisplay) node.style.display = node.dataset.baseDisplay;
         if (node.dataset.baseColor) node.style.color = node.dataset.baseColor;
         if (node.dataset.baseBg) node.style.backgroundColor = node.dataset.baseBg;
         if (node.dataset.baseTextShadow) node.style.textShadow = node.dataset.baseTextShadow;

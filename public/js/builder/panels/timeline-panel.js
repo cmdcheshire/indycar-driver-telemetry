@@ -925,8 +925,8 @@ function _goToHold() {
 }
 
 /**
- * Called when the OUT phase completes. Keeps the playhead at the end
- * of the timeline and resets elements for editing.
+ * Called when the OUT phase completes. Pauses briefly so the user can see
+ * the final exit state before resetting elements for editing.
  */
 function _finishTakeOff() {
   if (_masterTl) {
@@ -934,13 +934,18 @@ function _finishTakeOff() {
     _masterTl = null;
   }
 
-  // Reset GSAP transforms so elements are visible for editing
-  _resetAllElements();
-
-  _currentPhase = 'idle';
-  _isPlaying = false;
-  // Keep playhead at the end of the timeline (don't reset to 0)
+  // Pause 1s after exit completes so elements don't flash back immediately
+  _currentPhase = 'out';
   _updateTransportButtons();
+
+  setTimeout(() => {
+    // Reset GSAP transforms so elements are visible for editing
+    _resetAllElements();
+
+    _currentPhase = 'idle';
+    _isPlaying = false;
+    _updateTransportButtons();
+  }, 1000);
 }
 
 function _hardReset() {

@@ -118,6 +118,10 @@ export function renderElement(element, referenceData = {}) {
     requestAnimationFrame(() => fitTextToElement(wrapper));
   }
 
+  // Store the computed display value so animations can restore it
+  // (text/data use 'flex' for alignment; clearing to '' breaks justifyContent/alignItems)
+  wrapper.dataset.baseDisplay = wrapper.style.display || '';
+
   // Enter animations are handled by GsapAnimationEngine — no CSS classes needed
 
   return wrapper;
