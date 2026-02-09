@@ -429,12 +429,12 @@ export class CanvasEngine {
       const maskEntry = this.#elements.get(element.clipMask.elementId);
       if (maskEntry) {
         const cp = computeClipPath(element, maskEntry.element);
-        node.style.clipPath = cp || '';
+        node.style.clipPath = cp || 'none';
       } else {
-        node.style.clipPath = '';
+        node.style.clipPath = 'none';
       }
     } else {
-      node.style.clipPath = '';
+      node.style.clipPath = 'none';
     }
   }
 
@@ -447,7 +447,7 @@ export class CanvasEngine {
       if (entry.element.clipMask?.elementId === maskId) {
         const maskEntry = this.#elements.get(maskId);
         if (maskEntry) {
-          entry.node.style.clipPath = computeClipPath(entry.element, maskEntry.element) || '';
+          entry.node.style.clipPath = computeClipPath(entry.element, maskEntry.element) || 'none';
         }
       }
     }
@@ -461,7 +461,7 @@ export class CanvasEngine {
       if (entry.element.clipMask?.elementId) {
         const maskEntry = this.#elements.get(entry.element.clipMask.elementId);
         if (maskEntry) {
-          entry.node.style.clipPath = computeClipPath(entry.element, maskEntry.element) || '';
+          entry.node.style.clipPath = computeClipPath(entry.element, maskEntry.element) || 'none';
         }
       }
     }
@@ -482,9 +482,9 @@ export class CanvasEngine {
       if (hiddenMaskIds.has(id)) {
         entry.node.style.display = 'none';
       } else if (entry.element.visible !== false) {
-        // Restore correct display — text/data need flex for vertical alignment; gauge types use default
+        // Restore correct display — text/data need flex for vertical alignment
         const t = entry.element.type;
-        entry.node.style.display = (t === 'text' || t === 'data') ? 'flex' : '';
+        entry.node.style.display = (t === 'text' || t === 'data') ? 'flex' : 'block';
       }
     }
   }

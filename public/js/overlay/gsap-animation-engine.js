@@ -374,6 +374,10 @@ export class GsapAnimationEngine {
         if (sorted.length < 2) continue;
 
         const isScene3d = SCENE3D_PROPS.has(track.property);
+        // Map x/y to GSAP percentage-based transform properties
+        const gsapProp = track.property === 'x' ? 'xPercent'
+                       : track.property === 'y' ? 'yPercent'
+                       : track.property;
 
         // Set initial value inside the timeline so it fires at playback time,
         // not at build time (prevents flash when added with a delay)
@@ -383,7 +387,7 @@ export class GsapAnimationEngine {
           proxy[initProp] = initVal;
           tl.call(() => { proxy[initProp] = initVal; _applyScene3dProp(node, initProp, initVal); }, null, 0);
         } else {
-          tl.set(node, { [track.property]: sorted[0].value }, 0);
+          tl.set(node, { [gsapProp]: sorted[0].value }, 0);
         }
 
         // Build tweens between consecutive keyframes
@@ -406,7 +410,7 @@ export class GsapAnimationEngine {
             }, pos);
           } else {
             tl.to(node, {
-              [track.property]: to.value,
+              [gsapProp]: to.value,
               duration: dur,
               ease,
             }, pos);
@@ -448,7 +452,7 @@ export class GsapAnimationEngine {
       tl = gsap.timeline({
         onComplete: () => {
           this._channels.delete(elementId);
-          gsap.set(node, { clearProps: 'transform,opacity,clipPath,color,backgroundColor' });
+          gsap.set(node, { clearProps: 'transform,opacity,clipPath,color,backgroundColor,xPercent,yPercent' });
           this._restoreBaseStyles(node);
           this._restoreMaskClipPath(node);
           // display:none MUST come after _restoreBaseStyles which restores
@@ -465,6 +469,10 @@ export class GsapAnimationEngine {
         if (sorted.length < 2) continue;
 
         const isScene3d = SCENE3D_PROPS.has(track.property);
+        // Map x/y to GSAP percentage-based transform properties
+        const gsapProp = track.property === 'x' ? 'xPercent'
+                       : track.property === 'y' ? 'yPercent'
+                       : track.property;
 
         // Set initial value inside the timeline so it fires at playback time
         if (isScene3d) {
@@ -473,7 +481,7 @@ export class GsapAnimationEngine {
           proxy[initProp] = initVal;
           tl.call(() => { proxy[initProp] = initVal; _applyScene3dProp(node, initProp, initVal); }, null, 0);
         } else {
-          tl.set(node, { [track.property]: sorted[0].value }, 0);
+          tl.set(node, { [gsapProp]: sorted[0].value }, 0);
         }
 
         // Build tweens between consecutive keyframes
@@ -496,7 +504,7 @@ export class GsapAnimationEngine {
             }, pos);
           } else {
             tl.to(node, {
-              [track.property]: to.value,
+              [gsapProp]: to.value,
               duration: dur,
               ease,
             }, pos);

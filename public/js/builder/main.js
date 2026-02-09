@@ -1136,18 +1136,22 @@ async function _save() {
 
   // Capture thumbnail from canvas
   let thumbnail = null;
+  const canvasContainer = document.getElementById('canvasContainer');
   try {
-    const canvasContainer = document.getElementById('canvasContainer');
+    // Add class to hide ::after overlay before cloning
+    canvasContainer.classList.add('capturing');
     const shot = await html2canvas(canvasContainer, {
       scale: 0.15,
       useCORS: true,
       backgroundColor: null,
       logging: false,
       onclone: (clonedDoc) => {
-        // Hide the frame overlay (::after), selection handles, and snap guides
+        // Belt-and-suspenders: ensure ::after is hidden in the clone too
+        const c = clonedDoc.getElementById('canvasContainer');
+        if (c) c.classList.add('capturing');
         const style = clonedDoc.createElement('style');
         style.textContent = `
-          #canvasContainer::after { display: none !important; }
+          .canvas-container.capturing::after { content: none !important; display: none !important; box-shadow: none !important; }
           .selection-handle, .snap-guide { display: none !important; }
         `;
         clonedDoc.head.appendChild(style);
@@ -1156,6 +1160,8 @@ async function _save() {
     thumbnail = shot.toDataURL('image/webp', 0.7);
   } catch (e) {
     console.warn('Failed to capture thumbnail:', e);
+  } finally {
+    canvasContainer.classList.remove('capturing');
   }
 
   try {
@@ -1308,7 +1314,11 @@ function _applyKeyframeHoldState() {
     for (const track of enterKf.tracks) {
       if (track.keyframes.length > 0) {
         const last = track.keyframes.reduce((a, b) => a.time > b.time ? a : b);
-        endState[track.property] = last.value;
+        // Map x/y to GSAP percentage properties (same as animation-designer)
+        const gsapProp = track.property === 'x' ? 'xPercent'
+                       : track.property === 'y' ? 'yPercent'
+                       : track.property;
+        endState[gsapProp] = last.value;
       }
     }
     if (Object.keys(endState).length > 0) {

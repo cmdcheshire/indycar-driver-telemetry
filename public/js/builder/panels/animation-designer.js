@@ -333,7 +333,10 @@ function _renderTimeline(kf) {
           if (propDef?.scene3d) {
             _applyScene3dProp(node, removedTrack.property, propDef.default);
           } else {
-            gsap.set(node, { [removedTrack.property]: propDef?.default ?? '' });
+            const resetProp = removedTrack.property === 'x' ? 'xPercent'
+                            : removedTrack.property === 'y' ? 'yPercent'
+                            : removedTrack.property;
+            gsap.set(node, { [resetProp]: propDef?.default ?? '' });
           }
         }
       }
@@ -763,7 +766,7 @@ function _killPreview() {
   if (_element) {
     const node = document.querySelector(`#canvasContainer [data-element-id="${_element.id}"]`);
     if (node) {
-      gsap.set(node, { clearProps: 'transform,opacity,clipPath,color,backgroundColor,borderRadius,filter' });
+      gsap.set(node, { clearProps: 'transform,opacity,clipPath,color,backgroundColor,borderRadius,filter,xPercent,yPercent' });
 
       // Restore scene3d properties from snapshot
       if (_previewScene3dSnapshot) {
@@ -792,11 +795,12 @@ function _buildGsapTimeline(node, kfData) {
     const isScene3d = propDef?.scene3d;
     const target = isScene3d ? proxy : node;
 
-    // x/y use GSAP percentage strings so movement is relative to element size,
-    // consistent with preset animations that use e.g. x: '-105%'.
-    // Without this, numeric values are treated as pixels (barely visible on 1920px canvas).
-    const isPercentProp = track.property === 'x' || track.property === 'y';
-    const toGsapVal = (v) => isPercentProp ? `${v}%` : v;
+    // Map x/y to GSAP's percentage-based transform properties.
+    // xPercent: 100 = translateX(100% of element width), same as preset x: '100%'.
+    // Using the raw 'x' property treats values as pixels (barely visible on 1920px canvas).
+    const gsapProp = track.property === 'x' ? 'xPercent'
+                   : track.property === 'y' ? 'yPercent'
+                   : track.property;
 
     if (isScene3d) {
       proxy[track.property] = sorted[0].value;
@@ -809,7 +813,7 @@ function _buildGsapTimeline(node, kfData) {
       const initVal = sorted[0].value;
       tl.call(() => { proxy[initProp] = initVal; _applyScene3dProp(node, initProp, initVal); }, null, 0);
     } else {
-      tl.set(node, { [track.property]: toGsapVal(sorted[0].value) }, 0);
+      tl.set(node, { [gsapProp]: sorted[0].value }, 0);
     }
 
     // Build tweens between consecutive keyframes
@@ -830,7 +834,7 @@ function _buildGsapTimeline(node, kfData) {
         }, pos);
       } else {
         tl.to(node, {
-          [track.property]: toGsapVal(to.value),
+          [gsapProp]: to.value,
           duration: dur,
           ease,
         }, pos);

@@ -349,6 +349,12 @@
       pointer-events: none;
       z-index: 10000;
     }
+    /* Hide overlay when capturing thumbnail */
+    .canvas-container.capturing::after {
+      content: none;
+      display: none;
+      box-shadow: none;
+    }
 
     /* Canvas element base */
     .canvas-element {

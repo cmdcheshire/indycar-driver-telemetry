@@ -526,14 +526,23 @@ function buildPlayoutTimeline(elementAnimations, timeline) {
         tl.to({}, {
           duration,
           onUpdate: () => {
-            const gsapX = gsap.getProperty(maskNode, 'x') || 0;
-            const gsapY = gsap.getProperty(maskNode, 'y') || 0;
+            // Read pixel-based x/y (from presets) and percentage-based xPercent/yPercent (from keyframes)
+            const gsapXpx = gsap.getProperty(maskNode, 'x') || 0;
+            const gsapYpx = gsap.getProperty(maskNode, 'y') || 0;
+            const gsapXpct = gsap.getProperty(maskNode, 'xPercent') || 0;
+            const gsapYpct = gsap.getProperty(maskNode, 'yPercent') || 0;
             const gsapScaleX = gsap.getProperty(maskNode, 'scaleX');
             const gsapScaleY = gsap.getProperty(maskNode, 'scaleY');
             const gsapRotation = gsap.getProperty(maskNode, 'rotation') || 0;
 
             const scaleX = (gsapScaleX != null && gsapScaleX !== '') ? gsapScaleX : 1;
             const scaleY = (gsapScaleY != null && gsapScaleY !== '') ? gsapScaleY : 1;
+
+            // xPercent is % of element's own rendered width; convert to pixels then canvas %
+            const maskPxW = (maskBounds.width / 100) * canvasW;
+            const maskPxH = (maskBounds.height / 100) * canvasH;
+            const gsapX = gsapXpx + (gsapXpct / 100) * maskPxW;
+            const gsapY = gsapYpx + (gsapYpct / 100) * maskPxH;
 
             const offsetXPct = (gsapX / canvasW) * 100;
             const offsetYPct = (gsapY / canvasH) * 100;
