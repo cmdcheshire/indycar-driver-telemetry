@@ -880,8 +880,18 @@ function _goToHold() {
 
     const enterKf = _getEnterKf(el);
     if (enterKf?.enabled && enterKf.tracks?.length > 0) {
-      // Keyframe: clear transform/opacity so element is at rest state
-      gsap.set(node, { clearProps: 'transform,opacity,clipPath,color,backgroundColor' });
+      // Keyframe: snap to the final keyframe value for each track
+      // (the hold state is wherever the keyframe animation ends, not CSS rest)
+      const endState = {};
+      for (const track of enterKf.tracks) {
+        if (track.keyframes.length > 0) {
+          const last = track.keyframes.reduce((a, b) => a.time > b.time ? a : b);
+          endState[track.property] = last.value;
+        }
+      }
+      if (Object.keys(endState).length > 0) {
+        gsap.set(node, endState);
+      }
     } else {
       const anim = el.animation?.enter;
       const preset = anim?.type ? getEnterPreset(anim.type) : null;
