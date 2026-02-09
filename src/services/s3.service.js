@@ -67,6 +67,25 @@ async function getPresignedUrl(s3Key, expiresIn = 86400) {
 }
 
 /**
+ * Fetch a file from S3 and return the response body stream + content info.
+ *
+ * @param {string} s3Key - The full S3 key.
+ * @returns {Promise<{ body: ReadableStream, contentType: string, contentLength: number }>}
+ */
+async function getFileStream(s3Key) {
+  const command = new GetObjectCommand({
+    Bucket: S3_BUCKET,
+    Key: s3Key,
+  });
+  const response = await getClient().send(command);
+  return {
+    body: response.Body,
+    contentType: response.ContentType,
+    contentLength: response.ContentLength,
+  };
+}
+
+/**
  * Check if S3 is configured (bucket name is set).
  */
 function isConfigured() {
@@ -77,5 +96,6 @@ module.exports = {
   uploadFile,
   deleteFile,
   getPresignedUrl,
+  getFileStream,
   isConfigured,
 };

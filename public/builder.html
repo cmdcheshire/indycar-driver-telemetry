@@ -922,6 +922,19 @@
       color: #f44336;
     }
 
+    .tl-btn-go-hold {
+      border-color: #ff9800;
+      color: #ff9800;
+      font-weight: 700;
+      font-size: 0.6rem;
+      letter-spacing: 0.04em;
+    }
+    .tl-btn-go-hold:hover:not(:disabled) {
+      background: rgba(255, 152, 0, 0.15);
+      border-color: #ff9800;
+      color: #ff9800;
+    }
+
     .tl-hold-control {
       display: flex;
       align-items: center;
@@ -1342,6 +1355,7 @@
         <button class="tl-header-btn tl-btn-take-on" id="tlTakeOnBtn" title="Take On — play IN animations">TAKE ON</button>
         <button class="tl-header-btn tl-btn-resume" id="tlResumeBtn" title="Resume past pause point" style="display:none">RESUME</button>
         <button class="tl-header-btn tl-btn-take-off" id="tlTakeOffBtn" title="Take Off — play OUT animations" style="opacity:0.4" disabled>TAKE OFF</button>
+        <button class="tl-header-btn tl-btn-go-hold" id="tlGoHoldBtn" title="Skip IN — jump straight to HOLD">GO TO HOLD</button>
         <button class="tl-header-btn" id="tlLoopBtn" title="Toggle loop">&#8635; Loop</button>
         <button class="tl-header-btn" id="tlAddPauseBtn" title="Add pause point">+ Pause</button>
         <div class="tl-hold-control">

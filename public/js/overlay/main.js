@@ -237,7 +237,7 @@ async function handleInit(msg) {
     template.elements = normalizeElements(template.elements);
   }
 
-  currentTemplate = template;
+  currentTemplate = template || { elements: [] };
   currentConfig   = config;
 
   // Kill previous animation engine (reverts gsap.context, frees GPU memory)
@@ -247,11 +247,11 @@ async function handleInit(msg) {
   const rootEl = document.getElementById('overlay-root');
   rootEl.innerHTML = '';
 
-  domMap = buildOverlay(rootEl, template, referenceData);
+  domMap = buildOverlay(rootEl, currentTemplate, referenceData);
 
   // Create shared animation engine + binder
   animationEngine = new GsapAnimationEngine(domMap);
-  dataBinder      = new DataBinder(template.elements, domMap, animationEngine);
+  dataBinder      = new DataBinder(currentTemplate.elements, domMap, animationEngine);
 
   // Apply target cars from config
   if (config && config.targetCars) {
@@ -280,7 +280,7 @@ async function handleInit(msg) {
   }
 
   // Respect initial visibility — hide overlay if nothing is on-air
-  if (config && config.visible === false) {
+  if (!config || config.visible === false) {
     rootEl.style.display = 'none';
   }
 
@@ -356,16 +356,6 @@ function handleVisibility(msg) {
       // Simple root-level animation (no per-element orchestration)
       console.log('[overlay] Using root-level animation:', animation);
       animationEngine.show('__root__', { type: animation, duration: 400, easing: 'power2.out' });
-      // Schedule hold/auto-exit for root-level animation
-      if (timeline && !timeline.loop && timeline.holdDuration > 0) {
-        console.log('[overlay] Scheduling hold timer for', 400 + timeline.holdDuration, 'ms');
-        holdTimer = setTimeout(() => {
-          holdTimer = null;
-          performTakeOff();
-        }, 400 + timeline.holdDuration);
-      } else {
-        console.log('[overlay] No hold timer — loop:', timeline?.loop, 'holdDuration:', timeline?.holdDuration);
-      }
     } else {
       console.log('[overlay] No animations and no fallback animation — graphic shown without playout');
     }
@@ -387,7 +377,7 @@ function buildPlayoutTimeline(elementAnimations, timeline) {
     onComplete: () => {
       console.log('[overlay] IN phase complete — entering HOLD. Timeline duration was:', tl.duration(), 's, tweens:', tweenCount);
       playoutTimeline = null;
-      onEnterComplete(timeline);
+      onEnterComplete();
     },
   });
 
@@ -450,28 +440,11 @@ function buildPlayoutTimeline(elementAnimations, timeline) {
 
 /**
  * Called when the IN phase master timeline completes. Enters HOLD phase.
- * - loop enabled: hold indefinitely (no auto-exit) until TAKE OFF
- * - loop disabled + holdDuration > 0: auto-exit after holdDuration ms
- * - no holdDuration: hold indefinitely (manual TAKE OFF)
+ * The graphic stays visible indefinitely until the operator fires TAKE OFF.
+ * Emphasis animations continue to trigger on data change via DataBinder.
  */
-function onEnterComplete(timeline) {
-  console.log('[overlay] onEnterComplete called with timeline:', JSON.stringify(timeline));
-
-  if (timeline && timeline.loop) {
-    console.log('[overlay] Entering HOLD (loop — waiting for TAKE OFF)');
-    return;
-  }
-
-  if (timeline && timeline.holdDuration > 0) {
-    console.log('[overlay] Entering HOLD for', timeline.holdDuration, 'ms');
-    holdTimer = setTimeout(() => {
-      console.log('[overlay] Hold timer expired — auto TAKE OFF');
-      holdTimer = null;
-      performTakeOff();
-    }, timeline.holdDuration);
-  } else {
-    console.log('[overlay] Holding indefinitely (no holdDuration or manual mode)');
-  }
+function onEnterComplete() {
+  console.log('[overlay] onEnterComplete — entering HOLD (waiting for TAKE OFF)');
 }
 
 /**

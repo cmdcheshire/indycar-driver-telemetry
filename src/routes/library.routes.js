@@ -285,10 +285,21 @@ router.get('/assets/:id/file', async (req, res) => {
     if (!asset) return res.status(404).json({ error: 'Asset not found' });
 
     if (useS3) {
-      const presignedUrl = await s3.getPresignedUrl(asset.filename, 86400); // 24h
-      // Cache the redirect so browsers don't re-fetch the presigned URL on every load
-      res.setHeader('Cache-Control', 'public, max-age=3600'); // cache redirect 1h
-      res.redirect(302, presignedUrl);
+      // Proxy font files through the server to avoid S3 CORS issues with @font-face
+      const resolvedMime = _resolveMimeType(asset.filename, asset.mime_type);
+      const isFontFile = resolvedMime && resolvedMime.startsWith('font/');
+
+      if (isFontFile) {
+        const s3File = await s3.getFileStream(asset.filename);
+        res.setHeader('Content-Type', resolvedMime);
+        if (s3File.contentLength) res.setHeader('Content-Length', s3File.contentLength);
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        s3File.body.pipe(res);
+      } else {
+        const presignedUrl = await s3.getPresignedUrl(asset.filename, 86400); // 24h
+        res.setHeader('Cache-Control', 'public, max-age=3600'); // cache redirect 1h
+        res.redirect(302, presignedUrl);
+      }
     } else {
       const filePath = path.join(LIBRARY_UPLOAD_DIR, path.basename(asset.filename));
       if (!fs.existsSync(filePath)) {

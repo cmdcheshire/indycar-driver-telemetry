@@ -106,6 +106,10 @@ export function initTimelinePanel(opts) {
     });
   }
 
+  // GO TO HOLD — skip IN, snap to hold
+  const goHoldBtn = document.getElementById('tlGoHoldBtn');
+  if (goHoldBtn) goHoldBtn.addEventListener('click', () => { _expandPanel(); _goToHold(); });
+
   // Add pause point
   const addPauseBtn = document.getElementById('tlAddPauseBtn');
   if (addPauseBtn) {
@@ -629,8 +633,7 @@ function _takeOn() {
 
   const elements = _getElements();
   const timeline = _getTimeline();
-  const { inDuration, outDuration } = _computePhases(elements);
-  const holdMs = timeline.holdDuration || 0;
+  const { inDuration } = _computePhases(elements);
 
   // Build IN-phase-only timeline
   const enterElements = elements.filter(el => {
@@ -643,13 +646,13 @@ function _takeOn() {
     _currentPhase = 'in';
     _isPlaying = true;
     if (_playheadEl) _playheadEl.classList.add('active');
-    _enterHold(holdMs);
+    _enterHold();
     return;
   }
 
   _masterTl = gsap.timeline({
     onUpdate: () => { if (!_isScrubbing) _updatePlayhead(); },
-    onComplete: () => { if (!_isScrubbing) _enterHold(holdMs); },
+    onComplete: () => { if (!_isScrubbing) _enterHold(); },
   });
 
   for (const el of enterElements) {
@@ -688,7 +691,7 @@ function _takeOn() {
   _updateTransportButtons();
 }
 
-function _enterHold(holdMs) {
+function _enterHold() {
   // Kill IN timeline
   if (_masterTl) {
     _masterTl.kill();
@@ -702,15 +705,7 @@ function _enterHold(holdMs) {
   _updatePlayhead();
   if (_playheadEl) _playheadEl.classList.add('active');
   _updateTransportButtons();
-
-  // Auto take-off after holdDuration (unless loop or manual)
-  if (!_loopEnabled && holdMs > 0) {
-    _holdTimer = setTimeout(() => {
-      _holdTimer = null;
-      _takeOff();
-    }, holdMs);
-  }
-  // If loop or manual (holdMs === 0): stay on indefinitely until TAKE OFF
+  // Hold indefinitely until TAKE OFF
 }
 
 function _resume() {
@@ -758,7 +753,7 @@ function _takeOff() {
 
   _masterTl = gsap.timeline({
     onUpdate: () => { if (!_isScrubbing) _updatePlayhead(); },
-    onComplete: () => { if (!_isScrubbing) _hardReset(); },
+    onComplete: () => { if (!_isScrubbing) _finishTakeOff(); },
   });
 
   for (const el of exitElements) {
@@ -779,6 +774,76 @@ function _takeOff() {
       ease: easing,
     }, delay);
   }
+}
+
+/**
+ * Skip the IN phase — snap all enter animations to their end state
+ * and go straight to HOLD.
+ */
+function _goToHold() {
+  if (_currentPhase !== 'idle') _hardReset();
+  if (!_getElements) return;
+
+  const elements = _getElements();
+
+  // Snap all enter animations to their end state (elements fully visible)
+  const enterElements = elements.filter(el => {
+    const a = el.animation?.enter;
+    return a?.type && a.type !== 'none';
+  });
+
+  for (const el of enterElements) {
+    const node = document.querySelector(`#canvasContainer [data-element-id="${el.id}"]`);
+    if (!node) continue;
+    const anim = el.animation.enter;
+    const preset = getEnterPreset(anim.type);
+    if (preset) {
+      const safeClearProps = preset.clearProps || Object.keys(preset.vars).join(',');
+      gsap.set(node, { clearProps: safeClearProps });
+    }
+  }
+
+  _enterHold();
+}
+
+/**
+ * Called when the OUT phase completes. Keeps the playhead at the end
+ * of the timeline and resets elements for editing.
+ */
+function _finishTakeOff() {
+  if (_masterTl) {
+    _masterTl.kill();
+    _masterTl = null;
+  }
+
+  // Reset GSAP transforms so elements are visible for editing
+  if (_getElements) {
+    const elements = _getElements();
+    for (const el of elements) {
+      const node = document.querySelector(`#canvasContainer [data-element-id="${el.id}"]`);
+      if (!node) continue;
+
+      const enterPreset = el.animation?.enter?.type ? getEnterPreset(el.animation.enter.type) : null;
+      const exitPreset = el.animation?.exit?.type ? getExitPreset(el.animation.exit.type) : null;
+
+      const propsToReset = new Set();
+      if (enterPreset) {
+        (enterPreset.clearProps || Object.keys(enterPreset.vars).join(',')).split(',').forEach(p => propsToReset.add(p.trim()));
+      }
+      if (exitPreset) {
+        (exitPreset.clearProps || Object.keys(exitPreset.vars).join(',')).split(',').forEach(p => propsToReset.add(p.trim()));
+      }
+
+      if (propsToReset.size > 0) {
+        gsap.set(node, { clearProps: [...propsToReset].join(',') });
+      }
+    }
+  }
+
+  _currentPhase = 'idle';
+  _isPlaying = false;
+  // Keep playhead at the end of the timeline (don't reset to 0)
+  _updateTransportButtons();
 }
 
 function _hardReset() {
@@ -831,6 +896,7 @@ function _updateTransportButtons() {
   const takeOnBtn = document.getElementById('tlTakeOnBtn');
   const resumeBtn = document.getElementById('tlResumeBtn');
   const takeOffBtn = document.getElementById('tlTakeOffBtn');
+  const goHoldBtn = document.getElementById('tlGoHoldBtn');
 
   if (takeOnBtn) {
     takeOnBtn.disabled = _currentPhase !== 'idle';
@@ -842,6 +908,10 @@ function _updateTransportButtons() {
   if (takeOffBtn) {
     takeOffBtn.disabled = _currentPhase === 'idle' || _currentPhase === 'out';
     takeOffBtn.style.opacity = (_currentPhase === 'idle' || _currentPhase === 'out') ? '0.4' : '';
+  }
+  if (goHoldBtn) {
+    goHoldBtn.disabled = _currentPhase !== 'idle';
+    goHoldBtn.style.opacity = _currentPhase !== 'idle' ? '0.4' : '';
   }
 }
 
