@@ -354,20 +354,24 @@ function _renderTimeline(kf) {
         diamond.classList.add('selected');
       }
 
-      // Click to select
-      diamond.addEventListener('click', (e) => {
-        e.stopPropagation();
-        _selectedKeyframe = { trackIndex: ti, keyframeIndex: ki };
-        _render();
-      });
-
-      // Drag to reposition in time
+      // Click / drag: first click selects, drag only if already selected
       diamond.addEventListener('mousedown', (e) => {
         if (e.button !== 0) return;
         e.stopPropagation();
         e.preventDefault();
 
-        _selectedKeyframe = { trackIndex: ti, keyframeIndex: ki };
+        const isAlreadySelected = _selectedKeyframe
+          && _selectedKeyframe.trackIndex === ti
+          && _selectedKeyframe.keyframeIndex === ki;
+
+        if (!isAlreadySelected) {
+          // First click — just select, don't start drag
+          _selectedKeyframe = { trackIndex: ti, keyframeIndex: ki };
+          _render();
+          return;
+        }
+
+        // Already selected — allow drag to reposition in time
         const barRect = bar.getBoundingClientRect();
 
         const onMove = (moveE) => {
