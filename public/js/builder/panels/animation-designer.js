@@ -710,8 +710,9 @@ function _buildGsapTimeline(node, kfData) {
     const sorted = [...track.keyframes].sort((a, b) => a.time - b.time);
     if (sorted.length < 2) continue;
 
-    // Set the initial value
-    gsap.set(node, { [track.property]: sorted[0].value });
+    // Set the initial value inside the timeline so it fires at playback time,
+    // not at build time (prevents flash when sub-timeline has a delay)
+    tl.set(node, { [track.property]: sorted[0].value }, 0);
 
     // Build tweens between consecutive keyframes
     for (let i = 0; i < sorted.length - 1; i++) {
