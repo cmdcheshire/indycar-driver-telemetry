@@ -966,8 +966,14 @@ function _addScene3dProps(p) {
       { value: 'true', label: 'On' },
       { value: 'false', label: 'Off' },
     ], (v) => _emitProp({ dropShadow: v === 'true' })),
-    _numberInput('Opacity', p.shadowOpacity ?? 0.35, 0, 1, 0.05, (v) => _emitProp({ shadowOpacity: v })),
-    _numberInput('Floor Y', p.shadowY ?? -1.2, -5, 0, 0.1, (v) => _emitProp({ shadowY: v })),
+    _row([
+      _numberInput('Opacity', p.shadowOpacity ?? 0.35, 0, 1, 0.05, (v) => _emitProp({ shadowOpacity: v })),
+      _numberInput('Blur', p.shadowBlur ?? 4, 0, 20, 1, (v) => _emitProp({ shadowBlur: v })),
+    ]),
+    _row([
+      _colorInputWithSwatch('Color', p.shadowColor || '#000000', (v) => _emitProp({ shadowColor: v })),
+      _numberInput('Floor Y', p.shadowY ?? -1.2, -5, 0, 0.1, (v) => _emitProp({ shadowY: v })),
+    ]),
   ], true);
 
   // Sub-type specific controls

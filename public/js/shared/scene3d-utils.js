@@ -166,14 +166,16 @@ export class Scene3DController {
     this._dirLight.shadow.camera.top = 3;
     this._dirLight.shadow.camera.bottom = -3;
     this._dirLight.shadow.bias = -0.002;
+    this._dirLight.shadow.radius = props.shadowBlur ?? 4;
     this._scene.add(this._dirLight);
   }
 
   _setupShadowPlane(props) {
     const shadowOpacity = props.shadowOpacity ?? 0.35;
     const shadowY = props.shadowY ?? -1.2;
+    const shadowColor = props.shadowColor || '#000000';
     const planeGeo = new THREE.PlaneGeometry(8, 8);
-    const planeMat = new THREE.ShadowMaterial({ opacity: shadowOpacity });
+    const planeMat = new THREE.ShadowMaterial({ opacity: shadowOpacity, color: shadowColor });
     this._shadowPlane = new THREE.Mesh(planeGeo, planeMat);
     this._shadowPlane.rotation.x = -Math.PI / 2;
     this._shadowPlane.position.y = shadowY;
@@ -483,6 +485,12 @@ export class Scene3DController {
     }
     if (newProps.shadowY !== undefined && this._shadowPlane) {
       this._shadowPlane.position.y = newProps.shadowY;
+    }
+    if (newProps.shadowBlur !== undefined && this._dirLight) {
+      this._dirLight.shadow.radius = newProps.shadowBlur;
+    }
+    if (newProps.shadowColor !== undefined && this._shadowPlane) {
+      this._shadowPlane.material.color.set(newProps.shadowColor);
     }
     if (newProps.dropShadow !== undefined) {
       if (newProps.dropShadow && !this._shadowPlane) {

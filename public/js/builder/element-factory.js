@@ -427,6 +427,8 @@ export function createScene3dElement(x = 10, y = 10, subType = 'text3d') {
       // Drop shadow
       dropShadow: true,
       shadowOpacity: 0.35,
+      shadowBlur: 4,
+      shadowColor: '#000000',
       shadowY: -1.2,
       // Auto-rotation
       autoRotate: true,
