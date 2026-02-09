@@ -113,6 +113,13 @@ export class Scene3DController {
 
     container.appendChild(this._renderer.domElement);
 
+    // Canvas always fills its container via CSS — the buffer size is updated
+    // separately by resize(). This prevents a visible size pop when the overlay
+    // transitions from display:none (200x200 fallback) to visible (real size).
+    this._renderer.domElement.style.width = '100%';
+    this._renderer.domElement.style.height = '100%';
+    this._renderer.domElement.style.display = 'block';
+
     // Lighting
     this._setupLighting(props);
 
@@ -606,12 +613,15 @@ export class Scene3DController {
   resize() {
     if (!this._renderer || !this._camera || this._disposed) return;
 
-    const width = this._container.clientWidth || 200;
-    const height = this._container.clientHeight || 200;
+    const width = this._container.clientWidth;
+    const height = this._container.clientHeight;
+    // Skip resize when container has no dimensions (still hidden)
+    if (!width || !height) return;
 
     this._camera.aspect = width / height;
     this._camera.updateProjectionMatrix();
-    this._renderer.setSize(width, height);
+    // false = don't update CSS style (canvas fills container via CSS 100%)
+    this._renderer.setSize(width, height, false);
   }
 
   /**
