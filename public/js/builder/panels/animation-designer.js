@@ -174,18 +174,22 @@ function _render() {
   durInput.min = '100';
   durInput.max = '10000';
   durInput.step = '100';
-  durInput.addEventListener('input', () => {
+  durInput.addEventListener('change', () => {
     const v = parseInt(durInput.value, 10);
     if (!isNaN(v) && v > 0) {
       const currentKf = _getKeyframes();
-      // Clamp any keyframes beyond the new duration (don't delete them)
-      const clampedTracks = currentKf.tracks.map(track => ({
-        ...track,
-        keyframes: track.keyframes.map(kf =>
-          kf.time > v ? { ...kf, time: v } : kf
-        ),
-      }));
-      _setKeyframes({ ...currentKf, duration: v, tracks: clampedTracks });
+      // Only clamp keyframes when duration is reduced
+      if (v < currentKf.duration) {
+        const clampedTracks = currentKf.tracks.map(track => ({
+          ...track,
+          keyframes: track.keyframes.map(kf =>
+            kf.time > v ? { ...kf, time: v } : kf
+          ),
+        }));
+        _setKeyframes({ ...currentKf, duration: v, tracks: clampedTracks });
+      } else {
+        _setKeyframes({ ...currentKf, duration: v });
+      }
     }
   });
   durRow.appendChild(durInput);
