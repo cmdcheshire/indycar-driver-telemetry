@@ -651,6 +651,36 @@
       font-variant-numeric: tabular-nums;
     }
 
+    /* ---- Alignment Icon Buttons ---- */
+    .align-btn-group {
+      display: flex;
+      gap: 1px;
+      background: var(--border);
+      border-radius: var(--radius-sm, 4px);
+      overflow: hidden;
+    }
+    .align-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 26px;
+      background: var(--surface-alt, #1A1F2E);
+      border: none;
+      color: var(--text-muted, #9CA3AF);
+      cursor: pointer;
+      padding: 0;
+      transition: background 0.1s, color 0.1s;
+    }
+    .align-btn:hover {
+      background: var(--border, #2D3748);
+      color: var(--text, #F3F4F6);
+    }
+    .align-btn.active {
+      background: var(--accent-light, rgba(88,101,242,0.15));
+      color: var(--accent, #5865f2);
+    }
+
     /* ---- Font Preview Dropdown ---- */
     .font-select-wrapper {
       position: relative;

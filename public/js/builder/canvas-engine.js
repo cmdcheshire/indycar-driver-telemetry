@@ -255,7 +255,7 @@ export class CanvasEngine {
         node.style.textAlign = p.textAlign || 'left';
         node.style.lineHeight = p.lineHeight || '1.3';
         node.style.display = 'flex';
-        node.style.alignItems = 'center';
+        node.style.alignItems = this.#mapVerticalAlign(p.verticalAlign);
         node.style.justifyContent = this.#mapTextAlign(p.textAlign);
         node.style.textTransform = p.textTransform || '';
         node.style.overflow = p.fitText ? 'hidden' : (p.overflow || '');
@@ -311,7 +311,7 @@ export class CanvasEngine {
         node.style.textAlign = p.textAlign || 'left';
         node.style.lineHeight = p.lineHeight || '1.3';
         node.style.display = 'flex';
-        node.style.alignItems = 'center';
+        node.style.alignItems = this.#mapVerticalAlign(p.verticalAlign);
         node.style.justifyContent = this.#mapTextAlign(p.textAlign);
         node.style.textTransform = p.textTransform || '';
         node.style.overflow = p.fitText ? 'hidden' : (p.overflow || '');
@@ -422,6 +422,16 @@ export class CanvasEngine {
       case 'right':  return 'flex-end';
       case 'left':
       default:       return 'flex-start';
+    }
+  }
+
+  #mapVerticalAlign(align) {
+    switch (align) {
+      case 'top':    return 'flex-start';
+      case 'bottom': return 'flex-end';
+      case 'center':
+      case 'middle':
+      default:       return 'center';
     }
   }
 

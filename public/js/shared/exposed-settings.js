@@ -31,10 +31,15 @@ export const EXPOSABLE_SETTINGS = {
     ]},
     { key: 'color', label: 'Color', inputType: 'color' },
     { key: 'backgroundColor', label: 'Background', inputType: 'color' },
-    { key: 'textAlign', label: 'Alignment', inputType: 'select', options: [
+    { key: 'textAlign', label: 'H-Align', inputType: 'select', options: [
       { value: 'left', label: 'Left' },
       { value: 'center', label: 'Center' },
       { value: 'right', label: 'Right' },
+    ]},
+    { key: 'verticalAlign', label: 'V-Align', inputType: 'select', options: [
+      { value: 'top', label: 'Top' },
+      { value: 'center', label: 'Center' },
+      { value: 'bottom', label: 'Bottom' },
     ]},
     { key: 'textTransform', label: 'Transform', inputType: 'select', options: [
       { value: '', label: 'None' },
@@ -93,10 +98,15 @@ export const EXPOSABLE_SETTINGS = {
       { value: '700', label: 'Bold' },
       { value: '900', label: 'Black' },
     ]},
-    { key: 'textAlign', label: 'Alignment', inputType: 'select', options: [
+    { key: 'textAlign', label: 'H-Align', inputType: 'select', options: [
       { value: 'left', label: 'Left' },
       { value: 'center', label: 'Center' },
       { value: 'right', label: 'Right' },
+    ]},
+    { key: 'verticalAlign', label: 'V-Align', inputType: 'select', options: [
+      { value: 'top', label: 'Top' },
+      { value: 'center', label: 'Center' },
+      { value: 'bottom', label: 'Bottom' },
     ]},
     { key: 'textTransform', label: 'Transform', inputType: 'select', options: [
       { value: '', label: 'None' },

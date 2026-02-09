@@ -268,11 +268,10 @@ function _addTextProps(p) {
       _colorInputWithSwatch('Color', p.color || '#FFFFFF', (v) => _emitProp({ color: v })),
       _colorInputWithSwatch('BG', p.backgroundColor || 'transparent', (v) => _emitProp({ backgroundColor: v })),
     ]),
-    _selectInput('Align', p.textAlign || 'left', [
-      { value: 'left', label: 'Left' },
-      { value: 'center', label: 'Center' },
-      { value: 'right', label: 'Right' },
-    ], (v) => _emitProp({ textAlign: v })),
+    _alignButtonGroup(p.textAlign || 'left', p.verticalAlign || 'top',
+      (v) => _emitProp({ textAlign: v }),
+      (v) => _emitProp({ verticalAlign: v }),
+    ),
     _selectInput('Transform', p.textTransform || '', [
       { value: '', label: 'None' },
       { value: 'uppercase', label: 'Uppercase' },
@@ -857,6 +856,80 @@ function _textareaInput(label, value, onChange) {
   textarea.value = value;
   textarea.addEventListener('input', () => onChange(textarea.value));
   wrapper.appendChild(textarea);
+  return wrapper;
+}
+
+/**
+ * Alignment icon button group — horizontal (left/center/right) + vertical (top/center/bottom).
+ */
+function _alignButtonGroup(hValue, vValue, onHChange, onVChange) {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'prop-row';
+  wrapper.style.flexDirection = 'column';
+  wrapper.style.gap = '4px';
+
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex; gap:2px; align-items:center;';
+
+  const lbl = document.createElement('label');
+  lbl.textContent = 'Align';
+  lbl.style.minWidth = '36px';
+  row.appendChild(lbl);
+
+  // Horizontal align buttons
+  const hGroup = document.createElement('div');
+  hGroup.className = 'align-btn-group';
+
+  const hOptions = [
+    { value: 'left',   title: 'Align left',   svg: '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="2" width="10" height="2" rx="0.5"/><rect x="1" y="7" width="14" height="2" rx="0.5"/><rect x="1" y="12" width="8" height="2" rx="0.5"/></svg>' },
+    { value: 'center', title: 'Align center', svg: '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="2" width="10" height="2" rx="0.5"/><rect x="1" y="7" width="14" height="2" rx="0.5"/><rect x="4" y="12" width="8" height="2" rx="0.5"/></svg>' },
+    { value: 'right',  title: 'Align right',  svg: '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="5" y="2" width="10" height="2" rx="0.5"/><rect x="1" y="7" width="14" height="2" rx="0.5"/><rect x="7" y="12" width="8" height="2" rx="0.5"/></svg>' },
+  ];
+
+  for (const opt of hOptions) {
+    const btn = document.createElement('button');
+    btn.className = 'align-btn' + (opt.value === hValue ? ' active' : '');
+    btn.title = opt.title;
+    btn.innerHTML = opt.svg;
+    btn.addEventListener('click', () => {
+      hGroup.querySelectorAll('.align-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      onHChange(opt.value);
+    });
+    hGroup.appendChild(btn);
+  }
+  row.appendChild(hGroup);
+
+  // Separator
+  const sep = document.createElement('div');
+  sep.style.cssText = 'width:1px; height:18px; background:var(--border); margin:0 4px;';
+  row.appendChild(sep);
+
+  // Vertical align buttons
+  const vGroup = document.createElement('div');
+  vGroup.className = 'align-btn-group';
+
+  const vOptions = [
+    { value: 'top',    title: 'Align top',    svg: '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="2" y="1" width="2" height="10" rx="0.5"/><rect x="7" y="1" width="2" height="14" rx="0.5"/><rect x="12" y="1" width="2" height="8" rx="0.5"/></svg>' },
+    { value: 'center', title: 'Align middle', svg: '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="2" y="3" width="2" height="10" rx="0.5"/><rect x="7" y="1" width="2" height="14" rx="0.5"/><rect x="12" y="4" width="2" height="8" rx="0.5"/></svg>' },
+    { value: 'bottom', title: 'Align bottom', svg: '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="2" y="5" width="2" height="10" rx="0.5"/><rect x="7" y="1" width="2" height="14" rx="0.5"/><rect x="12" y="7" width="2" height="8" rx="0.5"/></svg>' },
+  ];
+
+  for (const opt of vOptions) {
+    const btn = document.createElement('button');
+    btn.className = 'align-btn' + (opt.value === vValue ? ' active' : '');
+    btn.title = opt.title;
+    btn.innerHTML = opt.svg;
+    btn.addEventListener('click', () => {
+      vGroup.querySelectorAll('.align-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      onVChange(opt.value);
+    });
+    vGroup.appendChild(btn);
+  }
+  row.appendChild(vGroup);
+
+  wrapper.appendChild(row);
   return wrapper;
 }
 

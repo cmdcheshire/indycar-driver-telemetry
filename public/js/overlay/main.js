@@ -633,6 +633,10 @@ function applyElementOverrides(overrides) {
       styleMap.justifyContent = alignMap[props.textAlign] || 'flex-start';
       styleMap.textAlign = props.textAlign;
     }
+    if (props.verticalAlign !== undefined) {
+      const vMap = { top: 'flex-start', center: 'center', middle: 'center', bottom: 'flex-end' };
+      styleMap.alignItems = vMap[props.verticalAlign] || 'center';
+    }
     if (props.strokeColor !== undefined) {
       const sw = props.strokeWidth || 1;
       styleMap.border = `${sw}px solid ${props.strokeColor}`;
