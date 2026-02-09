@@ -21,6 +21,8 @@ import {
 import { getExposableSettings } from '/js/shared/exposed-settings.js';
 import { getCustomFontOptions, registerUploadedFont } from '/js/shared/font-loader.js';
 import { openAnimationDesigner } from './animation-designer.js';
+import { BINDABLE_PROPERTIES } from '/js/shared/expression-engine.js';
+import { SCENE3D_SUBTYPES } from '/js/shared/scene3d-utils.js';
 
 /** @type {Function} */
 let onPropertyChange = null;
@@ -148,6 +150,18 @@ export function updatePropertiesPanel(element) {
     ]),
   ]);
 
+  // 3D Transform
+  _addCollapsibleGroup('3D Transform', [
+    _row([
+      _numberInput('Rot X', element.rotationX || 0, -360, 360, 1, (v) => _emit({ rotationX: v })),
+      _numberInput('Rot Y', element.rotationY || 0, -360, 360, 1, (v) => _emit({ rotationY: v })),
+    ]),
+    _row([
+      _numberInput('Z', element.z || 0, -500, 500, 1, (v) => _emit({ z: v })),
+      _numberInput('Persp', element.perspective || 0, 0, 5000, 50, (v) => _emit({ perspective: v })),
+    ]),
+  ], true);
+
   // Clipping mask
   _addClippingSection(element);
 
@@ -176,7 +190,13 @@ export function updatePropertiesPanel(element) {
     case 'ringSegment':
       _addRingSegmentProps(p);
       break;
+    case 'scene3d':
+      _addScene3dProps(p);
+      break;
   }
+
+  // Universal visual bindings (all element types)
+  _addBindingsSection(element);
 
   // Animation (all element types)
   _addAnimationSection(element);
@@ -680,6 +700,97 @@ function _addBindingControls(p) {
   ]);
 }
 
+function _addScene3dProps(p) {
+  const subType = p.subType || 'text3d';
+
+  // Sub-type selector
+  _addCollapsibleGroup('3D Scene', [
+    _selectInput('Type', subType, SCENE3D_SUBTYPES.map(t => ({ value: t.value, label: t.label })), (v) => {
+      _emitProp({ subType: v });
+      if (currentElement) {
+        currentElement.props = { ...(currentElement.props || {}), subType: v };
+        updatePropertiesPanel(currentElement);
+      }
+    }),
+  ]);
+
+  // Camera controls
+  const camPos = p.cameraPosition || { x: 0, y: 0, z: 3 };
+  _addCollapsibleGroup('Camera', [
+    _numberInput('FOV', p.cameraFov ?? 50, 10, 120, 1, (v) => _emitProp({ cameraFov: v })),
+    _row([
+      _numberInput('Cam X', camPos.x, -50, 50, 0.1, (v) => _emitProp({ cameraPosition: { ...camPos, x: v } })),
+      _numberInput('Cam Y', camPos.y, -50, 50, 0.1, (v) => _emitProp({ cameraPosition: { ...camPos, y: v } })),
+      _numberInput('Cam Z', camPos.z, -50, 50, 0.1, (v) => _emitProp({ cameraPosition: { ...camPos, z: v } })),
+    ]),
+  ], true);
+
+  // Lighting controls
+  _addCollapsibleGroup('Lighting', [
+    _row([
+      _colorInputWithSwatch('Ambient', p.ambientColor || '#ffffff', (v) => _emitProp({ ambientColor: v })),
+      _numberInput('Intensity', p.ambientIntensity ?? 0.6, 0, 3, 0.1, (v) => _emitProp({ ambientIntensity: v })),
+    ]),
+    _row([
+      _colorInputWithSwatch('Direct', p.directionalColor || '#ffffff', (v) => _emitProp({ directionalColor: v })),
+      _numberInput('Intensity', p.directionalIntensity ?? 1.0, 0, 5, 0.1, (v) => _emitProp({ directionalIntensity: v })),
+    ]),
+  ], true);
+
+  // Rotation controls
+  _addCollapsibleGroup('Rotation', [
+    _selectInput('Auto Rotate', p.autoRotate !== false ? 'true' : 'false', [
+      { value: 'true', label: 'On' },
+      { value: 'false', label: 'Off' },
+    ], (v) => _emitProp({ autoRotate: v === 'true' })),
+    _numberInput('Speed', p.rotateSpeed ?? 0.01, 0, 0.1, 0.001, (v) => _emitProp({ rotateSpeed: v })),
+  ], true);
+
+  // Sub-type specific controls
+  switch (subType) {
+    case 'modelViewer':
+      _addCollapsibleGroup('Model', [
+        _textInput('Model URL', p.modelUrl || '', (v) => _emitProp({ modelUrl: v })),
+        _colorInputWithSwatch('Color', p.modelColor || '#5865f2', (v) => _emitProp({ modelColor: v })),
+        _row([
+          _numberInput('Metal', p.metalness ?? 0.3, 0, 1, 0.05, (v) => _emitProp({ metalness: v })),
+          _numberInput('Rough', p.roughness ?? 0.6, 0, 1, 0.05, (v) => _emitProp({ roughness: v })),
+        ]),
+      ]);
+      break;
+
+    case 'text3d':
+      _addCollapsibleGroup('3D Text', [
+        _textInput('Text', p.text3d || '3D', (v) => _emitProp({ text3d: v })),
+        _row([
+          _colorInputWithSwatch('Front', p.text3dColor || '#ffffff', (v) => _emitProp({ text3dColor: v })),
+          _colorInputWithSwatch('Side', p.text3dSideColor || '#5865f2', (v) => _emitProp({ text3dSideColor: v })),
+        ]),
+        _row([
+          _numberInput('Depth', p.text3dDepth ?? 0.3, 0.05, 2, 0.05, (v) => _emitProp({ text3dDepth: v })),
+          _numberInput('Size', p.text3dFontSize ?? 120, 20, 300, 1, (v) => _emitProp({ text3dFontSize: v })),
+        ]),
+      ]);
+      break;
+
+    case 'particles':
+      _addCollapsibleGroup('Particles', [
+        _row([
+          _numberInput('Count', p.particleCount ?? 200, 10, 2000, 10, (v) => _emitProp({ particleCount: v })),
+          _numberInput('Spread', p.particleSpread ?? 3, 0.5, 20, 0.5, (v) => _emitProp({ particleSpread: v })),
+        ]),
+        _row([
+          _numberInput('Size', p.particleSize ?? 0.05, 0.01, 0.5, 0.01, (v) => _emitProp({ particleSize: v })),
+          _numberInput('Opacity', p.particleOpacity ?? 0.8, 0, 1, 0.05, (v) => _emitProp({ particleOpacity: v })),
+        ]),
+        _colorInputWithSwatch('Color', p.particleColor || '#5865f2', (v) => _emitProp({ particleColor: v })),
+      ]);
+      break;
+  }
+
+  _addBindingControls(p);
+}
+
 function _addDataProps(p) {
   _addTextProps(p);
 
@@ -796,6 +907,424 @@ function _addDataProps(p) {
     _textInput('Suffix', p.suffix || '', (v) => _emitProp({ suffix: v })),
     _textInput('Fallback', p.fallback || '---', (v) => _emitProp({ fallback: v })),
   ]);
+}
+
+/* ---- Universal Bindings Section ---- */
+
+function _addBindingsSection(element) {
+  const bindings = element.bindings || [];
+  const children = [];
+
+  if (bindings.length === 0) {
+    const empty = document.createElement('div');
+    empty.style.cssText = 'font-size:0.75rem; color:var(--text-dim,#8b8fa3); padding:2px 0;';
+    empty.textContent = 'No visual bindings';
+    children.push(empty);
+  }
+
+  // Render each binding card
+  for (let i = 0; i < bindings.length; i++) {
+    children.push(_bindingCard(element, bindings[i], i));
+  }
+
+  // Add binding button
+  const addBtn = document.createElement('button');
+  addBtn.className = 'btn btn-sm';
+  addBtn.style.cssText = 'width:100%; margin-top:4px;';
+  addBtn.textContent = '+ Add Binding';
+  addBtn.addEventListener('click', () => {
+    const newBinding = {
+      id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2),
+      target: 'opacity',
+      source: '',
+      field: '',
+      car: '',
+      mode: 'range',
+      range: { inputMin: 0, inputMax: 100, outputMin: 0, outputMax: 1, clamp: true },
+      colorRange: { stops: [{ value: 0, color: '#00ff00' }, { value: 100, color: '#ff0000' }] },
+      expression: '',
+      advanced: false,
+      smoothing: 0,
+    };
+    const updated = [...bindings, newBinding];
+    _emit({ bindings: updated });
+    if (currentElement) {
+      currentElement.bindings = updated;
+      updatePropertiesPanel(currentElement);
+    }
+  });
+  children.push(addBtn);
+
+  _addCollapsibleGroup('Bindings', children, true);
+}
+
+function _bindingCard(element, binding, index) {
+  const card = document.createElement('div');
+  card.style.cssText = 'border:1px solid var(--border,#2a2d35); border-radius:6px; padding:6px; margin-bottom:4px; background:var(--bg-elevated,#1e2028);';
+
+  // Header row: target + delete
+  const headerRow = document.createElement('div');
+  headerRow.style.cssText = 'display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;';
+
+  // Target property dropdown
+  const targetOptions = Object.entries(BINDABLE_PROPERTIES).map(([key, def]) => ({
+    value: key, label: def.label,
+  }));
+  const targetSelect = document.createElement('select');
+  targetSelect.className = 'select';
+  targetSelect.style.cssText = 'flex:1; font-size:0.75rem;';
+  for (const opt of targetOptions) {
+    const option = document.createElement('option');
+    option.value = opt.value;
+    option.textContent = opt.label;
+    if (opt.value === binding.target) option.selected = true;
+    targetSelect.appendChild(option);
+  }
+  targetSelect.addEventListener('change', () => {
+    binding.target = targetSelect.value;
+    // Auto-switch mode for color properties
+    const propDef = BINDABLE_PROPERTIES[targetSelect.value];
+    if (propDef?.type === 'color' && binding.mode === 'range') {
+      binding.mode = 'colorRange';
+    } else if (propDef?.type === 'boolean') {
+      binding.mode = 'visibility';
+    } else if (propDef?.type === 'number' && binding.mode === 'colorRange') {
+      binding.mode = 'range';
+    }
+    _emitBindings(element);
+    updatePropertiesPanel(currentElement);
+  });
+  headerRow.appendChild(targetSelect);
+
+  const delBtn = document.createElement('button');
+  delBtn.className = 'btn btn-sm';
+  delBtn.textContent = '×';
+  delBtn.style.cssText = 'padding:0 6px; min-width:20px; margin-left:4px; color:#ff5252;';
+  delBtn.addEventListener('click', () => {
+    const updated = element.bindings.filter((_, j) => j !== index);
+    _emit({ bindings: updated });
+    if (currentElement) {
+      currentElement.bindings = updated;
+      updatePropertiesPanel(currentElement);
+    }
+  });
+  headerRow.appendChild(delBtn);
+  card.appendChild(headerRow);
+
+  // Source + Field + Car
+  const sourceOptions = [
+    { value: '', label: '-- Select --' },
+    ...BINDING_SOURCES.map(s => ({ value: s.source, label: s.label })),
+  ];
+  card.appendChild(_miniSelect('Source', binding.source || '', sourceOptions, (v) => {
+    binding.source = v;
+    binding.field = '';
+    _emitBindings(element);
+    updatePropertiesPanel(currentElement);
+  }));
+
+  if (binding.source) {
+    const fields = getFieldsForSource(binding.source);
+    card.appendChild(_miniSelect('Field', binding.field || '', [
+      { value: '', label: '-- Select --' },
+      ...fields.map(f => ({ value: f.field, label: f.label })),
+    ], (v) => {
+      binding.field = v;
+      _emitBindings(element);
+    }));
+  }
+
+  // Car selector (simplified)
+  const rawCar = binding.car || '';
+  let carBase = rawCar;
+  let carSecondary = '';
+  const colonIdx = rawCar.indexOf(':');
+  if (colonIdx !== -1) {
+    carBase = rawCar.substring(0, colonIdx);
+    carSecondary = rawCar.substring(colonIdx + 1);
+  }
+
+  card.appendChild(_miniSelect('Car', carBase, [
+    { value: '', label: '-- None --' },
+    ...CAR_SELECTORS.map(s => ({ value: s.value, label: s.label })),
+  ], (v) => {
+    if (v === 'byRank' || v === 'byCar') {
+      binding.car = v === 'byRank' ? `${v}:1` : v;
+    } else {
+      binding.car = v;
+    }
+    _emitBindings(element);
+    updatePropertiesPanel(currentElement);
+  }));
+
+  if (carBase === 'byRank') {
+    const rankRow = document.createElement('div');
+    rankRow.className = 'prop-row';
+    rankRow.style.cssText = 'padding:0; margin:2px 0;';
+    const rankInput = document.createElement('input');
+    rankInput.type = 'number';
+    rankInput.className = 'input';
+    rankInput.style.cssText = 'width:50px; font-size:0.75rem;';
+    rankInput.value = carSecondary || '1';
+    rankInput.min = '1';
+    rankInput.max = '40';
+    rankInput.addEventListener('input', () => {
+      binding.car = `byRank:${rankInput.value}`;
+      _emitBindings(element);
+    });
+    const rankLbl = document.createElement('label');
+    rankLbl.textContent = 'Rank';
+    rankLbl.style.fontSize = '0.7rem';
+    rankRow.appendChild(rankLbl);
+    rankRow.appendChild(rankInput);
+    card.appendChild(rankRow);
+  } else if (carBase === 'byCar') {
+    const carRow = document.createElement('div');
+    carRow.className = 'prop-row';
+    carRow.style.cssText = 'padding:0; margin:2px 0;';
+    const carInput = document.createElement('input');
+    carInput.type = 'text';
+    carInput.className = 'input';
+    carInput.style.cssText = 'width:50px; font-size:0.75rem;';
+    carInput.value = carSecondary || '';
+    carInput.placeholder = '#';
+    carInput.addEventListener('input', () => {
+      binding.car = carInput.value ? `byCar:${carInput.value}` : 'byCar';
+      _emitBindings(element);
+    });
+    const carLbl = document.createElement('label');
+    carLbl.textContent = 'Car #';
+    carLbl.style.fontSize = '0.7rem';
+    carRow.appendChild(carLbl);
+    carRow.appendChild(carInput);
+    card.appendChild(carRow);
+  }
+
+  // Mode selector
+  const propDef = BINDABLE_PROPERTIES[binding.target];
+  const modeOptions = [];
+  if (propDef?.type === 'number') {
+    modeOptions.push({ value: 'range', label: 'Range Map' });
+    modeOptions.push({ value: 'expression', label: 'Expression' });
+  } else if (propDef?.type === 'color') {
+    modeOptions.push({ value: 'colorRange', label: 'Color Range' });
+    modeOptions.push({ value: 'expression', label: 'Expression' });
+  } else if (propDef?.type === 'boolean') {
+    modeOptions.push({ value: 'visibility', label: 'Visibility' });
+    modeOptions.push({ value: 'expression', label: 'Expression' });
+  }
+  // Always allow expression
+  if (!modeOptions.find(m => m.value === 'expression')) {
+    modeOptions.push({ value: 'expression', label: 'Expression' });
+  }
+
+  card.appendChild(_miniSelect('Mode', binding.mode || 'range', modeOptions, (v) => {
+    binding.mode = v;
+    _emitBindings(element);
+    updatePropertiesPanel(currentElement);
+  }));
+
+  // Mode-specific controls
+  if (binding.mode === 'range') {
+    const range = binding.range || { inputMin: 0, inputMax: 100, outputMin: 0, outputMax: 1, clamp: true };
+    card.appendChild(_miniRow([
+      _miniNumber('In Min', range.inputMin, (v) => { range.inputMin = v; binding.range = { ...range }; _emitBindings(element); }),
+      _miniNumber('In Max', range.inputMax, (v) => { range.inputMax = v; binding.range = { ...range }; _emitBindings(element); }),
+    ]));
+    card.appendChild(_miniRow([
+      _miniNumber('Out Min', range.outputMin, (v) => { range.outputMin = v; binding.range = { ...range }; _emitBindings(element); }),
+      _miniNumber('Out Max', range.outputMax, (v) => { range.outputMax = v; binding.range = { ...range }; _emitBindings(element); }),
+    ]));
+  }
+
+  if (binding.mode === 'colorRange') {
+    const colorRange = binding.colorRange || { stops: [{ value: 0, color: '#00ff00' }, { value: 100, color: '#ff0000' }] };
+    card.appendChild(_bindingColorStops(element, binding, colorRange.stops));
+  }
+
+  if (binding.mode === 'expression' || binding.mode === 'visibility') {
+    const exprRow = document.createElement('div');
+    exprRow.style.cssText = 'margin-top:4px;';
+
+    const textarea = document.createElement('textarea');
+    textarea.className = 'input';
+    textarea.style.cssText = 'width:100%; min-height:36px; resize:vertical; font-size:0.72rem; font-family:monospace;';
+    textarea.value = binding.expression || '';
+    textarea.placeholder = binding.mode === 'visibility' ? 'speed > 100' : 'map(speed, 0, 200, 0, 1)';
+    textarea.addEventListener('input', () => {
+      binding.expression = textarea.value;
+      _emitBindings(element);
+    });
+    exprRow.appendChild(textarea);
+
+    // Advanced toggle
+    const advRow = document.createElement('label');
+    advRow.style.cssText = 'display:flex; align-items:center; gap:4px; font-size:0.7rem; color:var(--text-dim); margin-top:2px; cursor:pointer;';
+    const advCb = document.createElement('input');
+    advCb.type = 'checkbox';
+    advCb.checked = !!binding.advanced;
+    advCb.style.cssText = 'accent-color:var(--accent); margin:0;';
+    advCb.addEventListener('change', () => {
+      binding.advanced = advCb.checked;
+      _emitBindings(element);
+    });
+    advRow.appendChild(advCb);
+    advRow.appendChild(document.createTextNode('Advanced (multi-statement)'));
+    exprRow.appendChild(advRow);
+
+    card.appendChild(exprRow);
+  }
+
+  // Smoothing slider
+  if (binding.mode === 'range' || binding.mode === 'colorRange') {
+    const smoothRow = document.createElement('div');
+    smoothRow.className = 'prop-row';
+    smoothRow.style.cssText = 'padding:0; margin:4px 0 0;';
+
+    const smoothLbl = document.createElement('label');
+    smoothLbl.textContent = 'Smooth';
+    smoothLbl.style.fontSize = '0.7rem';
+    smoothRow.appendChild(smoothLbl);
+
+    const smoothRange = document.createElement('input');
+    smoothRange.type = 'range';
+    smoothRange.min = '0';
+    smoothRange.max = '0.95';
+    smoothRange.step = '0.05';
+    smoothRange.value = String(binding.smoothing || 0);
+    smoothRange.style.flex = '1';
+    smoothRange.addEventListener('input', () => {
+      binding.smoothing = parseFloat(smoothRange.value);
+      _emitBindings(element);
+    });
+    smoothRow.appendChild(smoothRange);
+
+    card.appendChild(smoothRow);
+  }
+
+  return card;
+}
+
+function _bindingColorStops(element, binding, stops) {
+  const container = document.createElement('div');
+  container.style.cssText = 'margin-top:4px; display:flex; flex-direction:column; gap:2px;';
+
+  for (let i = 0; i < stops.length; i++) {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex; align-items:center; gap:4px;';
+
+    const valInput = document.createElement('input');
+    valInput.type = 'number';
+    valInput.className = 'input';
+    valInput.style.cssText = 'width:45px; font-size:0.72rem;';
+    valInput.value = String(stops[i].value);
+    valInput.addEventListener('input', () => {
+      stops[i] = { ...stops[i], value: parseFloat(valInput.value) || 0 };
+      binding.colorRange = { stops: [...stops] };
+      _emitBindings(element);
+    });
+    row.appendChild(valInput);
+
+    const colorInput = document.createElement('input');
+    colorInput.type = 'color';
+    colorInput.value = stops[i].color;
+    colorInput.style.cssText = 'width:24px; height:20px; border:none; cursor:pointer;';
+    colorInput.addEventListener('input', () => {
+      stops[i] = { ...stops[i], color: colorInput.value };
+      binding.colorRange = { stops: [...stops] };
+      _emitBindings(element);
+    });
+    row.appendChild(colorInput);
+
+    if (stops.length > 2) {
+      const delBtn = document.createElement('button');
+      delBtn.className = 'btn btn-sm';
+      delBtn.textContent = '×';
+      delBtn.style.cssText = 'padding:0 3px; min-width:16px; font-size:0.7rem;';
+      delBtn.addEventListener('click', () => {
+        stops.splice(i, 1);
+        binding.colorRange = { stops: [...stops] };
+        _emitBindings(element);
+        updatePropertiesPanel(currentElement);
+      });
+      row.appendChild(delBtn);
+    }
+    container.appendChild(row);
+  }
+
+  const addBtn = document.createElement('button');
+  addBtn.className = 'btn btn-sm';
+  addBtn.style.cssText = 'font-size:0.7rem;';
+  addBtn.textContent = '+ Stop';
+  addBtn.addEventListener('click', () => {
+    stops.push({ value: 100, color: '#ffffff' });
+    binding.colorRange = { stops: [...stops] };
+    _emitBindings(element);
+    updatePropertiesPanel(currentElement);
+  });
+  container.appendChild(addBtn);
+
+  return container;
+}
+
+function _miniSelect(label, value, options, onChange) {
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex; align-items:center; gap:4px; margin:2px 0;';
+
+  const lbl = document.createElement('label');
+  lbl.textContent = label;
+  lbl.style.cssText = 'font-size:0.7rem; min-width:36px; color:var(--text-dim,#8b8fa3);';
+  row.appendChild(lbl);
+
+  const select = document.createElement('select');
+  select.className = 'select';
+  select.style.cssText = 'flex:1; font-size:0.72rem;';
+  for (const opt of options) {
+    const option = document.createElement('option');
+    option.value = opt.value;
+    option.textContent = opt.label;
+    if (opt.value === value) option.selected = true;
+    select.appendChild(option);
+  }
+  select.addEventListener('change', () => onChange(select.value));
+  row.appendChild(select);
+  return row;
+}
+
+function _miniRow(children) {
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex; gap:4px; margin:2px 0;';
+  for (const child of children) row.appendChild(child);
+  return row;
+}
+
+function _miniNumber(label, value, onChange) {
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = 'flex:1; display:flex; flex-direction:column; gap:1px;';
+
+  const lbl = document.createElement('label');
+  lbl.textContent = label;
+  lbl.style.cssText = 'font-size:0.65rem; color:var(--text-dim,#8b8fa3);';
+  wrapper.appendChild(lbl);
+
+  const input = document.createElement('input');
+  input.type = 'number';
+  input.className = 'input';
+  input.style.cssText = 'font-size:0.72rem; width:100%;';
+  input.value = String(value ?? 0);
+  input.step = 'any';
+  input.addEventListener('input', () => {
+    const v = parseFloat(input.value);
+    if (!isNaN(v)) onChange(v);
+  });
+  wrapper.appendChild(input);
+  return wrapper;
+}
+
+function _emitBindings(element) {
+  if (currentElement && onPropertyChange) {
+    onPropertyChange(currentElement.id, { bindings: [...(element.bindings || [])] });
+  }
 }
 
 /* ---- Animation Section ---- */

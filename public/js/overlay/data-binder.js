@@ -5,8 +5,9 @@
  * resolves template bindings, and updates the DOM only when values change.
  */
 
-import { updateElementText, updateElementStyle, updateGaugeValue } from './element-renderer.js';
+import { updateElementText, updateElementStyle, updateGaugeValue, updateScene3dValue } from './element-renderer.js';
 import { GsapAnimationEngine } from './gsap-animation-engine.js';
+import { BindingResolver } from '/js/shared/binding-resolver.js';
 
 // ---------------------------------------------------------------------------
 // Formatting utilities
@@ -91,6 +92,9 @@ export class DataBinder {
     this._gaugeTypes = new Set(['arcGauge', 'barGauge', 'ringSegment']);
     this._gaugeElements = this._elements.filter(el => this._gaugeTypes.has(el.type));
 
+    /** Filter to scene3d elements for 3D data binding */
+    this._scene3dElements = this._elements.filter(el => el.type === 'scene3d');
+
     /** Previous gauge values for dirty checking */
     this._previousGaugeValues = {};
 
@@ -106,6 +110,9 @@ export class DataBinder {
 
     /** Animation engine instance for position transitions and emphasis */
     this._animationEngine = animationEngine || new GsapAnimationEngine(domMap);
+
+    /** Universal visual bindings resolver */
+    this._bindingResolver = new BindingResolver(this._elements, this._domMap);
   }
 
   // -----------------------------------------------------------------------
@@ -276,6 +283,59 @@ export class DataBinder {
         updateGaugeValue(domNode, displayValue, element);
       }
     }
+  }
+
+  /**
+   * Walk every scene3d element and update its 3D scene from data bindings.
+   */
+  resolveScene3dBindings() {
+    for (const element of this._scene3dElements) {
+      const domNode = this._domMap.get(element.id);
+      if (!domNode) continue;
+
+      const binding = {
+        source: element.source,
+        field:  element.field,
+        car:    element.car,
+      };
+
+      const rawValue = this.resolveValue(binding);
+      if (rawValue === undefined || rawValue === null) continue;
+
+      const numValue = parseFloat(rawValue);
+      if (!isNaN(numValue)) {
+        updateScene3dValue(domNode, 'rotation', numValue);
+      }
+    }
+  }
+
+  /**
+   * Walk every element with universal bindings, resolve values, and apply to DOM.
+   * Called after resolveBindings() and resolveGaugeBindings() each data tick.
+   */
+  resolveUniversalBindings() {
+    this._bindingResolver.resolveAll(
+      // Value resolver: delegates to existing resolveValue()
+      (source, field, car) => this.resolveValue({ source, field, car }),
+      // Context builder: provides all fields for the bound car as a flat object (for expressions)
+      (element, binding) => {
+        const source = binding.source;
+        const car = binding.car;
+        const data = this._dataStore[source];
+        if (!data) return {};
+
+        if (Array.isArray(data)) {
+          const carNumber = this.resolveCarNumber(car);
+          if (!carNumber) return {};
+          const entry = data.find(item =>
+            String(item.carNumber || item.Car || item.car) === String(carNumber)
+          );
+          return entry || {};
+        }
+
+        return typeof data === 'object' ? data : {};
+      }
+    );
   }
 
   // -----------------------------------------------------------------------

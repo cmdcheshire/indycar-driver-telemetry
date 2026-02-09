@@ -326,6 +326,8 @@
       width: 1920px;
       height: 1080px;
       overflow: visible;
+      perspective: 1200px;
+      transform-style: preserve-3d;
       /* Checkerboard transparency pattern */
       background-image:
         linear-gradient(45deg, #1a1a2e 25%, transparent 25%),
@@ -362,6 +364,22 @@
 
     .canvas-element.hidden-element {
       opacity: 0.25 !important;
+    }
+
+    .canvas-element.has-bindings::after {
+      content: '\u26A1';
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      width: 14px;
+      height: 14px;
+      font-size: 10px;
+      line-height: 14px;
+      text-align: center;
+      background: var(--accent, #5865f2);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 100;
     }
 
     /* Selection handles */
@@ -1768,6 +1786,7 @@
     </div>
   </div>
 
+  <script src="/js/vendor/three.min.js"></script>
   <script src="/js/vendor/gsap.min.js"></script>
   <script type="module">
     // Register motorsport easings before builder modules load

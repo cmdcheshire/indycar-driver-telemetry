@@ -49,6 +49,12 @@ const TOOLS = [
     shortcut: 'G',
     icon: `<svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3.5 13.5a7 7 0 0 1 11 0"/><path d="M9 4v2"/><path d="M9 9l2.5-2.5"/></svg>`,
   },
+  {
+    id: 'scene3d',
+    label: '3D',
+    shortcut: '3',
+    icon: `<svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M9 2l7 4v6l-7 4-7-4V6z"/><path d="M9 2v8"/><path d="M2 6l7 4"/><path d="M16 6l-7 4"/></svg>`,
+  },
 ];
 
 /**

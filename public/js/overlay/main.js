@@ -245,6 +245,10 @@ async function handleInit(msg) {
 
   // Build the DOM from the template
   const rootEl = document.getElementById('overlay-root');
+  // Dispose scene3d controllers before clearing DOM (frees WebGL resources)
+  rootEl.querySelectorAll('[data-scene3d-type]').forEach(node => {
+    if (node.__scene3dController) node.__scene3dController.dispose();
+  });
   rootEl.innerHTML = '';
 
   domMap = buildOverlay(rootEl, currentTemplate, referenceData);
@@ -273,6 +277,8 @@ async function handleInit(msg) {
     }
     dataBinder.resolveBindings();
     dataBinder.resolveGaugeBindings();
+    dataBinder.resolveScene3dBindings();
+    dataBinder.resolveUniversalBindings();
   }
 
   // Apply element overrides from config
@@ -317,6 +323,8 @@ function handleDataUpdate(msg) {
 
   dataBinder.resolveBindings();
   dataBinder.resolveGaugeBindings();
+  dataBinder.resolveScene3dBindings();
+  dataBinder.resolveUniversalBindings();
 }
 
 // ---------------------------------------------------------------------------
@@ -590,6 +598,11 @@ function handleTemplateUpdate(msg) {
   const rootEl = document.getElementById('overlay-root');
   rootEl.style.display = 'none';
   rootEl.className = '';
+
+  // Dispose scene3d controllers before clearing DOM (frees WebGL resources)
+  rootEl.querySelectorAll('[data-scene3d-type]').forEach(node => {
+    if (node.__scene3dController) node.__scene3dController.dispose();
+  });
   rootEl.innerHTML = '';
 
   domMap = buildOverlay(rootEl, template, referenceData || {});
@@ -613,6 +626,8 @@ function handleTemplateUpdate(msg) {
   // Re-resolve with whatever data we already have
   dataBinder.resolveBindings();
   dataBinder.resolveGaugeBindings();
+  dataBinder.resolveScene3dBindings();
+  dataBinder.resolveUniversalBindings();
 
   // Pre-cache image assets for the new template
   precacheTemplate(currentTemplate, referenceData || {}, currentConfig || {});

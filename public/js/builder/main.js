@@ -20,6 +20,7 @@ import {
   createArcGaugeElement,
   createBarGaugeElement,
   createRingSegmentElement,
+  createScene3dElement,
   cloneElement,
 } from './element-factory.js';
 import {
@@ -671,6 +672,9 @@ function _createElementAtMouse(tool, event) {
       // Show gauge type picker near mouse position
       _showGaugeTypePicker(pos, event);
       return;
+    case 'scene3d':
+      _showScene3dTypePicker(pos, event);
+      return;
     default:
       return;
   }
@@ -821,6 +825,83 @@ function _showGaugeTypePicker(pos, event) {
     picker.style.top = `${top}px`;
   } else {
     // Fallback: center on screen
+    picker.style.left = '50%';
+    picker.style.top = '50%';
+    picker.style.transform = 'translate(-50%,-50%)';
+  }
+}
+
+/**
+ * Show a scene3d sub-type picker and create the chosen 3D element.
+ * @param {{ x: number, y: number }} pos - Canvas position where the element should be placed.
+ * @param {MouseEvent} [event] - Original mouse event for positioning the picker.
+ */
+function _showScene3dTypePicker(pos, event) {
+  const canvasArea = document.getElementById('canvasArea');
+
+  const picker = document.createElement('div');
+  picker.className = 'scene3d-type-picker';
+  picker.style.cssText = `
+    position:fixed;
+    background:var(--bg-secondary,#1e1f2e); border:1px solid var(--border,#2d2e3e);
+    border-radius:8px; padding:12px; display:flex; gap:8px; z-index:9999;
+    box-shadow:0 8px 32px rgba(0,0,0,0.4);
+  `;
+
+  const types = [
+    { id: 'modelViewer', label: '3D Model', icon: '<svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M16 4l10 6v12l-10 6-10-6V10z"/><path d="M16 4v12"/><path d="M6 10l10 6"/><path d="M26 10l-10 6"/></svg>' },
+    { id: 'text3d', label: '3D Text', icon: '<svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 8h16M16 8v16"/><path d="M10 10h12M18 10v14" opacity="0.4" transform="translate(2,2)"/></svg>' },
+    { id: 'particles', label: 'Particles', icon: '<svg width="32" height="32" viewBox="0 0 32 32" fill="currentColor"><circle cx="16" cy="16" r="2"/><circle cx="8" cy="10" r="1.5" opacity="0.7"/><circle cx="24" cy="12" r="1.5" opacity="0.7"/><circle cx="10" cy="22" r="1.2" opacity="0.5"/><circle cx="22" cy="22" r="1.2" opacity="0.5"/><circle cx="16" cy="6" r="1" opacity="0.4"/><circle cx="6" cy="16" r="1" opacity="0.4"/><circle cx="26" cy="16" r="1" opacity="0.4"/><circle cx="16" cy="26" r="1" opacity="0.4"/></svg>' },
+  ];
+
+  for (const t of types) {
+    const btn = document.createElement('button');
+    btn.className = 'scene3d-type-btn';
+    btn.style.cssText = `
+      display:flex; flex-direction:column; align-items:center; gap:6px;
+      padding:12px 16px; border:1px solid var(--border,#2d2e3e); border-radius:6px;
+      background:transparent; color:var(--text,#e8eaed); cursor:pointer;
+      font-size:0.75rem; min-width:80px; transition:background 0.15s;
+    `;
+    btn.innerHTML = `${t.icon}<span>${t.label}</span>`;
+    btn.addEventListener('mouseenter', () => { btn.style.background = 'var(--bg-hover,#2a2b3d)'; });
+    btn.addEventListener('mouseleave', () => { btn.style.background = 'transparent'; });
+    btn.addEventListener('click', () => {
+      picker.remove();
+      const el = createScene3dElement(pos.x, pos.y, t.id);
+      el.zIndex = elements.length;
+      elements.push(el);
+      canvas.addElement(el);
+      _pushHistory();
+      setActiveTool('select');
+      selection.selectElement(el.id);
+      showToast(`${el.name} created`, 'info', 2000);
+    });
+    picker.appendChild(btn);
+  }
+
+  // Close on click outside
+  const closeHandler = (e) => {
+    if (!picker.contains(e.target)) {
+      picker.remove();
+      document.removeEventListener('mousedown', closeHandler);
+      setActiveTool('select');
+    }
+  };
+  setTimeout(() => document.addEventListener('mousedown', closeHandler), 0);
+
+  document.body.appendChild(picker);
+
+  // Position near the mouse click, clamped to viewport bounds
+  if (event) {
+    const rect = picker.getBoundingClientRect();
+    let left = event.clientX - rect.width / 2;
+    let top = event.clientY - rect.height - 12;
+    left = Math.max(8, Math.min(left, window.innerWidth - rect.width - 8));
+    top = Math.max(8, Math.min(top, window.innerHeight - rect.height - 8));
+    picker.style.left = `${left}px`;
+    picker.style.top = `${top}px`;
+  } else {
     picker.style.left = '50%';
     picker.style.top = '50%';
     picker.style.transform = 'translate(-50%,-50%)';

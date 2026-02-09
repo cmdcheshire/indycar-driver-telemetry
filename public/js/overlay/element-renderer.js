@@ -14,6 +14,7 @@ import {
   updateRingSegmentFill,
   gaugePercent,
 } from '/js/shared/svg-gauge-utils.js';
+import { createScene3D } from '/js/shared/scene3d-utils.js';
 
 /**
  * Render a single overlay element from its template definition.
@@ -37,9 +38,20 @@ export function renderElement(element, referenceData = {}) {
     wrapper.style.opacity = String(element.opacity);
   }
 
-  // ── Rotation ──
-  if (element.rotation) {
-    wrapper.style.transform = `rotate(${element.rotation}deg)`;
+  // ── Transform (rotation + 3D) ──
+  {
+    const transforms = [];
+    if (element.rotation)  transforms.push(`rotate(${element.rotation}deg)`);
+    if (element.rotationX) transforms.push(`rotateX(${element.rotationX}deg)`);
+    if (element.rotationY) transforms.push(`rotateY(${element.rotationY}deg)`);
+    if (element.z)         transforms.push(`translateZ(${element.z}px)`);
+    if (transforms.length) wrapper.style.transform = transforms.join(' ');
+  }
+
+  // ── 3D perspective ──
+  if (element.perspective) {
+    wrapper.style.perspective = `${element.perspective}px`;
+    wrapper.style.transformStyle = 'preserve-3d';
   }
 
   // ── z-index ──
@@ -83,6 +95,10 @@ export function renderElement(element, referenceData = {}) {
 
     case 'ringSegment':
       renderRingSegment(wrapper, element);
+      break;
+
+    case 'scene3d':
+      renderScene3d(wrapper, element);
       break;
 
     default:
@@ -256,6 +272,42 @@ function renderRingSegment(wrapper, element) {
   if (element.field)       wrapper.setAttribute('data-field', element.field);
   if (element.car)         wrapper.setAttribute('data-car', element.car);
   if (element.smoothing)   wrapper.setAttribute('data-smoothing', String(element.smoothing));
+}
+
+// ---------------------------------------------------------------------------
+// Scene3D renderer
+// ---------------------------------------------------------------------------
+
+/**
+ * Render a Three.js 3D scene element.
+ */
+function renderScene3d(wrapper, element) {
+  wrapper.style.overflow = 'hidden';
+  // Scene3D controller will be created after DOM insertion (needs dimensions)
+  wrapper.setAttribute('data-scene3d-type', element.subType || 'text3d');
+
+  // Data-binding attributes
+  if (element.source) wrapper.setAttribute('data-source', element.source);
+  if (element.field)  wrapper.setAttribute('data-field', element.field);
+  if (element.car)    wrapper.setAttribute('data-car', element.car);
+
+  // Defer scene creation to after DOM insertion so container has dimensions
+  requestAnimationFrame(() => {
+    const ctrl = createScene3D(wrapper, element);
+    wrapper.__scene3dController = ctrl;
+  });
+}
+
+/**
+ * Update a scene3d element from data binding.
+ *
+ * @param {HTMLElement} domNode  - The scene3d wrapper DOM node.
+ * @param {string}     property - The property to update (e.g. 'rotation', 'scale', 'particleColor').
+ * @param {*}          value    - The value to set.
+ */
+export function updateScene3dValue(domNode, property, value) {
+  if (!domNode || !domNode.__scene3dController) return;
+  domNode.__scene3dController.setBindingValue(property, value);
 }
 
 /**

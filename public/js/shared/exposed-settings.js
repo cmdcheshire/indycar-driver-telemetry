@@ -149,6 +149,19 @@ export const EXPOSABLE_SETTINGS = {
     { key: 'segments', label: 'Segments', inputType: 'number', min: 2, max: 60, step: 1 },
     { key: 'thickness', label: 'Thickness', inputType: 'number', min: 2, max: 60, step: 1 },
   ],
+
+  scene3d: [
+    { key: 'text3d', label: '3D Text', inputType: 'text' },
+    { key: 'text3dColor', label: 'Text Color', inputType: 'color' },
+    { key: 'modelUrl', label: 'Model URL', inputType: 'text' },
+    { key: 'modelColor', label: 'Model Color', inputType: 'color' },
+    { key: 'particleColor', label: 'Particle Color', inputType: 'color' },
+    { key: 'autoRotate', label: 'Auto Rotate', inputType: 'select', options: [
+      { value: 'true', label: 'On' },
+      { value: 'false', label: 'Off' },
+    ]},
+    { key: 'carSelector', label: 'Car Selector', inputType: 'carSelector' },
+  ],
 };
 
 /**

@@ -5,6 +5,7 @@
 
 import { computeClipPath } from '/js/shared/clip-path.js';
 import { buildArcGaugeSvg, buildBarGauge, buildRingSegmentSvg } from '/js/shared/svg-gauge-utils.js';
+import { createScene3D } from '/js/shared/scene3d-utils.js';
 
 export class CanvasEngine {
   /** @type {HTMLElement} */
@@ -54,6 +55,9 @@ export class CanvasEngine {
   removeElement(id) {
     const entry = this.#elements.get(id);
     if (!entry) return;
+    if (entry.node.__scene3dController) {
+      entry.node.__scene3dController.dispose();
+    }
     entry.node.remove();
     this.#elements.delete(id);
   }
@@ -141,6 +145,9 @@ export class CanvasEngine {
    */
   clear() {
     for (const [, entry] of this.#elements) {
+      if (entry.node.__scene3dController) {
+        entry.node.__scene3dController.dispose();
+      }
       entry.node.remove();
     }
     this.#elements.clear();
@@ -352,6 +359,20 @@ export class CanvasEngine {
         break;
       }
 
+      case 'scene3d': {
+        // Dispose old controller if sub-type or key props changed
+        if (node.__scene3dController) {
+          node.__scene3dController.dispose();
+          node.__scene3dController = null;
+        }
+        node.innerHTML = '';
+        const ctrl = createScene3D(node, p);
+        node.__scene3dController = ctrl;
+        // Resize after layout settles
+        requestAnimationFrame(() => ctrl.resize());
+        break;
+      }
+
       default:
         node.textContent = element.type;
     }
@@ -371,14 +392,25 @@ export class CanvasEngine {
     node.style.zIndex = String(element.zIndex ?? 0);
 
     const transforms = [];
-    if (element.rotation) {
-      transforms.push(`rotate(${element.rotation}deg)`);
-    }
+    if (element.rotation) transforms.push(`rotate(${element.rotation}deg)`);
+    if (element.rotationX) transforms.push(`rotateX(${element.rotationX}deg)`);
+    if (element.rotationY) transforms.push(`rotateY(${element.rotationY}deg)`);
+    if (element.z) transforms.push(`translateZ(${element.z}px)`);
     node.style.transform = transforms.join(' ');
+
+    // 3D perspective (per-element)
+    if (element.perspective) {
+      node.style.perspective = `${element.perspective}px`;
+      node.style.transformStyle = 'preserve-3d';
+    } else {
+      node.style.perspective = '';
+      node.style.transformStyle = '';
+    }
 
     // Visibility / lock states (default to visible if field is undefined)
     node.classList.toggle('hidden-element', element.visible === false);
     node.classList.toggle('locked', !!element.locked);
+    node.classList.toggle('has-bindings', Array.isArray(element.bindings) && element.bindings.length > 0);
 
     // Clipping mask
     if (element.clipMask?.elementId) {

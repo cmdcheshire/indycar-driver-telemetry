@@ -36,6 +36,10 @@ export function createTextElement(x = 10, y = 10) {
     width: 15,
     height: 4,
     rotation: 0,
+    rotationX: 0,
+    rotationY: 0,
+    z: 0,
+    perspective: 0,
     opacity: 1,
     zIndex: 0,
     props: {
@@ -51,6 +55,7 @@ export function createTextElement(x = 10, y = 10) {
       textStroke: '',
       fitText: false,
     },
+    bindings: [],
     animation: {
       enter: { type: 'none', duration: 300, delay: 0, easing: 'power2.out' },
       exit: { type: 'none', duration: 300, delay: 0, easing: 'power2.in' },
@@ -82,6 +87,10 @@ export function createImageElement(x = 10, y = 10) {
     width: 10,
     height: 10,
     rotation: 0,
+    rotationX: 0,
+    rotationY: 0,
+    z: 0,
+    perspective: 0,
     opacity: 1,
     zIndex: 0,
     props: {
@@ -89,6 +98,7 @@ export function createImageElement(x = 10, y = 10) {
       alt: '',
       fit: 'contain', // contain | cover | fill
     },
+    bindings: [],
     animation: {
       enter: { type: 'none', duration: 300, delay: 0, easing: 'power2.out' },
       exit: { type: 'none', duration: 300, delay: 0, easing: 'power2.in' },
@@ -120,6 +130,10 @@ export function createShapeElement(x = 10, y = 10) {
     width: 12,
     height: 8,
     rotation: 0,
+    rotationX: 0,
+    rotationY: 0,
+    z: 0,
+    perspective: 0,
     opacity: 1,
     zIndex: 0,
     props: {
@@ -129,6 +143,7 @@ export function createShapeElement(x = 10, y = 10) {
       strokeWidth: 0,
       borderRadius: 0,
     },
+    bindings: [],
     animation: {
       enter: { type: 'none', duration: 300, delay: 0, easing: 'power2.out' },
       exit: { type: 'none', duration: 300, delay: 0, easing: 'power2.in' },
@@ -161,6 +176,10 @@ export function createDataElement(x = 10, y = 10) {
     width: 15,
     height: 4,
     rotation: 0,
+    rotationX: 0,
+    rotationY: 0,
+    z: 0,
+    perspective: 0,
     opacity: 1,
     zIndex: 0,
     props: {
@@ -188,6 +207,7 @@ export function createDataElement(x = 10, y = 10) {
       // Preview value (populated by builder)
       _previewValue: '',
     },
+    bindings: [],
     animation: {
       enter: { type: 'none', duration: 300, delay: 0, easing: 'power2.out' },
       exit: { type: 'none', duration: 300, delay: 0, easing: 'power2.in' },
@@ -219,6 +239,10 @@ export function createArcGaugeElement(x = 10, y = 10) {
     width: 10,
     height: 10,
     rotation: 0,
+    rotationX: 0,
+    rotationY: 0,
+    z: 0,
+    perspective: 0,
     opacity: 1,
     zIndex: 0,
     props: {
@@ -237,6 +261,7 @@ export function createArcGaugeElement(x = 10, y = 10) {
       smoothing: 0,
       _previewValue: 50,
     },
+    bindings: [],
     animation: {
       enter: { type: 'none', duration: 300, delay: 0, easing: 'power2.out' },
       exit: { type: 'none', duration: 300, delay: 0, easing: 'power2.in' },
@@ -268,6 +293,10 @@ export function createBarGaugeElement(x = 10, y = 10) {
     width: 15,
     height: 3,
     rotation: 0,
+    rotationX: 0,
+    rotationY: 0,
+    z: 0,
+    perspective: 0,
     opacity: 1,
     zIndex: 0,
     props: {
@@ -285,6 +314,7 @@ export function createBarGaugeElement(x = 10, y = 10) {
       smoothing: 0,
       _previewValue: 50,
     },
+    bindings: [],
     animation: {
       enter: { type: 'none', duration: 300, delay: 0, easing: 'power2.out' },
       exit: { type: 'none', duration: 300, delay: 0, easing: 'power2.in' },
@@ -316,6 +346,10 @@ export function createRingSegmentElement(x = 10, y = 10) {
     width: 10,
     height: 10,
     rotation: 0,
+    rotationX: 0,
+    rotationY: 0,
+    z: 0,
+    perspective: 0,
     opacity: 1,
     zIndex: 0,
     props: {
@@ -340,6 +374,83 @@ export function createRingSegmentElement(x = 10, y = 10) {
       smoothing: 0,
       _previewValue: 50,
     },
+    bindings: [],
+    animation: {
+      enter: { type: 'none', duration: 300, delay: 0, easing: 'power2.out' },
+      exit: { type: 'none', duration: 300, delay: 0, easing: 'power2.in' },
+      update: { type: 'none', duration: 300, easing: 'power1.inOut' },
+      emphasis: { type: 'none', duration: 400, trigger: 'onChange', repeat: 0 },
+    },
+  };
+}
+
+/**
+ * Create a 3D scene element at the given canvas position.
+ * @param {number} x - X position as percentage
+ * @param {number} y - Y position as percentage
+ * @returns {object}
+ */
+export function createScene3dElement(x = 10, y = 10, subType = 'text3d') {
+  const nameMap = { modelViewer: '3D Model', text3d: '3D Text', particles: 'Particles' };
+  return {
+    id: _uuid(),
+    type: 'scene3d',
+    name: nameMap[subType] || '3D Scene',
+    visible: true,
+    locked: false,
+    exposed: false,
+    exposedSettings: [],
+    groupId: null,
+    clipMask: null,
+    x,
+    y,
+    width: 15,
+    height: 15,
+    rotation: 0,
+    rotationX: 0,
+    rotationY: 0,
+    z: 0,
+    perspective: 0,
+    opacity: 1,
+    zIndex: 0,
+    props: {
+      subType,
+      // Camera
+      cameraFov: 50,
+      cameraPosition: { x: 0, y: 0, z: 3 },
+      // Lighting
+      ambientColor: '#ffffff',
+      ambientIntensity: 0.6,
+      directionalColor: '#ffffff',
+      directionalIntensity: 1.0,
+      directionalPosition: { x: 2, y: 3, z: 5 },
+      // Auto-rotation
+      autoRotate: true,
+      rotateSpeed: 0.01,
+      // Model viewer props
+      modelUrl: '',
+      modelColor: '#5865f2',
+      metalness: 0.3,
+      roughness: 0.6,
+      // 3D text props
+      text3d: '3D',
+      text3dColor: '#ffffff',
+      text3dSideColor: '#5865f2',
+      text3dDepth: 0.3,
+      text3dFontSize: 120,
+      text3dFont: 'Arial',
+      // Particle props
+      particleCount: 200,
+      particleSpread: 3,
+      particleSize: 0.05,
+      particleColor: '#5865f2',
+      particleOpacity: 0.8,
+      // Binding configuration
+      bindingSource: '',
+      bindingField: '',
+      carSelector: '',
+    },
+    bindings: [],
     animation: {
       enter: { type: 'none', duration: 300, delay: 0, easing: 'power2.out' },
       exit: { type: 'none', duration: 300, delay: 0, easing: 'power2.in' },
