@@ -135,6 +135,13 @@ export class Scene3DController {
         break;
     }
 
+    // Auto-resize when container dimensions change (e.g. overlay goes from
+    // display:none → visible after CUE → TAKE ON, or window resize)
+    this._resizeObserver = new ResizeObserver(() => {
+      if (!this._disposed) this.resize();
+    });
+    this._resizeObserver.observe(container);
+
     // Start render loop
     this._animate();
   }
@@ -612,6 +619,11 @@ export class Scene3DController {
    */
   dispose() {
     this._disposed = true;
+
+    if (this._resizeObserver) {
+      this._resizeObserver.disconnect();
+      this._resizeObserver = null;
+    }
 
     if (this._animationId) {
       cancelAnimationFrame(this._animationId);
