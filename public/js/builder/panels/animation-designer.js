@@ -26,11 +26,16 @@ const ANIMATABLE_PROPERTIES = [
   { key: 'rotation',   label: 'Rotate',   type: 'number', min: -720, max: 720,  step: 1,    default: 0, unit: '°' },
   { key: 'rotationX',  label: 'Rot X',    type: 'number', min: -720, max: 720,  step: 1,    default: 0, unit: '°' },
   { key: 'rotationY',  label: 'Rot Y',    type: 'number', min: -720, max: 720,  step: 1,    default: 0, unit: '°' },
+  { key: 'skewX',      label: 'Skew X',   type: 'number', min: -90,  max: 90,   step: 1,    default: 0, unit: '°' },
+  { key: 'skewY',      label: 'Skew Y',   type: 'number', min: -90,  max: 90,   step: 1,    default: 0, unit: '°' },
   { key: 'z',          label: 'Z Depth',  type: 'number', min: -500, max: 500,  step: 1,    default: 0, unit: 'px' },
+  { key: 'transformPerspective', label: 'Persp', type: 'number', min: 0, max: 2000, step: 10, default: 0, unit: 'px' },
   { key: 'clipPath',   label: 'Clip',     type: 'text',   default: 'none' },
   { key: 'color',      label: 'Color',    type: 'color',  default: '#FFFFFF' },
   { key: 'backgroundColor', label: 'BG Color', type: 'color', default: 'transparent' },
-  { key: 'transformPerspective', label: 'Persp', type: 'number', min: 0, max: 2000, step: 10, default: 0, unit: 'px' },
+  { key: 'borderRadius', label: 'Radius', type: 'number', min: 0, max: 100, step: 1, default: 0, unit: '%' },
+  { key: 'blur',       label: 'Blur',     type: 'number', min: 0, max: 50, step: 0.5, default: 0, unit: 'px' },
+  { key: 'brightness', label: 'Bright',   type: 'number', min: 0, max: 3, step: 0.05, default: 1 },
 ];
 
 // ---------------------------------------------------------------------------
@@ -702,7 +707,7 @@ function _killPreview() {
   if (_element) {
     const node = document.querySelector(`#canvasContainer [data-element-id="${_element.id}"]`);
     if (node) {
-      gsap.set(node, { clearProps: 'transform,opacity,clipPath,color,backgroundColor' });
+      gsap.set(node, { clearProps: 'transform,opacity,clipPath,color,backgroundColor,borderRadius,filter' });
     }
   }
 }
