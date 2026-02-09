@@ -708,7 +708,7 @@ function _addPausePointDrag(marker, pp, inMs, inWidth) {
  * ------------------------------------------------------------------ */
 
 function _takeOn() {
-  if (_currentPhase !== 'idle') _hardReset();
+  if (_currentPhase !== 'idle' || _masterTl) _hardReset();
   if (!_getElements || !_getTimeline) return;
 
   const elements = _getElements();
@@ -866,7 +866,7 @@ function _takeOff() {
  * and go straight to HOLD.
  */
 function _goToHold() {
-  if (_currentPhase !== 'idle') _hardReset();
+  if (_currentPhase !== 'idle' || _masterTl) _hardReset();
   if (!_getElements) return;
 
   const elements = _getElements();
@@ -1012,10 +1012,11 @@ function _initScrubbing() {
   const startScrub = (e, getX) => {
     e.preventDefault();
 
-    // Reset any active playout state
-    if (_currentPhase !== 'idle') {
+    // Reset any active playout or leftover scrub state
+    if (_currentPhase !== 'idle' || _masterTl) {
       if (_masterTl) { _masterTl.kill(); _masterTl = null; }
       if (_holdTimer) { clearTimeout(_holdTimer); _holdTimer = null; }
+      _resetAllElements();
       _currentPhase = 'idle';
       _isPlaying = false;
       _updateTransportButtons();
@@ -1038,7 +1039,9 @@ function _initScrubbing() {
 
     const onUp = () => {
       _isScrubbing = false;
-      _hardReset();
+      // Leave the scrub timeline paused at current position so elements
+      // stay where the user dropped the playhead (don't reset).
+      // The timeline will be killed on next transport action.
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
     };
