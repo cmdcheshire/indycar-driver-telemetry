@@ -335,6 +335,19 @@ function _addImageProps(p) {
   uploadBtn.addEventListener('click', () => _triggerImageUpload());
   srcRow.appendChild(uploadBtn);
 
+  const browseImgBtn = document.createElement('button');
+  browseImgBtn.className = 'btn btn-sm';
+  browseImgBtn.textContent = 'Browse';
+  browseImgBtn.style.flexShrink = '0';
+  browseImgBtn.addEventListener('click', () => _browseLibraryAsset((url) => {
+    _emitProp({ src: url });
+    if (currentElement) {
+      currentElement.props = { ...(currentElement.props || {}), src: url };
+      updatePropertiesPanel(currentElement);
+    }
+  }));
+  srcRow.appendChild(browseImgBtn);
+
   _addCollapsibleGroup('Image', [
     srcRow,
     _textInput('Alt Text', p.alt || '', (v) => _emitProp({ alt: v })),
@@ -446,6 +459,174 @@ async function _triggerFontUpload() {
 
   document.body.appendChild(input);
   input.click();
+}
+
+// ---------------------------------------------------------------------------
+// Library asset picker modal
+// ---------------------------------------------------------------------------
+
+const IMAGE_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp']);
+
+async function _browseLibraryAsset(onSelect) {
+  let assets = [];
+  try {
+    const res = await fetch('/api/library/assets');
+    if (!res.ok) throw new Error('Failed to fetch');
+    const data = await res.json();
+    assets = data.assets || [];
+  } catch (err) {
+    console.error('[properties] Failed to load library assets:', err);
+    const { showToast } = await import('/js/modules/ui.js');
+    showToast('Failed to load library', 'error');
+    return;
+  }
+
+  // Build modal overlay
+  const overlay = document.createElement('div');
+  Object.assign(overlay.style, {
+    position: 'fixed', inset: '0', zIndex: '9999',
+    background: 'rgba(0,0,0,0.6)', display: 'flex',
+    alignItems: 'center', justifyContent: 'center',
+  });
+
+  const modal = document.createElement('div');
+  Object.assign(modal.style, {
+    background: '#1e1e2e', borderRadius: '8px', width: '640px',
+    maxWidth: '90vw', maxHeight: '80vh', display: 'flex',
+    flexDirection: 'column', boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+    border: '1px solid rgba(255,255,255,0.1)',
+  });
+
+  // Header
+  const header = document.createElement('div');
+  Object.assign(header.style, {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.1)',
+  });
+  const title = document.createElement('span');
+  title.textContent = 'Select from Library';
+  title.style.fontWeight = '600'; title.style.color = '#fff'; title.style.fontSize = '14px';
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '\u00d7';
+  Object.assign(closeBtn.style, {
+    background: 'none', border: 'none', color: '#aaa', fontSize: '20px',
+    cursor: 'pointer', padding: '0 4px', lineHeight: '1',
+  });
+  closeBtn.addEventListener('click', () => overlay.remove());
+  header.appendChild(title);
+  header.appendChild(closeBtn);
+
+  // Search bar
+  const searchWrap = document.createElement('div');
+  searchWrap.style.padding = '8px 16px';
+  const searchInput = document.createElement('input');
+  searchInput.type = 'text';
+  searchInput.placeholder = 'Search assets\u2026';
+  Object.assign(searchInput.style, {
+    width: '100%', padding: '6px 10px', background: '#2a2a3e',
+    border: '1px solid rgba(255,255,255,0.15)', borderRadius: '4px',
+    color: '#fff', fontSize: '13px', outline: 'none', boxSizing: 'border-box',
+  });
+  searchWrap.appendChild(searchInput);
+
+  // Grid container
+  const grid = document.createElement('div');
+  Object.assign(grid.style, {
+    display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))',
+    gap: '8px', padding: '8px 16px 16px', overflowY: 'auto', flex: '1',
+  });
+
+  function renderGrid(filter = '') {
+    grid.innerHTML = '';
+    const lc = filter.toLowerCase();
+    const filtered = lc
+      ? assets.filter(a => (a.original_name || '').toLowerCase().includes(lc))
+      : assets;
+
+    if (filtered.length === 0) {
+      const empty = document.createElement('div');
+      empty.textContent = filter ? 'No matching assets' : 'Library is empty';
+      Object.assign(empty.style, { color: '#888', gridColumn: '1 / -1', textAlign: 'center', padding: '24px', fontSize: '13px' });
+      grid.appendChild(empty);
+      return;
+    }
+
+    for (const asset of filtered) {
+      const card = document.createElement('div');
+      Object.assign(card.style, {
+        background: '#2a2a3e', borderRadius: '6px', cursor: 'pointer',
+        overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)',
+        display: 'flex', flexDirection: 'column', transition: 'border-color 0.15s',
+      });
+      card.addEventListener('mouseenter', () => { card.style.borderColor = 'rgba(88,101,242,0.6)'; });
+      card.addEventListener('mouseleave', () => { card.style.borderColor = 'rgba(255,255,255,0.08)'; });
+
+      // Thumbnail area
+      const thumb = document.createElement('div');
+      Object.assign(thumb.style, {
+        width: '100%', height: '80px', display: 'flex',
+        alignItems: 'center', justifyContent: 'center', background: '#1a1a2a',
+      });
+
+      const ext = (asset.original_name || '').split('.').pop().toLowerCase();
+      if (IMAGE_EXTS.has(ext)) {
+        const img = document.createElement('img');
+        img.src = `/api/library/assets/${asset.id}/file`;
+        Object.assign(img.style, { maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' });
+        img.draggable = false;
+        thumb.appendChild(img);
+      } else {
+        const icon = document.createElement('span');
+        icon.textContent = ext.toUpperCase();
+        Object.assign(icon.style, {
+          color: '#888', fontSize: '12px', fontWeight: '600',
+          background: 'rgba(255,255,255,0.06)', padding: '4px 8px', borderRadius: '3px',
+        });
+        thumb.appendChild(icon);
+      }
+
+      // Label
+      const label = document.createElement('div');
+      label.textContent = asset.original_name || asset.filename;
+      Object.assign(label.style, {
+        padding: '4px 6px', fontSize: '11px', color: '#ccc',
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+      });
+
+      card.appendChild(thumb);
+      card.appendChild(label);
+
+      card.addEventListener('click', () => {
+        const url = `/api/library/assets/${asset.id}/file`;
+        onSelect(url);
+        overlay.remove();
+      });
+
+      grid.appendChild(card);
+    }
+  }
+
+  searchInput.addEventListener('input', () => renderGrid(searchInput.value));
+
+  modal.appendChild(header);
+  modal.appendChild(searchWrap);
+  modal.appendChild(grid);
+  overlay.appendChild(modal);
+
+  // Close on backdrop click
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) overlay.remove();
+  });
+
+  // Close on Escape
+  const onKey = (e) => {
+    if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', onKey); }
+  };
+  document.addEventListener('keydown', onKey);
+
+  document.body.appendChild(overlay);
+  renderGrid();
+  searchInput.focus();
 }
 
 function _addShapeProps(p) {
@@ -748,9 +929,23 @@ function _addScene3dProps(p) {
 
   // Sub-type specific controls
   switch (subType) {
-    case 'modelViewer':
+    case 'modelViewer': {
+      const modelUrlRow = _textInput('Model URL', p.modelUrl || '', (v) => _emitProp({ modelUrl: v }));
+      const browseModelBtn = document.createElement('button');
+      browseModelBtn.className = 'btn btn-sm';
+      browseModelBtn.textContent = 'Browse';
+      browseModelBtn.style.flexShrink = '0';
+      browseModelBtn.addEventListener('click', () => _browseLibraryAsset((url) => {
+        _emitProp({ modelUrl: url });
+        if (currentElement) {
+          currentElement.props = { ...(currentElement.props || {}), modelUrl: url };
+          updatePropertiesPanel(currentElement);
+        }
+      }));
+      modelUrlRow.appendChild(browseModelBtn);
+
       _addCollapsibleGroup('Model', [
-        _textInput('Model URL', p.modelUrl || '', (v) => _emitProp({ modelUrl: v })),
+        modelUrlRow,
         _colorInputWithSwatch('Color', p.modelColor || '#5865f2', (v) => _emitProp({ modelColor: v })),
         _row([
           _numberInput('Metal', p.metalness ?? 0.3, 0, 1, 0.05, (v) => _emitProp({ metalness: v })),
@@ -759,6 +954,7 @@ function _addScene3dProps(p) {
         _numberInput('Depth', p.modelDepth ?? 0.2, 0.01, 2, 0.01, (v) => _emitProp({ modelDepth: v })),
       ]);
       break;
+    }
 
     case 'text3d':
       _addCollapsibleGroup('3D Text', [
