@@ -956,11 +956,24 @@ function _resetAllElements() {
     const node = document.querySelector(`#canvasContainer [data-element-id="${el.id}"]`);
     if (!node) continue;
 
-    // If element uses keyframes, clear the common animatable props
+    // If element uses keyframes, clear GSAP transforms then re-apply hold state
     const enterKf = _getEnterKf(el);
     const exitKf = el.animation?.exitKeyframes;
     if ((enterKf?.enabled) || (exitKf?.enabled)) {
       gsap.set(node, { clearProps: 'transform,opacity,clipPath,color,backgroundColor' });
+      // Re-apply final keyframe values so element stays in hold state, not CSS rest
+      if (enterKf?.enabled && enterKf.tracks?.length > 0) {
+        const endState = {};
+        for (const track of enterKf.tracks) {
+          if (track.keyframes.length > 0) {
+            const last = track.keyframes.reduce((a, b) => a.time > b.time ? a : b);
+            endState[track.property] = last.value;
+          }
+        }
+        if (Object.keys(endState).length > 0) {
+          gsap.set(node, endState);
+        }
+      }
       continue;
     }
 
