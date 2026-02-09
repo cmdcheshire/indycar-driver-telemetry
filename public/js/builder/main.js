@@ -1088,6 +1088,7 @@ async function _loadFromUrl() {
     });
 
     canvas.loadElements(elements);
+    _applyKeyframeHoldState();
     history.clear();
     history.push(_snapshotState());
     _refreshPanels();
@@ -1095,6 +1096,34 @@ async function _loadFromUrl() {
   } catch (err) {
     showToast(`Failed to load template: ${err.message}`, 'error');
     console.error('Load error:', err);
+  }
+}
+
+/**
+ * Apply keyframe enter animation end-state to canvas elements.
+ * In the builder, elements should appear in their "hold" state (after enter
+ * animation completes). For preset animations this is the CSS rest state
+ * (automatic). For keyframe animations the hold state is the final keyframe
+ * value for each track, so we need to apply those explicitly.
+ */
+function _applyKeyframeHoldState() {
+  for (const el of elements) {
+    const enterKf = el.animation?.enterKeyframes || el.animation?.keyframes;
+    if (!enterKf?.enabled || !enterKf.tracks?.length) continue;
+
+    const node = canvas.getNode(el.id);
+    if (!node) continue;
+
+    const endState = {};
+    for (const track of enterKf.tracks) {
+      if (track.keyframes.length > 0) {
+        const last = track.keyframes.reduce((a, b) => a.time > b.time ? a : b);
+        endState[track.property] = last.value;
+      }
+    }
+    if (Object.keys(endState).length > 0) {
+      gsap.set(node, endState);
+    }
   }
 }
 
