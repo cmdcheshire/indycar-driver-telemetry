@@ -12,6 +12,7 @@
 
 import { getEnterPreset, getExitPreset } from '/js/shared/animation-presets.js';
 import { buildGsapTimeline } from './animation-designer.js';
+import { computeClipPath, offsetMaskBounds } from '/js/shared/clip-path.js';
 
 /* ------------------------------------------------------------------ *
  *  Module state
@@ -50,6 +51,59 @@ function _restoreBaseTransform(el, node) {
   if (el.z) transforms.push(`translateZ(${el.z}px)`);
   node.style.transform = transforms.join(' ');
   if (el.opacity !== undefined) node.style.opacity = String(el.opacity);
+}
+
+/**
+ * Add clip-path animation tweens to a GSAP timeline for mask elements with enter animations.
+ * When a hidden mask has an enter animation, the clip-path on its dependent elements
+ * animates from the mask's "from" position to its rest position.
+ */
+function _addClipPathAnimations(tl, elements) {
+  const canvasContainer = document.getElementById('canvasContainer');
+  const canvasW = canvasContainer?.clientWidth || 1920;
+  const canvasH = canvasContainer?.clientHeight || 1080;
+
+  for (const el of elements) {
+    if (!el.clipMask?.elementId) continue;
+
+    const maskEl = elements.find(m => m.id === el.clipMask.elementId);
+    if (!maskEl) continue;
+
+    // Check if mask has an enter animation
+    const maskAnim = maskEl.animation?.enter;
+    if (!maskAnim?.type || maskAnim.type === 'none') continue;
+
+    const preset = getEnterPreset(maskAnim.type);
+    if (!preset) continue;
+
+    // Skip clip-path based presets (wipe/reveal) — they animate the mask's own clipPath
+    if (preset.vars.clipPath) continue;
+
+    // Skip opacity-only presets — no position/size change to animate
+    const posVars = { ...preset.vars };
+    delete posVars.opacity;
+    if (Object.keys(posVars).length === 0) continue;
+
+    const clippedNode = document.querySelector(`#canvasContainer [data-element-id="${el.id}"]`);
+    if (!clippedNode) continue;
+
+    // Compute from/to clip-paths (both use polygon for GSAP interpolation compatibility)
+    const fromMaskBounds = offsetMaskBounds(maskEl, preset.vars, canvasW, canvasH);
+    const toClipPath = computeClipPath(el, maskEl, { forcePolygon: true });
+    const fromClipPath = computeClipPath(el, fromMaskBounds, { forcePolygon: true });
+
+    if (!fromClipPath || !toClipPath) continue;
+
+    const delay = (maskAnim.delay || 0) / 1000;
+    const duration = (maskAnim.duration || 300) / 1000;
+    const easing = maskAnim.easing || preset.defaultEase || 'power2.out';
+
+    tl.fromTo(clippedNode,
+      { clipPath: fromClipPath },
+      { clipPath: toClipPath, duration, ease: easing, overwrite: false },
+      delay
+    );
+  }
 }
 
 const LABEL_WIDTH = 90;
@@ -796,6 +850,10 @@ function _takeOn() {
     }
   }
 
+  // Animated clip-paths: if a mask element has an enter animation, animate
+  // the clip-path on its dependent (clipped) elements from offset → rest position
+  _addClipPathAnimations(_masterTl, elements);
+
   // Add pause points during IN phase
   const pausePoints = (timeline.pausePoints || []).sort((a, b) => a.time - b.time);
   for (const pp of pausePoints) {
@@ -940,6 +998,9 @@ function _goToHold() {
     }
   }
 
+  // Restore static clip-paths on mask-dependent elements (snap to final state)
+  _restoreStaticClipPaths(elements);
+
   _enterHold();
 }
 
@@ -1036,6 +1097,26 @@ function _resetAllElements() {
       gsap.set(node, { clearProps: [...propsToReset].join(',') });
       _restoreBaseTransform(el, node);
     }
+  }
+
+  // Restore static clip-paths on mask-dependent elements
+  _restoreStaticClipPaths(elements);
+}
+
+/**
+ * Restore the static (final) clip-path on all mask-dependent elements.
+ * Called after animations complete or on reset to ensure clip-paths match
+ * the mask elements' rest positions (not their animated from-positions).
+ */
+function _restoreStaticClipPaths(elements) {
+  for (const el of elements) {
+    if (!el.clipMask?.elementId) continue;
+    const maskEl = elements.find(m => m.id === el.clipMask.elementId);
+    if (!maskEl) continue;
+    const clippedNode = document.querySelector(`#canvasContainer [data-element-id="${el.id}"]`);
+    if (!clippedNode) continue;
+    const cp = computeClipPath(el, maskEl);
+    clippedNode.style.clipPath = cp || '';
   }
 }
 
@@ -1162,6 +1243,9 @@ function _buildScrubTimeline() {
       tl.from(node, { ...preset.vars, duration, ease: easing }, delay);
     }
   }
+
+  // Animated clip-paths for scrub timeline
+  _addClipPathAnimations(tl, elements);
 
   // HOLD phase (empty tween to advance timeline)
   const holdStart = inDuration / 1000;

@@ -169,6 +169,7 @@ function _applyClipPaths(elements, domMap) {
       y: maskEl.top ?? maskEl.y,
       width: maskEl.width,
       height: maskEl.height,
+      rotation: maskEl.rotation || 0,
       shapeType: maskEl.shapeType,
       borderRadius: maskEl.borderRadius,
     };

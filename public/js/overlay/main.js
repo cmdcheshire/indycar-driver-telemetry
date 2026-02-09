@@ -13,6 +13,7 @@ import { init as initAssetCache, precacheTemplate } from './asset-cache.js';
 import { loadCustomFonts } from '/js/shared/font-loader.js';
 import { getEnterPreset, migrateEasing } from '/js/shared/animation-presets.js';
 import { resolveEasing } from '/js/shared/motorsport-easings.js';
+import { computeClipPath, offsetMaskBounds } from '/js/shared/clip-path.js';
 
 // ---------------------------------------------------------------------------
 // State
@@ -477,6 +478,68 @@ function buildPlayoutTimeline(elementAnimations, timeline) {
       },
     }, delay);
     tweenCount++;
+  }
+
+  // Animated clip-paths: if a mask element has an enter animation, animate
+  // the clip-path on its dependent (clipped) elements from offset → rest position
+  if (currentTemplate?.elements) {
+    const canvasW = window.innerWidth || 1920;
+    const canvasH = window.innerHeight || 1080;
+
+    for (const el of currentTemplate.elements) {
+      if (!el.clipMask?.elementId) continue;
+
+      const maskEl = currentTemplate.elements.find(m => m.id === el.clipMask.elementId);
+      if (!maskEl) continue;
+
+      // Check mask's enter animation (normalized flat properties)
+      const maskAnimType = maskEl.enterAnimation;
+      if (!maskAnimType || maskAnimType === 'none') continue;
+
+      const preset = getEnterPreset(maskAnimType);
+      if (!preset) continue;
+
+      // Skip clip-path based presets (wipe/reveal) and opacity-only presets
+      if (preset.vars.clipPath) continue;
+      const posVars = { ...preset.vars };
+      delete posVars.opacity;
+      if (Object.keys(posVars).length === 0) continue;
+
+      const clippedNode = domMap?.get(el.id);
+      if (!clippedNode) continue;
+
+      // Build bounds objects (normalized elements use left/top)
+      const clippedBounds = { x: el.left ?? el.x, y: el.top ?? el.y, width: el.width, height: el.height };
+      const maskBounds = {
+        x: maskEl.left ?? maskEl.x, y: maskEl.top ?? maskEl.y,
+        width: maskEl.width, height: maskEl.height,
+        rotation: maskEl.rotation || 0,
+        shapeType: maskEl.shapeType, borderRadius: maskEl.borderRadius,
+      };
+
+      const fromMaskBounds = offsetMaskBounds(maskBounds, preset.vars, canvasW, canvasH);
+      const toClipPath = computeClipPath(clippedBounds, maskBounds, { forcePolygon: true });
+      const fromClipPath = computeClipPath(clippedBounds, fromMaskBounds, { forcePolygon: true });
+
+      if (!fromClipPath || !toClipPath) continue;
+
+      const delay = (maskEl.enterAnimationDelay || 0) / 1000;
+      const duration = (maskEl.enterAnimationDuration || 300) / 1000;
+      const rawEasing = maskEl.enterAnimationEasing || preset.defaultEase || 'power2.out';
+      const easing = resolveEasing(migrateEasing(rawEasing));
+
+      tl.fromTo(clippedNode,
+        { clipPath: fromClipPath },
+        { clipPath: toClipPath, duration, ease: easing, overwrite: false,
+          onComplete: () => {
+            // Restore the static mask clip-path (stored by template-loader)
+            clippedNode.style.clipPath = clippedNode.dataset.maskClipPath || toClipPath;
+          },
+        },
+        delay
+      );
+      tweenCount++;
+    }
   }
 
   console.log('[overlay] Playout timeline built:', tweenCount, 'tweens, duration:', tl.duration(), 's');
