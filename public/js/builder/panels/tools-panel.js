@@ -43,6 +43,12 @@ const TOOLS = [
     shortcut: 'D',
     icon: `<svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><ellipse cx="9" cy="4" rx="6" ry="2.5"/><path d="M3 4v10c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5V4"/><path d="M3 9c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5"/></svg>`,
   },
+  {
+    id: 'gauge',
+    label: 'Gauge',
+    shortcut: 'G',
+    icon: `<svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3.5 13.5a7 7 0 0 1 11 0"/><path d="M9 4v2"/><path d="M9 9l2.5-2.5"/></svg>`,
+  },
 ];
 
 /**

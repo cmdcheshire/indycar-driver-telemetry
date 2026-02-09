@@ -2,8 +2,18 @@
  * Element renderer.
  *
  * Creates absolutely-positioned DOM elements from template element definitions.
- * Supports types: text, image, shape, data.
+ * Supports types: text, image, shape, data, arcGauge, barGauge, ringSegment.
  */
+
+import {
+  buildArcGaugeSvg,
+  buildBarGauge,
+  buildRingSegmentSvg,
+  updateArcGaugeFill,
+  updateBarGaugeFill,
+  updateRingSegmentFill,
+  gaugePercent,
+} from '/js/shared/svg-gauge-utils.js';
 
 /**
  * Render a single overlay element from its template definition.
@@ -61,6 +71,18 @@ export function renderElement(element, referenceData = {}) {
 
     case 'data':
       renderData(wrapper, element);
+      break;
+
+    case 'arcGauge':
+      renderArcGauge(wrapper, element);
+      break;
+
+    case 'barGauge':
+      renderBarGauge(wrapper, element);
+      break;
+
+    case 'ringSegment':
+      renderRingSegment(wrapper, element);
       break;
 
     default:
@@ -175,6 +197,94 @@ function renderData(wrapper, element) {
 
   // Show fallback text initially
   wrapper.textContent = element.fallback || '';
+}
+
+// ---------------------------------------------------------------------------
+// Gauge renderers
+// ---------------------------------------------------------------------------
+
+/**
+ * Render an arc gauge element.
+ */
+function renderArcGauge(wrapper, element) {
+  const w = 200; // SVG viewbox-based, scales to 100% via viewBox
+  const h = 200;
+  const svg = buildArcGaugeSvg(w, h, element, 0); // Start at 0 fill
+  wrapper.appendChild(svg);
+
+  // Store gauge config as data attributes for live updates
+  wrapper.setAttribute('data-gauge-type', 'arc');
+  wrapper.setAttribute('data-min', String(element.min ?? 0));
+  wrapper.setAttribute('data-max', String(element.max ?? 100));
+
+  // Data-binding attributes
+  if (element.source)      wrapper.setAttribute('data-source', element.source);
+  if (element.field)       wrapper.setAttribute('data-field', element.field);
+  if (element.car)         wrapper.setAttribute('data-car', element.car);
+  if (element.smoothing)   wrapper.setAttribute('data-smoothing', String(element.smoothing));
+}
+
+/**
+ * Render a bar gauge element.
+ */
+function renderBarGauge(wrapper, element) {
+  const bar = buildBarGauge(200, 200, element, 0); // Start at 0 fill
+  wrapper.appendChild(bar);
+
+  wrapper.setAttribute('data-gauge-type', 'bar');
+  wrapper.setAttribute('data-min', String(element.min ?? 0));
+  wrapper.setAttribute('data-max', String(element.max ?? 100));
+
+  if (element.source)      wrapper.setAttribute('data-source', element.source);
+  if (element.field)       wrapper.setAttribute('data-field', element.field);
+  if (element.car)         wrapper.setAttribute('data-car', element.car);
+  if (element.smoothing)   wrapper.setAttribute('data-smoothing', String(element.smoothing));
+}
+
+/**
+ * Render a ring segment gauge element.
+ */
+function renderRingSegment(wrapper, element) {
+  const svg = buildRingSegmentSvg(200, 200, element, 0); // Start at 0 fill
+  wrapper.appendChild(svg);
+
+  wrapper.setAttribute('data-gauge-type', 'ringSegment');
+  wrapper.setAttribute('data-min', String(element.min ?? 0));
+  wrapper.setAttribute('data-max', String(element.max ?? 100));
+
+  if (element.source)      wrapper.setAttribute('data-source', element.source);
+  if (element.field)       wrapper.setAttribute('data-field', element.field);
+  if (element.car)         wrapper.setAttribute('data-car', element.car);
+  if (element.smoothing)   wrapper.setAttribute('data-smoothing', String(element.smoothing));
+}
+
+/**
+ * Update a gauge element's visual fill from a numeric value.
+ *
+ * @param {HTMLElement} domNode - The gauge wrapper DOM node.
+ * @param {number}      value  - The raw numeric value.
+ * @param {object}      element - The template element definition.
+ */
+export function updateGaugeValue(domNode, value, element) {
+  if (!domNode) return;
+
+  const min = element.min ?? parseFloat(domNode.getAttribute('data-min')) ?? 0;
+  const max = element.max ?? parseFloat(domNode.getAttribute('data-max')) ?? 100;
+  const pct = gaugePercent(value, min, max);
+
+  const gaugeType = domNode.getAttribute('data-gauge-type');
+
+  switch (gaugeType) {
+    case 'arc':
+      updateArcGaugeFill(domNode, pct, element);
+      break;
+    case 'bar':
+      updateBarGaugeFill(domNode, pct, element);
+      break;
+    case 'ringSegment':
+      updateRingSegmentFill(domNode, pct, element);
+      break;
+  }
 }
 
 // ---------------------------------------------------------------------------

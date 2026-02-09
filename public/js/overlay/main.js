@@ -272,6 +272,7 @@ async function handleInit(msg) {
       dataBinder.updateData(dataType, data);
     }
     dataBinder.resolveBindings();
+    dataBinder.resolveGaugeBindings();
   }
 
   // Apply element overrides from config
@@ -315,6 +316,7 @@ function handleDataUpdate(msg) {
   }
 
   dataBinder.resolveBindings();
+  dataBinder.resolveGaugeBindings();
 }
 
 // ---------------------------------------------------------------------------
@@ -385,6 +387,23 @@ function buildPlayoutTimeline(elementAnimations, timeline) {
     const node = domMap ? domMap.get(config.elementId) : null;
     if (!node) { console.warn('[overlay] DOM node not found for', config.elementId); continue; }
 
+    // ── Check for keyframe animation override ──
+    const templateEl = currentTemplate?.elements?.find(e => e.id === config.elementId);
+    if (templateEl?.keyframeAnimation?.enabled && templateEl.keyframeAnimation.tracks?.length > 0) {
+      node.style.opacity = '';
+      node.style.willChange = 'transform, opacity';
+
+      const subTl = animationEngine.showWithKeyframes(config.elementId, templateEl.keyframeAnimation);
+      if (subTl) {
+        const delay = (config.delay || 0) / 1000;
+        tl.add(subTl, delay);
+        tweenCount++;
+        console.log('[overlay] Using keyframe animation for', config.elementId);
+      }
+      continue;
+    }
+
+    // ── Standard preset animation ──
     const presetName = config.type || 'fadeIn';
     if (presetName === 'none') continue;
 
@@ -560,6 +579,7 @@ function handleTemplateUpdate(msg) {
 
   // Re-resolve with whatever data we already have
   dataBinder.resolveBindings();
+  dataBinder.resolveGaugeBindings();
 
   // Pre-cache image assets for the new template
   precacheTemplate(currentTemplate, referenceData || {}, currentConfig || {});
@@ -682,5 +702,28 @@ function applyElementOverrides(overrides) {
     if (props.suffix !== undefined) node.setAttribute('data-suffix', props.suffix);
     if (props.fallback !== undefined) node.setAttribute('data-fallback', props.fallback);
     if (props.carSelector !== undefined) node.setAttribute('data-car', props.carSelector);
+
+    // Gauge-specific overrides
+    if (props.fillColor !== undefined) {
+      const fillEl = node.querySelector('[data-role="fill"]');
+      if (fillEl) {
+        if (fillEl.tagName === 'path' || fillEl.tagName === 'PATH') {
+          fillEl.setAttribute('stroke', props.fillColor);
+        } else {
+          fillEl.style.backgroundColor = props.fillColor;
+        }
+      }
+    }
+    if (props.bgColor !== undefined) {
+      const gaugeType = node.getAttribute('data-gauge-type');
+      if (gaugeType === 'bar') {
+        // Bar gauge container background
+        const container = node.querySelector('div');
+        if (container) container.style.background = props.bgColor;
+      }
+      // For arc/ring, bg paths use bgColor — would need full re-render; skip for now
+    }
+    if (props.min !== undefined) node.setAttribute('data-min', String(props.min));
+    if (props.max !== undefined) node.setAttribute('data-max', String(props.max));
   }
 }

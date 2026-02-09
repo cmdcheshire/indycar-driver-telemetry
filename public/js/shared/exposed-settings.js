@@ -119,6 +119,36 @@ export const EXPOSABLE_SETTINGS = {
       { value: 'visible', label: 'Visible' },
     ]},
   ],
+
+  arcGauge: [
+    { key: 'fillColor', label: 'Fill Color', inputType: 'color' },
+    { key: 'bgColor', label: 'Background', inputType: 'color' },
+    { key: 'carSelector', label: 'Car Selector', inputType: 'carSelector' },
+    { key: 'min', label: 'Min Value', inputType: 'number', min: -10000, max: 100000, step: 1 },
+    { key: 'max', label: 'Max Value', inputType: 'number', min: -10000, max: 100000, step: 1 },
+    { key: 'thickness', label: 'Thickness', inputType: 'number', min: 2, max: 60, step: 1 },
+  ],
+
+  barGauge: [
+    { key: 'fillColor', label: 'Fill Color', inputType: 'color' },
+    { key: 'bgColor', label: 'Background', inputType: 'color' },
+    { key: 'carSelector', label: 'Car Selector', inputType: 'carSelector' },
+    { key: 'min', label: 'Min Value', inputType: 'number', min: -10000, max: 100000, step: 1 },
+    { key: 'max', label: 'Max Value', inputType: 'number', min: -10000, max: 100000, step: 1 },
+    { key: 'orientation', label: 'Direction', inputType: 'select', options: [
+      { value: 'horizontal', label: 'Horizontal' },
+      { value: 'vertical', label: 'Vertical' },
+    ]},
+  ],
+
+  ringSegment: [
+    { key: 'bgColor', label: 'Background', inputType: 'color' },
+    { key: 'carSelector', label: 'Car Selector', inputType: 'carSelector' },
+    { key: 'min', label: 'Min Value', inputType: 'number', min: -10000, max: 100000, step: 1 },
+    { key: 'max', label: 'Max Value', inputType: 'number', min: -10000, max: 100000, step: 1 },
+    { key: 'segments', label: 'Segments', inputType: 'number', min: 2, max: 60, step: 1 },
+    { key: 'thickness', label: 'Thickness', inputType: 'number', min: 2, max: 60, step: 1 },
+  ],
 };
 
 /**

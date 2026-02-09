@@ -4,6 +4,7 @@
  */
 
 import { computeClipPath } from '/js/shared/clip-path.js';
+import { buildArcGaugeSvg, buildBarGauge, buildRingSegmentSvg } from '/js/shared/svg-gauge-utils.js';
 
 export class CanvasEngine {
   /** @type {HTMLElement} */
@@ -321,6 +322,36 @@ export class CanvasEngine {
         break;
       }
 
+      case 'arcGauge': {
+        node.innerHTML = '';
+        const rect = node.getBoundingClientRect();
+        const w = rect.width || 100;
+        const h = rect.height || 100;
+        const svg = buildArcGaugeSvg(w, h, p);
+        node.appendChild(svg);
+        break;
+      }
+
+      case 'barGauge': {
+        node.innerHTML = '';
+        const rect = node.getBoundingClientRect();
+        const w = rect.width || 100;
+        const h = rect.height || 100;
+        const bar = buildBarGauge(w, h, p);
+        node.appendChild(bar);
+        break;
+      }
+
+      case 'ringSegment': {
+        node.innerHTML = '';
+        const rect = node.getBoundingClientRect();
+        const w = rect.width || 100;
+        const h = rect.height || 100;
+        const svg = buildRingSegmentSvg(w, h, p);
+        node.appendChild(svg);
+        break;
+      }
+
       default:
         node.textContent = element.type;
     }
@@ -406,7 +437,7 @@ export class CanvasEngine {
       if (hiddenMaskIds.has(id)) {
         entry.node.style.display = 'none';
       } else if (entry.element.visible !== false) {
-        // Restore correct display — text/data need flex for vertical alignment
+        // Restore correct display — text/data need flex for vertical alignment; gauge types use default
         const t = entry.element.type;
         entry.node.style.display = (t === 'text' || t === 'data') ? 'flex' : '';
       }

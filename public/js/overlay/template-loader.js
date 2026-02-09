@@ -61,6 +61,10 @@ function normalizeElement(el) {
       if (anim.emphasis.trigger)  flat.emphasisTrigger   = anim.emphasis.trigger;
       if (anim.emphasis.repeat != null) flat.emphasisRepeat = anim.emphasis.repeat;
     }
+    // Pass through keyframe animation data (advanced choreography)
+    if (anim.keyframes) {
+      flat.keyframeAnimation = anim.keyframes;
+    }
   }
 
   return flat;

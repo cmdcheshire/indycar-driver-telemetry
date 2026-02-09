@@ -716,6 +716,12 @@ function _getTypeIcon(type) {
       return '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="1"/></svg>';
     case 'data':
       return '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h2M10 4h2M4 8h8M4 12h2M10 12h2"/></svg>';
+    case 'arcGauge':
+      return '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 12a6 6 0 0 1 10 0"/><path d="M8 3v1.5"/><path d="M8 8l2-2"/></svg>';
+    case 'barGauge':
+      return '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="2" y="6" width="12" height="4" rx="1"/><rect x="2" y="6" width="7" height="4" rx="1" fill="currentColor" opacity="0.3"/></svg>';
+    case 'ringSegment':
+      return '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12a6 6 0 0 1 2.5-5"/><path d="M6.5 4.5a6 6 0 0 1 3 0"/><path d="M10.5 7a6 6 0 0 1 2.5 5"/></svg>';
     default:
       return type.charAt(0).toUpperCase();
   }

@@ -198,6 +198,158 @@ export function createDataElement(x = 10, y = 10) {
 }
 
 /**
+ * Create an arc gauge element at the given canvas position.
+ * @param {number} x - X position as percentage
+ * @param {number} y - Y position as percentage
+ * @returns {object}
+ */
+export function createArcGaugeElement(x = 10, y = 10) {
+  return {
+    id: _uuid(),
+    type: 'arcGauge',
+    name: 'Arc Gauge',
+    visible: true,
+    locked: false,
+    exposed: false,
+    exposedSettings: [],
+    groupId: null,
+    clipMask: null,
+    x,
+    y,
+    width: 10,
+    height: 10,
+    rotation: 0,
+    opacity: 1,
+    zIndex: 0,
+    props: {
+      startAngle: -135,
+      endAngle: 135,
+      thickness: 12,
+      min: 0,
+      max: 100,
+      fillColor: '#00e676',
+      bgColor: 'rgba(255,255,255,0.15)',
+      // Binding configuration
+      bindingSource: '',
+      bindingField: '',
+      carSelector: '',
+      format: 'raw',
+      smoothing: 0,
+      _previewValue: 50,
+    },
+    animation: {
+      enter: { type: 'none', duration: 300, delay: 0, easing: 'power2.out' },
+      exit: { type: 'none', duration: 300, delay: 0, easing: 'power2.in' },
+      update: { type: 'none', duration: 300, easing: 'power1.inOut' },
+      emphasis: { type: 'none', duration: 400, trigger: 'onChange', repeat: 0 },
+    },
+  };
+}
+
+/**
+ * Create a bar gauge element at the given canvas position.
+ * @param {number} x - X position as percentage
+ * @param {number} y - Y position as percentage
+ * @returns {object}
+ */
+export function createBarGaugeElement(x = 10, y = 10) {
+  return {
+    id: _uuid(),
+    type: 'barGauge',
+    name: 'Bar Gauge',
+    visible: true,
+    locked: false,
+    exposed: false,
+    exposedSettings: [],
+    groupId: null,
+    clipMask: null,
+    x,
+    y,
+    width: 15,
+    height: 3,
+    rotation: 0,
+    opacity: 1,
+    zIndex: 0,
+    props: {
+      orientation: 'horizontal',
+      min: 0,
+      max: 100,
+      fillColor: '#00e676',
+      bgColor: 'rgba(255,255,255,0.15)',
+      borderRadius: 0,
+      // Binding configuration
+      bindingSource: '',
+      bindingField: '',
+      carSelector: '',
+      format: 'raw',
+      smoothing: 0,
+      _previewValue: 50,
+    },
+    animation: {
+      enter: { type: 'none', duration: 300, delay: 0, easing: 'power2.out' },
+      exit: { type: 'none', duration: 300, delay: 0, easing: 'power2.in' },
+      update: { type: 'none', duration: 300, easing: 'power1.inOut' },
+      emphasis: { type: 'none', duration: 400, trigger: 'onChange', repeat: 0 },
+    },
+  };
+}
+
+/**
+ * Create a ring segment gauge element at the given canvas position.
+ * @param {number} x - X position as percentage
+ * @param {number} y - Y position as percentage
+ * @returns {object}
+ */
+export function createRingSegmentElement(x = 10, y = 10) {
+  return {
+    id: _uuid(),
+    type: 'ringSegment',
+    name: 'Ring Segment',
+    visible: true,
+    locked: false,
+    exposed: false,
+    exposedSettings: [],
+    groupId: null,
+    clipMask: null,
+    x,
+    y,
+    width: 10,
+    height: 10,
+    rotation: 0,
+    opacity: 1,
+    zIndex: 0,
+    props: {
+      startAngle: -135,
+      endAngle: 135,
+      segments: 10,
+      segmentGap: 3,
+      thickness: 12,
+      min: 0,
+      max: 100,
+      colorStops: [
+        { value: 0, color: '#00e676' },
+        { value: 50, color: '#ffeb3b' },
+        { value: 100, color: '#ff5252' },
+      ],
+      bgColor: 'rgba(255,255,255,0.15)',
+      // Binding configuration
+      bindingSource: '',
+      bindingField: '',
+      carSelector: '',
+      format: 'raw',
+      smoothing: 0,
+      _previewValue: 50,
+    },
+    animation: {
+      enter: { type: 'none', duration: 300, delay: 0, easing: 'power2.out' },
+      exit: { type: 'none', duration: 300, delay: 0, easing: 'power2.in' },
+      update: { type: 'none', duration: 300, easing: 'power1.inOut' },
+      emphasis: { type: 'none', duration: 400, trigger: 'onChange', repeat: 0 },
+    },
+  };
+}
+
+/**
  * Clone an element with a new ID.
  * @param {object} element
  * @returns {object}

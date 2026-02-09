@@ -114,7 +114,7 @@
     /* Tool buttons */
     .tools-grid {
       display: grid;
-      grid-template-columns: repeat(5, 1fr);
+      grid-template-columns: repeat(6, 1fr);
       gap: 4px;
     }
 
@@ -771,6 +771,242 @@
       margin-top: auto;
       padding: 12px;
       border-top: 1px solid var(--border);
+    }
+
+    /* ================================================================ *
+     *  Animation Designer (Keyframe Editor)
+     * ================================================================ */
+    .anim-designer-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .anim-designer-back {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 2px 8px;
+      font-size: 0.7rem;
+      transition: all var(--transition);
+    }
+    .anim-designer-back:hover { color: var(--text); border-color: var(--text-muted); }
+    .anim-designer-title {
+      font-size: 0.8rem;
+      font-weight: 600;
+      flex: 1;
+    }
+    .anim-designer-enable {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+    }
+    .anim-designer-enable input { accent-color: var(--accent); margin: 0; }
+
+    .anim-designer-dur {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+    }
+    .anim-designer-dur label {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      min-width: 48px;
+    }
+    .anim-designer-dur .input {
+      width: 72px;
+      padding: 3px 6px;
+      font-size: 0.8rem;
+    }
+    .anim-designer-dur-unit {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+    }
+
+    .anim-designer-timeline {
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    .anim-designer-ruler {
+      display: flex;
+      height: 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      background: rgba(255,255,255,0.02);
+    }
+    .anim-designer-track-label {
+      width: 56px;
+      flex-shrink: 0;
+      padding: 0 6px;
+      font-size: 0.65rem;
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+    .anim-designer-track-del {
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      font-size: 0.8rem;
+      padding: 0 2px;
+      display: none;
+      line-height: 1;
+    }
+    .anim-designer-track-label:hover .anim-designer-track-del { display: inline; }
+    .anim-designer-track-del:hover { color: var(--danger); }
+
+    .anim-designer-ruler-bar {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+    .anim-designer-tick {
+      position: absolute;
+      top: 4px;
+      font-size: 0.5rem;
+      color: var(--text-dim);
+      transform: translateX(-50%);
+      white-space: nowrap;
+    }
+
+    .anim-designer-track {
+      display: flex;
+      height: 28px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .anim-designer-track:hover {
+      background: rgba(255,255,255,0.02);
+    }
+    .anim-designer-keyframe-bar {
+      flex: 1;
+      position: relative;
+      cursor: crosshair;
+    }
+    .anim-designer-diamond {
+      position: absolute;
+      top: 50%;
+      width: 10px;
+      height: 10px;
+      background: var(--accent);
+      transform: translate(-50%, -50%) rotate(45deg);
+      cursor: pointer;
+      z-index: 2;
+      border: 1px solid rgba(255,255,255,0.3);
+      transition: background 0.1s;
+    }
+    .anim-designer-diamond:hover {
+      background: #7c8cf5;
+      transform: translate(-50%, -50%) rotate(45deg) scale(1.2);
+    }
+    .anim-designer-diamond.selected {
+      background: #ffeb3b;
+      border-color: #fff;
+    }
+    .anim-designer-segment {
+      position: absolute;
+      top: 50%;
+      height: 2px;
+      background: var(--accent);
+      opacity: 0.3;
+      transform: translateY(-50%);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .anim-designer-add-track {
+      padding: 6px 12px;
+    }
+    .anim-designer-add-track .select {
+      font-size: 0.75rem;
+      padding: 4px 6px;
+    }
+
+    .anim-designer-inspector {
+      padding: 8px 12px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .anim-designer-inspector-title {
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .anim-designer-inspector-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .anim-designer-inspector-row label {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      min-width: 40px;
+      flex-shrink: 0;
+    }
+    .anim-designer-inspector-row .input,
+    .anim-designer-inspector-row .select {
+      flex: 1;
+      padding: 3px 6px;
+      font-size: 0.8rem;
+      min-width: 0;
+    }
+    .anim-designer-hint {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      text-align: center;
+      padding: 8px 0;
+    }
+
+    .anim-designer-transport {
+      display: flex;
+      gap: 4px;
+      padding: 8px 12px;
+      border-top: 1px solid var(--border);
+    }
+    .anim-designer-transport-btn {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      padding: 4px 6px;
+      height: 28px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 0.65rem;
+      transition: all var(--transition);
+    }
+    .anim-designer-transport-btn:hover {
+      background: var(--accent-light);
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+    .anim-designer-transport-btn.active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+    .anim-designer-transport-btn svg {
+      width: 12px;
+      height: 12px;
+      flex-shrink: 0;
     }
 
     /* ================================================================ *

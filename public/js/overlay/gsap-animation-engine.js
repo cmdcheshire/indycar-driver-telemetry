@@ -300,6 +300,240 @@ export class GsapAnimationEngine {
   }
 
   // -----------------------------------------------------------------------
+  // Keyframe-based animation (advanced choreography)
+  // -----------------------------------------------------------------------
+
+  /**
+   * Show an element using a keyframe animation definition instead of a preset.
+   * Builds a GSAP timeline from per-property tracks with timed keyframes.
+   *
+   * @param {string} elementId
+   * @param {object} keyframeData - { duration, tracks: [{ property, keyframes: [{ time, value, easing }] }] }
+   * @returns {gsap.core.Timeline|null} The built timeline (for adding to a parent timeline)
+   */
+  showWithKeyframes(elementId, keyframeData) {
+    const node = this._getNode(elementId);
+    if (!node || !keyframeData || !keyframeData.tracks) return null;
+
+    this._killChannel(elementId);
+
+    // Make visible
+    node.style.display = '';
+    node.style.opacity = '';
+
+    this._setWillChange(elementId, node);
+
+    let tl;
+    const tlFn = () => {
+      tl = gsap.timeline({
+        onComplete: () => {
+          this._channels.delete(elementId);
+          // Clear GSAP inline transforms, preserving clip-path from mask system
+          gsap.set(node, { clearProps: 'transform,opacity,clipPath,color,backgroundColor' });
+          this._restoreMaskClipPath(node);
+          this._clearWillChange(elementId, node);
+        },
+      });
+
+      for (const track of keyframeData.tracks) {
+        const sorted = [...track.keyframes].sort((a, b) => a.time - b.time);
+        if (sorted.length < 2) continue;
+
+        // Set the initial value for this property
+        gsap.set(node, { [track.property]: sorted[0].value });
+
+        // Build tweens between consecutive keyframes
+        for (let i = 0; i < sorted.length - 1; i++) {
+          const from = sorted[i];
+          const to = sorted[i + 1];
+          const dur = (to.time - from.time) / 1000;
+          const pos = from.time / 1000;
+          const ease = to.easing && to.easing !== 'none'
+            ? resolveEasing(migrateEasing(to.easing))
+            : 'none';
+
+          tl.to(node, {
+            [track.property]: to.value,
+            duration: dur,
+            ease,
+          }, pos);
+        }
+      }
+
+      this._channels.set(elementId, tl);
+    };
+
+    if (this._ctx) {
+      this._ctx.add(tlFn);
+    } else {
+      tlFn();
+    }
+
+    return tl;
+  }
+
+  // -----------------------------------------------------------------------
+  // Gauge transitions
+  // -----------------------------------------------------------------------
+
+  /**
+   * Smoothly tween a gauge element's visual fill to a target value.
+   * Uses a named channel per gauge for auto-interruption.
+   *
+   * @param {string}  elementId - Gauge element ID
+   * @param {number}  targetValue - Target numeric value
+   * @param {object}  element - Template element definition (min, max, type, etc.)
+   * @param {number}  [duration=100] - Tween duration in ms
+   */
+  tweenGauge(elementId, targetValue, element, duration = 100) {
+    const node = this._getNode(elementId);
+    if (!node) return;
+
+    const channel = `gauge-${elementId}`;
+    this._killChannel(channel);
+
+    // Import the gauge update function dynamically to avoid circular deps
+    // We use a proxy object that GSAP will tween, then apply to DOM each frame
+    const min = element.min ?? 0;
+    const max = element.max ?? 100;
+    const currentPct = this._gaugeState?.[elementId] ?? 0;
+    const targetPct = Math.max(0, Math.min(1, (targetValue - min) / (max - min)));
+
+    if (!this._gaugeState) this._gaugeState = {};
+
+    const proxy = { pct: currentPct };
+    const gaugeType = node.getAttribute('data-gauge-type');
+
+    const tweenFn = () => {
+      const tween = gsap.to(proxy, {
+        pct: targetPct,
+        duration: duration / 1000,
+        ease: 'dataPunch',
+        overwrite: 'auto',
+        onUpdate: () => {
+          this._gaugeState[elementId] = proxy.pct;
+          // Update DOM directly — import would be circular, so use the data attribute approach
+          this._updateGaugeDom(node, proxy.pct, gaugeType, element);
+        },
+        onComplete: () => {
+          this._channels.delete(channel);
+          this._gaugeState[elementId] = targetPct;
+        },
+      });
+      this._channels.set(channel, tween);
+    };
+
+    if (this._ctx) {
+      this._ctx.add(tweenFn);
+    } else {
+      tweenFn();
+    }
+  }
+
+  /**
+   * Direct DOM gauge update (avoids circular import of element-renderer).
+   * @private
+   */
+  _updateGaugeDom(node, pct, gaugeType, element) {
+    switch (gaugeType) {
+      case 'arc': {
+        const svg = node.querySelector('svg');
+        if (!svg) return;
+        const fillPath = svg.querySelector('[data-role="fill"]');
+        const { startAngle = -135, endAngle = 135, thickness = 12 } = element;
+        const viewBox = svg.getAttribute('viewBox')?.split(' ').map(Number);
+        if (!viewBox) return;
+        const size = viewBox[2];
+        const cx = size / 2;
+        const cy = size / 2;
+        const outerR = (size / 2) - 2;
+        const innerR = outerR - thickness;
+        const midR = (outerR + innerR) / 2;
+        const fillAngle = startAngle + (endAngle - startAngle) * pct;
+
+        if (pct <= 0.001) {
+          if (fillPath) fillPath.setAttribute('d', '');
+          return;
+        }
+
+        // Inline arc calculation to avoid import
+        const startPt = this._polarToCartesian(cx, cy, midR, fillAngle);
+        const endPt = this._polarToCartesian(cx, cy, midR, startAngle);
+        const largeArc = (fillAngle - startAngle) <= 180 ? '0' : '1';
+        const d = `M ${startPt.x} ${startPt.y} A ${midR} ${midR} 0 ${largeArc} 0 ${endPt.x} ${endPt.y}`;
+
+        if (fillPath) {
+          fillPath.setAttribute('d', d);
+        } else {
+          const ns = 'http://www.w3.org/2000/svg';
+          const newFill = document.createElementNS(ns, 'path');
+          newFill.setAttribute('d', d);
+          newFill.setAttribute('fill', 'none');
+          newFill.setAttribute('stroke', element.fillColor || '#00e676');
+          newFill.setAttribute('stroke-width', String(thickness));
+          newFill.setAttribute('stroke-linecap', 'round');
+          newFill.setAttribute('data-role', 'fill');
+          svg.appendChild(newFill);
+        }
+        break;
+      }
+      case 'bar': {
+        const fill = node.querySelector('[data-role="fill"]');
+        if (!fill) return;
+        const orientation = element.orientation || 'horizontal';
+        if (orientation === 'vertical') {
+          fill.style.height = `${pct * 100}%`;
+        } else {
+          fill.style.width = `${pct * 100}%`;
+        }
+        break;
+      }
+      case 'ringSegment': {
+        const svg = node.querySelector('svg');
+        if (!svg) return;
+        const {
+          segments = 10, min = 0, max = 100,
+          colorStops = [{ value: 0, color: '#00e676' }, { value: 100, color: '#ff5252' }],
+          bgColor = 'rgba(255,255,255,0.15)',
+        } = element;
+        const activeSegments = Math.round(pct * segments);
+        const paths = svg.querySelectorAll('[data-segment]');
+        paths.forEach(path => {
+          const idx = parseInt(path.getAttribute('data-segment'), 10);
+          const isActive = idx < activeSegments;
+          // Simple color resolution — use first/last stop for inactive/active
+          const segValue = min + ((idx + 0.5) / segments) * (max - min);
+          let color = bgColor;
+          if (isActive && colorStops.length > 0) {
+            // Quick interpolation
+            if (segValue <= colorStops[0].value) color = colorStops[0].color;
+            else if (segValue >= colorStops[colorStops.length - 1].value) color = colorStops[colorStops.length - 1].color;
+            else {
+              for (let j = 0; j < colorStops.length - 1; j++) {
+                if (segValue >= colorStops[j].value && segValue <= colorStops[j + 1].value) {
+                  color = colorStops[j].color; // Close enough for tweens
+                  break;
+                }
+              }
+            }
+          }
+          path.setAttribute('stroke', color);
+        });
+        break;
+      }
+    }
+  }
+
+  /** @private */
+  _polarToCartesian(cx, cy, radius, angleDeg) {
+    const angleRad = ((angleDeg - 90) * Math.PI) / 180;
+    return {
+      x: cx + radius * Math.cos(angleRad),
+      y: cy + radius * Math.sin(angleRad),
+    };
+  }
+
+  // -----------------------------------------------------------------------
   // Value transitions
   // -----------------------------------------------------------------------
 

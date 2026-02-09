@@ -17,6 +17,9 @@ import {
   createImageElement,
   createShapeElement,
   createDataElement,
+  createArcGaugeElement,
+  createBarGaugeElement,
+  createRingSegmentElement,
   cloneElement,
 } from './element-factory.js';
 import {
@@ -664,6 +667,10 @@ function _createElementAtMouse(tool, event) {
       // Show preset picker instead of immediately creating
       _showDataPresetPicker(pos);
       return; // Don't fall through to the rest of the function
+    case 'gauge':
+      // Show gauge type picker
+      _showGaugeTypePicker(pos);
+      return;
     default:
       return;
   }
@@ -738,6 +745,68 @@ function _showDataPresetPicker(pos) {
       showToast('data element created', 'info', 2000);
     },
   );
+}
+
+/**
+ * Show a gauge type picker and create the chosen gauge element.
+ * @param {{ x: number, y: number }} pos - Canvas position where the element should be placed.
+ */
+function _showGaugeTypePicker(pos) {
+  const canvasArea = document.getElementById('canvasArea');
+
+  // Create a simple floating picker
+  const picker = document.createElement('div');
+  picker.className = 'gauge-type-picker';
+  picker.style.cssText = `
+    position:fixed; left:50%; top:50%; transform:translate(-50%,-50%);
+    background:var(--bg-secondary,#1e1f2e); border:1px solid var(--border,#2d2e3e);
+    border-radius:8px; padding:12px; display:flex; gap:8px; z-index:9999;
+    box-shadow:0 8px 32px rgba(0,0,0,0.4);
+  `;
+
+  const types = [
+    { id: 'arc', label: 'Arc Gauge', icon: '<svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 24a12 12 0 0 1 20 0"/><path d="M16 6v3"/><path d="M16 16l4-4"/></svg>', factory: createArcGaugeElement },
+    { id: 'bar', label: 'Bar Gauge', icon: '<svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="12" width="24" height="8" rx="2"/><rect x="4" y="12" width="14" height="8" rx="2" fill="currentColor" opacity="0.3"/></svg>', factory: createBarGaugeElement },
+    { id: 'ring', label: 'Ring Segments', icon: '<svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 24a12 12 0 0 1 5-9.5"/><path d="M12.5 9a12 12 0 0 1 7 0"/><path d="M21 14.5a12 12 0 0 1 5 9.5"/></svg>', factory: createRingSegmentElement },
+  ];
+
+  for (const t of types) {
+    const btn = document.createElement('button');
+    btn.className = 'gauge-type-btn';
+    btn.style.cssText = `
+      display:flex; flex-direction:column; align-items:center; gap:6px;
+      padding:12px 16px; border:1px solid var(--border,#2d2e3e); border-radius:6px;
+      background:transparent; color:var(--text,#e8eaed); cursor:pointer;
+      font-size:0.75rem; min-width:80px; transition:background 0.15s;
+    `;
+    btn.innerHTML = `${t.icon}<span>${t.label}</span>`;
+    btn.addEventListener('mouseenter', () => { btn.style.background = 'var(--bg-hover,#2a2b3d)'; });
+    btn.addEventListener('mouseleave', () => { btn.style.background = 'transparent'; });
+    btn.addEventListener('click', () => {
+      picker.remove();
+      const el = t.factory(pos.x, pos.y);
+      el.zIndex = elements.length;
+      elements.push(el);
+      canvas.addElement(el);
+      _pushHistory();
+      setActiveTool('select');
+      selection.selectElement(el.id);
+      showToast(`${el.name} created`, 'info', 2000);
+    });
+    picker.appendChild(btn);
+  }
+
+  // Close on click outside
+  const closeHandler = (e) => {
+    if (!picker.contains(e.target)) {
+      picker.remove();
+      document.removeEventListener('mousedown', closeHandler);
+      setActiveTool('select');
+    }
+  };
+  setTimeout(() => document.addEventListener('mousedown', closeHandler), 0);
+
+  document.body.appendChild(picker);
 }
 
 function _deleteSelected() {

@@ -5,7 +5,7 @@
  * resolves template bindings, and updates the DOM only when values change.
  */
 
-import { updateElementText, updateElementStyle } from './element-renderer.js';
+import { updateElementText, updateElementStyle, updateGaugeValue } from './element-renderer.js';
 import { GsapAnimationEngine } from './gsap-animation-engine.js';
 
 // ---------------------------------------------------------------------------
@@ -86,6 +86,16 @@ export class DataBinder {
 
     /** Filter to only data-type elements for faster iteration */
     this._dataElements = this._elements.filter(el => el.type === 'data');
+
+    /** Filter to gauge-type elements for visual data binding */
+    this._gaugeTypes = new Set(['arcGauge', 'barGauge', 'ringSegment']);
+    this._gaugeElements = this._elements.filter(el => this._gaugeTypes.has(el.type));
+
+    /** Previous gauge values for dirty checking */
+    this._previousGaugeValues = {};
+
+    /** Smoothed gauge values for interpolation */
+    this._smoothedGaugeValues = {};
 
     /**
      * Previous rank assignments: elementId -> { carNumber, rank }
@@ -214,6 +224,56 @@ export class DataBinder {
             });
           }
         }
+      }
+    }
+  }
+
+  /**
+   * Walk every gauge-bound element, resolve its current numeric value,
+   * and update the DOM gauge visual if it has changed.
+   * Supports optional smoothing for low-frequency data sources.
+   */
+  resolveGaugeBindings() {
+    for (const element of this._gaugeElements) {
+      const domNode = this._domMap.get(element.id);
+      if (!domNode) continue;
+
+      const binding = {
+        source: element.source,
+        field:  element.field,
+        car:    element.car,
+      };
+
+      const rawValue = this.resolveValue(binding);
+      if (rawValue === undefined || rawValue === null) continue;
+
+      const numValue = parseFloat(rawValue);
+      if (isNaN(numValue)) continue;
+
+      // Apply smoothing if enabled
+      const smoothing = element.smoothing || parseFloat(domNode.getAttribute('data-smoothing')) || 0;
+      let displayValue = numValue;
+
+      if (smoothing > 0) {
+        const prev = this._smoothedGaugeValues[element.id];
+        if (prev !== undefined) {
+          // Exponential moving average: factor 0–1, higher = smoother
+          const alpha = Math.max(0.05, Math.min(1, 1 - smoothing));
+          displayValue = prev + alpha * (numValue - prev);
+        }
+        this._smoothedGaugeValues[element.id] = displayValue;
+      }
+
+      // Dirty check — only update DOM if value changed (with small epsilon for floats)
+      const prev = this._previousGaugeValues[element.id];
+      if (prev !== undefined && Math.abs(prev - displayValue) < 0.01) continue;
+      this._previousGaugeValues[element.id] = displayValue;
+
+      // Update gauge visual via GSAP micro-tween or direct DOM update
+      if (this._animationEngine && smoothing > 0) {
+        this._animationEngine.tweenGauge(element.id, displayValue, element, 100);
+      } else {
+        updateGaugeValue(domNode, displayValue, element);
       }
     }
   }

@@ -20,6 +20,7 @@ import {
 
 import { getExposableSettings } from '/js/shared/exposed-settings.js';
 import { getCustomFontOptions, registerUploadedFont } from '/js/shared/font-loader.js';
+import { openAnimationDesigner } from './animation-designer.js';
 
 /** @type {Function} */
 let onPropertyChange = null;
@@ -165,6 +166,15 @@ export function updatePropertiesPanel(element) {
       break;
     case 'data':
       _addDataProps(p);
+      break;
+    case 'arcGauge':
+      _addArcGaugeProps(p);
+      break;
+    case 'barGauge':
+      _addBarGaugeProps(p);
+      break;
+    case 'ringSegment':
+      _addRingSegmentProps(p);
       break;
   }
 
@@ -433,6 +443,240 @@ function _addShapeProps(p) {
       _numberInput('Stroke W', p.strokeWidth || 0, 0, 20, 1, (v) => _emitProp({ strokeWidth: v })),
       _numberInput('Radius', p.borderRadius || 0, 0, 100, 1, (v) => _emitProp({ borderRadius: v })),
     ]),
+  ]);
+}
+
+function _addArcGaugeProps(p) {
+  _addCollapsibleGroup('Arc Gauge', [
+    _row([
+      _numberInput('Start °', p.startAngle ?? -135, -360, 360, 1, (v) => _emitProp({ startAngle: v })),
+      _numberInput('End °', p.endAngle ?? 135, -360, 360, 1, (v) => _emitProp({ endAngle: v })),
+    ]),
+    _row([
+      _numberInput('Thick', p.thickness ?? 12, 2, 60, 1, (v) => _emitProp({ thickness: v })),
+    ]),
+    _row([
+      _numberInput('Min', p.min ?? 0, -10000, 100000, 1, (v) => _emitProp({ min: v })),
+      _numberInput('Max', p.max ?? 100, -10000, 100000, 1, (v) => _emitProp({ max: v })),
+    ]),
+    _row([
+      _colorInputWithSwatch('Fill', p.fillColor || '#00e676', (v) => _emitProp({ fillColor: v })),
+      _colorInputWithSwatch('BG', p.bgColor || '#333333', (v) => _emitProp({ bgColor: v })),
+    ]),
+    _rangeInput('Preview', p._previewValue ?? 50, p.min ?? 0, p.max ?? 100, 1, '', (v) => _emitProp({ _previewValue: v })),
+  ]);
+
+  _addBindingControls(p);
+}
+
+function _addBarGaugeProps(p) {
+  _addCollapsibleGroup('Bar Gauge', [
+    _selectInput('Direction', p.orientation || 'horizontal', [
+      { value: 'horizontal', label: 'Horizontal' },
+      { value: 'vertical', label: 'Vertical' },
+    ], (v) => _emitProp({ orientation: v })),
+    _row([
+      _numberInput('Min', p.min ?? 0, -10000, 100000, 1, (v) => _emitProp({ min: v })),
+      _numberInput('Max', p.max ?? 100, -10000, 100000, 1, (v) => _emitProp({ max: v })),
+    ]),
+    _row([
+      _colorInputWithSwatch('Fill', p.fillColor || '#00e676', (v) => _emitProp({ fillColor: v })),
+      _colorInputWithSwatch('BG', p.bgColor || '#333333', (v) => _emitProp({ bgColor: v })),
+    ]),
+    _numberInput('Radius', p.borderRadius ?? 0, 0, 100, 1, (v) => _emitProp({ borderRadius: v })),
+    _rangeInput('Preview', p._previewValue ?? 50, p.min ?? 0, p.max ?? 100, 1, '', (v) => _emitProp({ _previewValue: v })),
+  ]);
+
+  _addBindingControls(p);
+}
+
+function _addRingSegmentProps(p) {
+  _addCollapsibleGroup('Ring Segment', [
+    _row([
+      _numberInput('Start °', p.startAngle ?? -135, -360, 360, 1, (v) => _emitProp({ startAngle: v })),
+      _numberInput('End °', p.endAngle ?? 135, -360, 360, 1, (v) => _emitProp({ endAngle: v })),
+    ]),
+    _row([
+      _numberInput('Segments', p.segments ?? 10, 2, 60, 1, (v) => _emitProp({ segments: v })),
+      _numberInput('Gap', p.segmentGap ?? 3, 0, 20, 1, (v) => _emitProp({ segmentGap: v })),
+    ]),
+    _numberInput('Thick', p.thickness ?? 12, 2, 60, 1, (v) => _emitProp({ thickness: v })),
+    _row([
+      _numberInput('Min', p.min ?? 0, -10000, 100000, 1, (v) => _emitProp({ min: v })),
+      _numberInput('Max', p.max ?? 100, -10000, 100000, 1, (v) => _emitProp({ max: v })),
+    ]),
+    _colorInputWithSwatch('BG', p.bgColor || '#333333', (v) => _emitProp({ bgColor: v })),
+    _addColorStopsEditor(p),
+    _rangeInput('Preview', p._previewValue ?? 50, p.min ?? 0, p.max ?? 100, 1, '', (v) => _emitProp({ _previewValue: v })),
+  ]);
+
+  _addBindingControls(p);
+}
+
+/**
+ * Color stops editor for ring segment gauge.
+ */
+function _addColorStopsEditor(p) {
+  const stops = p.colorStops || [{ value: 0, color: '#00e676' }, { value: 100, color: '#ff5252' }];
+  const container = document.createElement('div');
+  container.style.cssText = 'display:flex; flex-direction:column; gap:4px;';
+
+  const label = document.createElement('label');
+  label.textContent = 'Color Stops';
+  label.style.cssText = 'font-size:0.75rem; color:var(--text-muted);';
+  container.appendChild(label);
+
+  function rebuildStops() {
+    // Remove all stop rows
+    container.querySelectorAll('.color-stop-row').forEach(r => r.remove());
+
+    const currentStops = [...(currentElement?.props?.colorStops || stops)];
+
+    for (let i = 0; i < currentStops.length; i++) {
+      const row = document.createElement('div');
+      row.className = 'color-stop-row';
+      row.style.cssText = 'display:flex; align-items:center; gap:4px;';
+
+      const valInput = document.createElement('input');
+      valInput.type = 'number';
+      valInput.className = 'input';
+      valInput.style.width = '50px';
+      valInput.value = String(currentStops[i].value);
+      valInput.addEventListener('input', () => {
+        currentStops[i] = { ...currentStops[i], value: parseFloat(valInput.value) || 0 };
+        _emitProp({ colorStops: [...currentStops] });
+      });
+      row.appendChild(valInput);
+
+      const colorInput = document.createElement('input');
+      colorInput.type = 'color';
+      colorInput.value = currentStops[i].color;
+      colorInput.style.cssText = 'width:28px; height:22px; border:none; cursor:pointer;';
+      colorInput.addEventListener('input', () => {
+        currentStops[i] = { ...currentStops[i], color: colorInput.value };
+        _emitProp({ colorStops: [...currentStops] });
+      });
+      row.appendChild(colorInput);
+
+      if (currentStops.length > 2) {
+        const delBtn = document.createElement('button');
+        delBtn.className = 'btn btn-sm';
+        delBtn.textContent = '×';
+        delBtn.style.cssText = 'padding:0 4px; min-width:20px;';
+        delBtn.addEventListener('click', () => {
+          currentStops.splice(i, 1);
+          _emitProp({ colorStops: [...currentStops] });
+          if (currentElement) currentElement.props.colorStops = [...currentStops];
+          rebuildStops();
+        });
+        row.appendChild(delBtn);
+      }
+
+      container.appendChild(row);
+    }
+
+    // Add stop button
+    let addBtn = container.querySelector('.add-stop-btn');
+    if (addBtn) addBtn.remove();
+    addBtn = document.createElement('button');
+    addBtn.className = 'btn btn-sm add-stop-btn';
+    addBtn.textContent = '+ Add Stop';
+    addBtn.addEventListener('click', () => {
+      const max = p.max ?? 100;
+      currentStops.push({ value: max, color: '#ffffff' });
+      _emitProp({ colorStops: [...currentStops] });
+      if (currentElement) currentElement.props.colorStops = [...currentStops];
+      rebuildStops();
+    });
+    container.appendChild(addBtn);
+  }
+
+  rebuildStops();
+  return container;
+}
+
+/**
+ * Shared binding controls for gauge elements (source, field, car selector).
+ */
+function _addBindingControls(p) {
+  // Parse car selector
+  const rawSelector = p.carSelector || '';
+  let selectorBase = rawSelector;
+  let selectorSecondary = '';
+  const colonIdx = rawSelector.indexOf(':');
+  if (colonIdx !== -1) {
+    selectorBase = rawSelector.substring(0, colonIdx);
+    selectorSecondary = rawSelector.substring(colonIdx + 1);
+  }
+
+  const sourceSelect = _selectInput('Source', p.bindingSource || '', [
+    { value: '', label: '-- Select --' },
+    ...BINDING_SOURCES.map(s => ({ value: s.source, label: s.label })),
+  ], (v) => {
+    _emitProp({ bindingSource: v, bindingField: '' });
+    if (currentElement) {
+      currentElement.props = { ...(currentElement.props || {}), bindingSource: v, bindingField: '' };
+      updatePropertiesPanel(currentElement);
+    }
+  });
+
+  const fields = p.bindingSource ? getFieldsForSource(p.bindingSource) : [];
+  const fieldSelect = _selectInput('Field', p.bindingField || '', [
+    { value: '', label: '-- Select --' },
+    ...fields.map(f => ({ value: f.field, label: f.label })),
+  ], (v) => {
+    _emitProp({ bindingField: v });
+    if (currentElement) {
+      currentElement.props = { ...(currentElement.props || {}), bindingField: v };
+    }
+  });
+
+  const selectorChildren = [];
+  const selectorSelect = _selectInput('Car', selectorBase, [
+    { value: '', label: '-- None --' },
+    ...CAR_SELECTORS.map(s => ({ value: s.value, label: s.label })),
+  ], (v) => {
+    if (v === 'byRank' || v === 'byCar') {
+      const defaultSec = v === 'byRank' ? '1' : '';
+      const fullValue = defaultSec ? `${v}:${defaultSec}` : v;
+      _emitProp({ carSelector: fullValue });
+      if (currentElement) {
+        currentElement.props = { ...(currentElement.props || {}), carSelector: fullValue };
+        updatePropertiesPanel(currentElement);
+      }
+    } else {
+      _emitProp({ carSelector: v });
+      if (currentElement) {
+        currentElement.props = { ...(currentElement.props || {}), carSelector: v };
+        updatePropertiesPanel(currentElement);
+      }
+    }
+  });
+  selectorChildren.push(selectorSelect);
+
+  if (selectorBase === 'byRank') {
+    selectorChildren.push(_numberInput('Rank', parseInt(selectorSecondary, 10) || 1, 1, 40, 1, (v) => {
+      const fullValue = `byRank:${v}`;
+      _emitProp({ carSelector: fullValue });
+      if (currentElement) currentElement.props = { ...(currentElement.props || {}), carSelector: fullValue };
+    }));
+  } else if (selectorBase === 'byCar') {
+    selectorChildren.push(_textInput('Car #', selectorSecondary, (v) => {
+      const fullValue = v ? `byCar:${v}` : 'byCar';
+      _emitProp({ carSelector: fullValue });
+      if (currentElement) currentElement.props = { ...(currentElement.props || {}), carSelector: fullValue };
+    }));
+  }
+
+  const smoothingControl = _rangeInput('Smoothing', p.smoothing ?? 0, 0, 0.95, 0.05, '', (v) => {
+    _emitProp({ smoothing: v });
+  });
+
+  _addCollapsibleGroup('Data Binding', [
+    sourceSelect,
+    fieldSelect,
+    ...selectorChildren,
+    smoothingControl,
   ]);
 }
 
@@ -728,6 +972,26 @@ function _addAnimationSection(element) {
   }
 
   children.push(previewRow);
+
+  // ── Advanced keyframe editor ──
+  const kfEnabled = element.animation?.keyframes?.enabled;
+  const advancedBtn = document.createElement('button');
+  advancedBtn.className = 'anim-preview-btn';
+  advancedBtn.style.cssText = 'width:100%; justify-content:center; margin-top:2px;';
+  advancedBtn.innerHTML = kfEnabled
+    ? '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M1 3h14v2H1zM3 7h10v2H3zM5 11h6v2H5z"/></svg> Keyframes (On)'
+    : '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 3h14M3 8h10M5 13h6"/></svg> Advanced...';
+  advancedBtn.addEventListener('click', () => {
+    openAnimationDesigner(element, {
+      onPropertyChange: onPropertyChange,
+      onClose: () => {
+        // Re-render properties panel with updated element
+        updatePropertiesPanel(currentElement);
+      },
+      panelEl: panelEl,
+    });
+  });
+  children.push(advancedBtn);
 
   _addCollapsibleGroup('Animation', children, true);
 }
