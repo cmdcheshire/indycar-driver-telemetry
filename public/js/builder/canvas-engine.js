@@ -406,7 +406,9 @@ export class CanvasEngine {
       if (hiddenMaskIds.has(id)) {
         entry.node.style.display = 'none';
       } else if (entry.element.visible !== false) {
-        entry.node.style.display = '';
+        // Restore correct display — text/data need flex for vertical alignment
+        const t = entry.element.type;
+        entry.node.style.display = (t === 'text' || t === 'data') ? 'flex' : '';
       }
     }
   }
