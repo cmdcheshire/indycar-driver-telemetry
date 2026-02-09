@@ -57,6 +57,9 @@ function _restoreBaseTransform(el, node) {
  * Add clip-path animation tweens to a GSAP timeline for mask elements with enter animations.
  * When a hidden mask has an enter animation, the clip-path on its dependent elements
  * animates from the mask's "from" position to its rest position.
+ *
+ * Supports both preset animations (pre-computed fromTo) and keyframe animations
+ * (real-time onUpdate tracking of the mask's GSAP transform every frame).
  */
 function _addClipPathAnimations(tl, elements) {
   const canvasContainer = document.getElementById('canvasContainer');
@@ -69,7 +72,43 @@ function _addClipPathAnimations(tl, elements) {
     const maskEl = elements.find(m => m.id === el.clipMask.elementId);
     if (!maskEl) continue;
 
-    // Check if mask has an enter animation
+    const clippedNode = document.querySelector(`#canvasContainer [data-element-id="${el.id}"]`);
+    if (!clippedNode) continue;
+
+    // ── Keyframe animation on mask (priority over preset) ──
+    const maskEnterKf = _getEnterKf(maskEl);
+    if (maskEnterKf?.enabled && maskEnterKf.tracks?.length > 0) {
+      const maskNode = document.querySelector(`#canvasContainer [data-element-id="${maskEl.id}"]`);
+      if (!maskNode) continue;
+
+      // Only animate clip-path if keyframes affect position/size/rotation
+      const hasPositionTracks = maskEnterKf.tracks.some(t =>
+        ['x', 'y', 'scale', 'scaleX', 'scaleY', 'rotation'].includes(t.property)
+      );
+      if (!hasPositionTracks) continue;
+
+      const maskAnim = maskEl.animation?.enter || {};
+      const delay = (maskAnim.delay || 0) / 1000;
+      const duration = (maskEnterKf.duration || 2000) / 1000;
+
+      // Add a tracking tween that recomputes clip-path every frame
+      tl.to({}, {
+        duration,
+        onUpdate: () => {
+          const bounds = _getEffectiveMaskBounds(maskEl, maskNode, canvasW, canvasH);
+          const cp = computeClipPath(el, bounds, { forcePolygon: true });
+          if (cp) clippedNode.style.clipPath = cp;
+        },
+        onComplete: () => {
+          // Snap to final static clip-path
+          const cp = computeClipPath(el, maskEl);
+          clippedNode.style.clipPath = cp || '';
+        },
+      }, delay);
+      continue;
+    }
+
+    // ── Preset animation on mask ──
     const maskAnim = maskEl.animation?.enter;
     if (!maskAnim?.type || maskAnim.type === 'none') continue;
 
@@ -83,9 +122,6 @@ function _addClipPathAnimations(tl, elements) {
     const posVars = { ...preset.vars };
     delete posVars.opacity;
     if (Object.keys(posVars).length === 0) continue;
-
-    const clippedNode = document.querySelector(`#canvasContainer [data-element-id="${el.id}"]`);
-    if (!clippedNode) continue;
 
     // Compute from/to clip-paths (both use polygon for GSAP interpolation compatibility)
     const fromMaskBounds = offsetMaskBounds(maskEl, preset.vars, canvasW, canvasH);
@@ -104,6 +140,43 @@ function _addClipPathAnimations(tl, elements) {
       delay
     );
   }
+}
+
+/**
+ * Read GSAP-applied transform values from a mask DOM node and compute
+ * effective mask bounds in canvas percentage space.
+ * Used by keyframe clip-path tracking (onUpdate).
+ */
+function _getEffectiveMaskBounds(maskEl, maskNode, canvasW, canvasH) {
+  const gsapX = gsap.getProperty(maskNode, 'x') || 0;
+  const gsapY = gsap.getProperty(maskNode, 'y') || 0;
+  const gsapScaleX = gsap.getProperty(maskNode, 'scaleX');
+  const gsapScaleY = gsap.getProperty(maskNode, 'scaleY');
+  const gsapRotation = gsap.getProperty(maskNode, 'rotation') || 0;
+
+  const scaleX = (gsapScaleX != null && gsapScaleX !== '') ? gsapScaleX : 1;
+  const scaleY = (gsapScaleY != null && gsapScaleY !== '') ? gsapScaleY : 1;
+
+  // Convert pixel transform offsets to canvas percentage
+  const offsetXPct = (gsapX / canvasW) * 100;
+  const offsetYPct = (gsapY / canvasH) * 100;
+
+  // Compute effective width/height (scale from center)
+  const effectiveW = maskEl.width * scaleX;
+  const effectiveH = maskEl.height * scaleY;
+  const cx = maskEl.x + maskEl.width / 2;
+  const cy = maskEl.y + maskEl.height / 2;
+
+  return {
+    x: cx - effectiveW / 2 + offsetXPct,
+    y: cy - effectiveH / 2 + offsetYPct,
+    width: effectiveW,
+    height: effectiveH,
+    rotation: (maskEl.rotation || 0) + gsapRotation,
+    props: maskEl.props,
+    shapeType: maskEl.props?.shapeType || maskEl.shapeType,
+    borderRadius: maskEl.props?.borderRadius || maskEl.borderRadius,
+  };
 }
 
 const LABEL_WIDTH = 90;

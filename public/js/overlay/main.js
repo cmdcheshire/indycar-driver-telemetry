@@ -481,7 +481,9 @@ function buildPlayoutTimeline(elementAnimations, timeline) {
   }
 
   // Animated clip-paths: if a mask element has an enter animation, animate
-  // the clip-path on its dependent (clipped) elements from offset → rest position
+  // the clip-path on its dependent (clipped) elements from offset → rest position.
+  // Supports both preset animations (pre-computed fromTo) and keyframe animations
+  // (real-time onUpdate tracking of the mask's GSAP transform every frame).
   if (currentTemplate?.elements) {
     const canvasW = window.innerWidth || 1920;
     const canvasH = window.innerHeight || 1080;
@@ -491,19 +493,6 @@ function buildPlayoutTimeline(elementAnimations, timeline) {
 
       const maskEl = currentTemplate.elements.find(m => m.id === el.clipMask.elementId);
       if (!maskEl) continue;
-
-      // Check mask's enter animation (normalized flat properties)
-      const maskAnimType = maskEl.enterAnimation;
-      if (!maskAnimType || maskAnimType === 'none') continue;
-
-      const preset = getEnterPreset(maskAnimType);
-      if (!preset) continue;
-
-      // Skip clip-path based presets (wipe/reveal) and opacity-only presets
-      if (preset.vars.clipPath) continue;
-      const posVars = { ...preset.vars };
-      delete posVars.opacity;
-      if (Object.keys(posVars).length === 0) continue;
 
       const clippedNode = domMap?.get(el.id);
       if (!clippedNode) continue;
@@ -515,7 +504,77 @@ function buildPlayoutTimeline(elementAnimations, timeline) {
         width: maskEl.width, height: maskEl.height,
         rotation: maskEl.rotation || 0,
         shapeType: maskEl.shapeType, borderRadius: maskEl.borderRadius,
+        props: { shapeType: maskEl.shapeType, borderRadius: maskEl.borderRadius },
       };
+
+      // ── Keyframe animation on mask (priority over preset) ──
+      const maskEnterKf = maskEl.enterKeyframeAnimation || maskEl.keyframeAnimation;
+      if (maskEnterKf?.enabled && maskEnterKf.tracks?.length > 0) {
+        const maskNode = domMap?.get(maskEl.id);
+        if (!maskNode) continue;
+
+        // Only animate clip-path if keyframes affect position/size/rotation
+        const hasPositionTracks = maskEnterKf.tracks.some(t =>
+          ['x', 'y', 'scale', 'scaleX', 'scaleY', 'rotation'].includes(t.property)
+        );
+        if (!hasPositionTracks) continue;
+
+        const delay = (maskEl.enterAnimationDelay || 0) / 1000;
+        const duration = (maskEnterKf.duration || 2000) / 1000;
+
+        // Add a tracking tween that recomputes clip-path every frame
+        tl.to({}, {
+          duration,
+          onUpdate: () => {
+            const gsapX = gsap.getProperty(maskNode, 'x') || 0;
+            const gsapY = gsap.getProperty(maskNode, 'y') || 0;
+            const gsapScaleX = gsap.getProperty(maskNode, 'scaleX');
+            const gsapScaleY = gsap.getProperty(maskNode, 'scaleY');
+            const gsapRotation = gsap.getProperty(maskNode, 'rotation') || 0;
+
+            const scaleX = (gsapScaleX != null && gsapScaleX !== '') ? gsapScaleX : 1;
+            const scaleY = (gsapScaleY != null && gsapScaleY !== '') ? gsapScaleY : 1;
+
+            const offsetXPct = (gsapX / canvasW) * 100;
+            const offsetYPct = (gsapY / canvasH) * 100;
+            const effectiveW = maskBounds.width * scaleX;
+            const effectiveH = maskBounds.height * scaleY;
+            const cx = maskBounds.x + maskBounds.width / 2;
+            const cy = maskBounds.y + maskBounds.height / 2;
+
+            const effectiveMask = {
+              x: cx - effectiveW / 2 + offsetXPct,
+              y: cy - effectiveH / 2 + offsetYPct,
+              width: effectiveW,
+              height: effectiveH,
+              rotation: (maskBounds.rotation || 0) + gsapRotation,
+              shapeType: maskBounds.shapeType, borderRadius: maskBounds.borderRadius,
+              props: maskBounds.props,
+            };
+
+            const cp = computeClipPath(clippedBounds, effectiveMask, { forcePolygon: true });
+            if (cp) clippedNode.style.clipPath = cp;
+          },
+          onComplete: () => {
+            clippedNode.style.clipPath = clippedNode.dataset.maskClipPath || '';
+          },
+        }, delay);
+        tweenCount++;
+        continue;
+      }
+
+      // ── Preset animation on mask ──
+      const maskAnimType = maskEl.enterAnimation;
+      if (!maskAnimType || maskAnimType === 'none') continue;
+
+      const preset = getEnterPreset(maskAnimType);
+      if (!preset) continue;
+
+      // Skip clip-path based presets (wipe/reveal) and opacity-only presets
+      if (preset.vars.clipPath) continue;
+      const posVars = { ...preset.vars };
+      delete posVars.opacity;
+      if (Object.keys(posVars).length === 0) continue;
 
       const fromMaskBounds = offsetMaskBounds(maskBounds, preset.vars, canvasW, canvasH);
       const toClipPath = computeClipPath(clippedBounds, maskBounds, { forcePolygon: true });
