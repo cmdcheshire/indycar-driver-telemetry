@@ -411,16 +411,6 @@ export function buildExtrudedMesh(contourData, depth, props) {
 
   const geometry = new THREE.ExtrudeGeometry(shapes, extrudeSettings);
 
-  // Fix material group assignment.
-  // Three.js ExtrudeGeometry (r150+) creates 3 groups with bevelEnabled=false:
-  //   [0] side faces → materialIndex 0
-  //   [1] front cap  → materialIndex 0  (shares index with sides!)
-  //   [2] back cap   → materialIndex 1
-  // We need both caps on materialIndex 1 (textured) and sides on 0 (solid color).
-  for (let i = 1; i < geometry.groups.length; i++) {
-    geometry.groups[i].materialIndex = 1;
-  }
-
   // Compute UV mapping for the front/back faces based on image coordinates
   _computeImageUVs(geometry, aspect, halfW, halfH, depth);
 
@@ -447,7 +437,10 @@ export function buildExtrudedMesh(contourData, depth, props) {
     side: THREE.DoubleSide,
   });
 
-  const mesh = new THREE.Mesh(geometry, [sideMat, frontBackMat]);
+  // ExtrudeGeometry (r150+) group ordering (bevelEnabled=false):
+  //   materialIndex 0 = cap faces (front + back)
+  //   materialIndex 1 = side faces (walls)
+  const mesh = new THREE.Mesh(geometry, [frontBackMat, sideMat]);
 
   // Center the geometry
   geometry.computeBoundingBox();
