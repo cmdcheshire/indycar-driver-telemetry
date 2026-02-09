@@ -107,9 +107,9 @@ export class Scene3DController {
     this._renderer.setClearColor(0x000000, 0);
     this._renderer.outputColorSpace = THREE.SRGBColorSpace;
 
-    // Shadow mapping
+    // Shadow mapping (VSM supports shadow.radius for controllable blur)
     this._renderer.shadowMap.enabled = true;
-    this._renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this._renderer.shadowMap.type = THREE.VSMShadowMap;
 
     container.appendChild(this._renderer.domElement);
 
@@ -165,8 +165,9 @@ export class Scene3DController {
     this._dirLight.shadow.camera.right = 3;
     this._dirLight.shadow.camera.top = 3;
     this._dirLight.shadow.camera.bottom = -3;
-    this._dirLight.shadow.bias = -0.002;
+    this._dirLight.shadow.bias = -0.0005;
     this._dirLight.shadow.radius = props.shadowBlur ?? 4;
+    this._dirLight.shadow.blurSamples = 8;
     this._scene.add(this._dirLight);
   }
 
@@ -508,11 +509,11 @@ export class Scene3DController {
       }
     }
 
-    // Model color (only for non-image-slab models with simple material)
-    if (newProps.modelColor !== undefined && this._model?.material && !this._isImageSlab) {
-      if (!Array.isArray(this._model.material)) {
-        this._model.material.color.set(newProps.modelColor);
-      }
+    // Model color / metalness / roughness (only for non-image-slab models with simple material)
+    if (this._model?.material && !this._isImageSlab && !Array.isArray(this._model.material)) {
+      if (newProps.modelColor !== undefined) this._model.material.color.set(newProps.modelColor);
+      if (newProps.metalness !== undefined) this._model.material.metalness = newProps.metalness;
+      if (newProps.roughness !== undefined) this._model.material.roughness = newProps.roughness;
     }
 
     // Particle updates
@@ -543,9 +544,9 @@ export class Scene3DController {
       this._loadImageModel(this._imageUrl, this._props);
     }
 
-    // 3D text content or color change
-    const textChanged = (newProps.text3d !== undefined && newProps.text3d !== prev.text3d) ||
-                        (newProps.text3dColor !== undefined && newProps.text3dColor !== prev.text3dColor);
+    // 3D text rebuild — any visual property change requires full mesh recreation
+    const textKeys = ['text3d', 'text3dColor', 'text3dSideColor', 'text3dDepth', 'text3dFontSize', 'text3dFont'];
+    const textChanged = textKeys.some(k => newProps[k] !== undefined && newProps[k] !== prev[k]);
     if (textChanged && this._textMesh) {
       this._scene.remove(this._textMesh);
       if (this._textMesh.geometry) this._textMesh.geometry.dispose();

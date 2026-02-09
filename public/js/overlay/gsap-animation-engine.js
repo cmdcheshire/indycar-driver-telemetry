@@ -125,6 +125,7 @@ export class GsapAnimationEngine {
           // Clear GSAP-set inline transforms so element returns to CSS-defined position
           if (preset.clearProps) {
             gsap.set(node, { clearProps: preset.clearProps });
+            this._restoreBaseStyles(node);
           } else {
             gsap.set(node, { clearProps: 'transform,opacity' });
           }
@@ -448,6 +449,7 @@ export class GsapAnimationEngine {
           node.style.display = 'none';
           this._channels.delete(elementId);
           gsap.set(node, { clearProps: 'transform,opacity,clipPath,color,backgroundColor' });
+          this._restoreBaseStyles(node);
           this._restoreMaskClipPath(node);
           this._clearWillChange(elementId, node);
         },
@@ -742,6 +744,7 @@ export class GsapAnimationEngine {
         onComplete: () => {
           this._channels.delete(emphasisChannel);
           gsap.set(node, { clearProps: 'transform,opacity,textShadow,color,backgroundColor,filter' });
+          this._restoreBaseStyles(node);
         },
       });
       this._channels.set(emphasisChannel, tween);
@@ -821,6 +824,7 @@ export class GsapAnimationEngine {
         const node = this._getNode(elementId);
         if (node) {
           gsap.set(node, { clearProps: 'transform,opacity,textShadow,color,backgroundColor,filter' });
+          this._restoreBaseStyles(node);
           this._restoreMaskClipPath(node);
         }
         this._channels.delete(channel);
@@ -894,6 +898,17 @@ export class GsapAnimationEngine {
     if (node) {
       gsap.killTweensOf(node);
     }
+  }
+
+  /**
+   * Restore base visual styles after clearProps removed them.
+   * Base styles are stored as data attributes by element-renderer at creation time.
+   */
+  _restoreBaseStyles(node) {
+    if (!node?.dataset) return;
+    if (node.dataset.baseColor) node.style.color = node.dataset.baseColor;
+    if (node.dataset.baseBg) node.style.backgroundColor = node.dataset.baseBg;
+    if (node.dataset.baseTextShadow) node.style.textShadow = node.dataset.baseTextShadow;
   }
 
   /**

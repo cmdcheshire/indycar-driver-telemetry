@@ -552,6 +552,9 @@ function _initCanvasInteractions() {
       // If element is locked, don't allow interaction
       if (el.locked) return;
 
+      // Check if element was already selected before this click
+      const wasSelected = selection.getSelected().includes(id);
+
       // Multi-select with Shift
       if (e.shiftKey) {
         selection.toggleSelection(id);
@@ -565,8 +568,10 @@ function _initCanvasInteractions() {
         }
       }
 
-      // Start drag
-      dragEngine.startDrag(el, e);
+      // Only start drag if element was already selected (prevents jump on first click)
+      if (wasSelected) {
+        dragEngine.startDrag(el, e);
+      }
       return;
     }
 

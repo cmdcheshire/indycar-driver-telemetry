@@ -364,8 +364,13 @@ function applyTextStyles(wrapper, element) {
   if (element.letterSpacing) wrapper.style.letterSpacing = toPx(element.letterSpacing);
 
   // Color (fallback to white — overlay has transparent background so black is invisible)
-  wrapper.style.color = element.color || '#FFFFFF';
-  if (element.backgroundColor) wrapper.style.backgroundColor = element.backgroundColor;
+  const baseColor = element.color || '#FFFFFF';
+  wrapper.style.color = baseColor;
+  wrapper.dataset.baseColor = baseColor;
+  if (element.backgroundColor) {
+    wrapper.style.backgroundColor = element.backgroundColor;
+    wrapper.dataset.baseBg = element.backgroundColor;
+  }
 
   // Padding
   if (element.padding) {
@@ -380,6 +385,7 @@ function applyTextStyles(wrapper, element) {
   // Text shadow
   if (element.textShadow) {
     wrapper.style.textShadow = element.textShadow;
+    wrapper.dataset.baseTextShadow = element.textShadow;
   }
 
   // Webkit text stroke (outline text)
