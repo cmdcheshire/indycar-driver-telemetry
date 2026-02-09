@@ -358,25 +358,26 @@ export function buildExtrudedMesh(contourData, depth, props) {
 
   // Normalize coordinates: map pixel coords to centered scene coords
   // Image aspect ratio determines width; height = 1
+  // Use (w-1)/(h-1) so pixel range [0..w-1] maps to full [0..1] UV range
   const aspect = w / h;
   const halfW = aspect / 2;
   const halfH = 0.5;
+  const normW = Math.max(1, w - 1);
+  const normH = Math.max(1, h - 1);
+
+  /** Convert pixel x to scene x */
+  const sx = (px) => (px / normW) * aspect - halfW;
+  /** Convert pixel y to scene y (flip for screen→3D) */
+  const sy = (py) => -(py / normH - halfH);
 
   // Build shapes for each outer contour
   const shapes = [];
 
   for (const outer of outers) {
     const shape = new THREE.Shape();
-    const first = outer[0];
-    shape.moveTo(
-      (first.x / w) * aspect - halfW,
-      -((first.y / h) - halfH) // flip Y (screen → 3D)
-    );
+    shape.moveTo(sx(outer[0].x), sy(outer[0].y));
     for (let i = 1; i < outer.length; i++) {
-      shape.lineTo(
-        (outer[i].x / w) * aspect - halfW,
-        -((outer[i].y / h) - halfH)
-      );
+      shape.lineTo(sx(outer[i].x), sy(outer[i].y));
     }
     shape.closePath();
 
@@ -385,15 +386,9 @@ export function buildExtrudedMesh(contourData, depth, props) {
       // Check if hole's first point is inside this outer
       if (_pointInPolygon(hole[0].x, hole[0].y, outer)) {
         const holePath = new THREE.Path();
-        holePath.moveTo(
-          (hole[0].x / w) * aspect - halfW,
-          -((hole[0].y / h) - halfH)
-        );
+        holePath.moveTo(sx(hole[0].x), sy(hole[0].y));
         for (let i = 1; i < hole.length; i++) {
-          holePath.lineTo(
-            (hole[i].x / w) * aspect - halfW,
-            -((hole[i].y / h) - halfH)
-          );
+          holePath.lineTo(sx(hole[i].x), sy(hole[i].y));
         }
         holePath.closePath();
         shape.holes.push(holePath);
@@ -470,7 +465,7 @@ function _computeImageUVs(geometry, aspect, halfW, halfH, depth) {
 
     // Map from scene coords [-halfW..halfW, -halfH..halfH] to UV [0..1]
     const u = (x + halfW) / aspect;
-    const v = 1 - (y + halfH); // flip V for texture
+    const v = y + halfH; // flipY=true (default) means v=1=top, v=0=bottom
 
     uvAttr.setXY(i, u, v);
   }
