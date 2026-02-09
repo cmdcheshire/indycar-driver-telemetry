@@ -495,6 +495,15 @@ function _createKeyframeBar(element, kfData, presetAnim, phaseMs, mode) {
   // Drag bar → change delay (same as preset bar, using the preset anim delay)
   if (presetAnim) {
     _addBarDrag(bar, element, presetAnim, phaseMs, mode);
+  } else {
+    // No preset anim to drag — still allow click-to-select
+    bar.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    });
+    bar.addEventListener('click', () => {
+      if (_onElementSelect) _onElementSelect(element.id);
+    });
   }
 
   // No resize handle — duration is controlled in the designer
@@ -505,6 +514,7 @@ function _createKeyframeBar(element, kfData, presetAnim, phaseMs, mode) {
 function _addBarDrag(bar, element, anim, phaseMs, mode) {
   let startX = 0;
   let startDelay = 0;
+  let didDrag = false;
 
   const onMouseDown = (e) => {
     if (e.target.classList.contains('tl-bar-resize')) return;
@@ -512,6 +522,7 @@ function _addBarDrag(bar, element, anim, phaseMs, mode) {
     e.stopPropagation();
     startX = e.clientX;
     startDelay = anim.delay || 0;
+    didDrag = false;
 
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseup', onMouseUp);
@@ -521,8 +532,10 @@ function _addBarDrag(bar, element, anim, phaseMs, mode) {
   const onMouseMove = (e) => {
     const parent = bar.parentElement;
     if (!parent) return;
-    const trackWidth = parent.clientWidth;
     const dx = e.clientX - startX;
+    if (Math.abs(dx) < 3 && !didDrag) return; // dead zone before drag starts
+    didDrag = true;
+    const trackWidth = parent.clientWidth;
     const dMs = (dx / trackWidth) * phaseMs;
     const newDelay = Math.max(0, Math.round((startDelay + dMs) / 50) * 50);
 
@@ -537,8 +550,14 @@ function _addBarDrag(bar, element, anim, phaseMs, mode) {
     document.removeEventListener('mouseup', onMouseUp);
     bar.classList.remove('dragging');
 
-    if (_onAnimationChange) {
-      _onAnimationChange(element.id, { [mode === 'enter' ? 'enter' : 'exit']: { ...anim } });
+    if (didDrag) {
+      // Actual drag — commit the delay change
+      if (_onAnimationChange) {
+        _onAnimationChange(element.id, { [mode === 'enter' ? 'enter' : 'exit']: { ...anim } });
+      }
+    } else {
+      // Click (no drag) — select the element
+      if (_onElementSelect) _onElementSelect(element.id);
     }
   };
 
