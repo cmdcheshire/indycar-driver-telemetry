@@ -452,6 +452,33 @@
       padding-left: 17px;
     }
 
+    .gc-rundown-item.cued {
+      background: rgba(245, 158, 11, 0.06);
+      border-left: 3px solid var(--warning);
+      padding-left: 17px;
+    }
+
+    .gc-cued-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 1px 6px;
+      border-radius: 999px;
+      font-size: 0.6rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--warning);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      white-space: nowrap;
+      animation: cued-pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes cued-pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+
     .gc-drag-handle {
       cursor: grab;
       color: var(--text-dim);

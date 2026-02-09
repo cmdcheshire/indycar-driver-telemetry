@@ -11,6 +11,7 @@ import { getSettingDef, EXPOSABLE_SETTINGS } from '/js/shared/exposed-settings.j
 let callbacks = { onRefresh: null };
 let currentInstanceId = null;
 let dragSourceIndex = null;
+let cuedItemId = null; // Tracks which rundown item is currently cued
 
 // ── SVG Icons ──
 
@@ -103,6 +104,7 @@ export function renderRundown(instanceId, items, overlayUrl) {
   let html = '';
   sorted.forEach((item, index) => {
     const isOnAir = item.is_on_air === true || item.is_on_air === 1;
+    const isCued = cuedItemId === item.id && !isOnAir;
     const typeBadge = item.template_name
       ? `<span class="gc-type-badge">${escapeHtml(item.template_name)}</span>`
       : '';
@@ -227,7 +229,7 @@ export function renderRundown(instanceId, items, overlayUrl) {
 
     html += `
       <div class="gc-rundown-item-wrapper" data-item-id="${item.id}">
-        <div class="gc-rundown-item ${isOnAir ? 'on-air' : ''}"
+        <div class="gc-rundown-item ${isOnAir ? 'on-air' : ''} ${isCued ? 'cued' : ''}"
              data-item-id="${item.id}"
              data-index="${index}"
              draggable="true">
@@ -238,6 +240,7 @@ export function renderRundown(instanceId, items, overlayUrl) {
                   data-original-name="${escapeHtml(item.template_name || 'Unknown Template')}"
                   title="Double-click to rename">${escapeHtml(displayName)}</span>
             ${typeBadge}
+            ${isCued ? '<span class="gc-cued-badge">CUED</span>' : ''}
           </div>
           <div class="gc-rundown-controls">
             <button class="gc-btn-config" data-action="config" data-item-id="${item.id}" title="Configure">${ICONS.gear}</button>
@@ -523,6 +526,7 @@ async function handleCue(itemId) {
       throw new Error(data.error || 'Failed to cue graphic');
     }
 
+    cuedItemId = itemId;
     showToast('Graphic cued', 'success');
     if (callbacks.onRefresh) await callbacks.onRefresh();
   } catch (err) {
@@ -543,6 +547,7 @@ async function handleTakeOn(itemId) {
       throw new Error(data.error || 'Failed to take on');
     }
 
+    cuedItemId = null; // Clear cued state — item is now on-air
     showToast('Graphic taken ON AIR', 'success');
     if (callbacks.onRefresh) await callbacks.onRefresh();
   } catch (err) {
@@ -563,6 +568,7 @@ async function handleTakeOff(itemId) {
       throw new Error(data.error || 'Failed to take off');
     }
 
+    cuedItemId = null; // Clear cued state
     showToast('Graphic taken OFF AIR', 'info');
     if (callbacks.onRefresh) await callbacks.onRefresh();
   } catch (err) {

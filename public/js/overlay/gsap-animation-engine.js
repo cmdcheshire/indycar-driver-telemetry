@@ -92,9 +92,10 @@ export class GsapAnimationEngine {
 
     this._killChannel(elementId);
 
-    // Make visible
+    // Make visible and restore base styles so GSAP from() captures correct targets
     node.style.display = '';
     node.style.opacity = '';
+    this._restoreBaseStyles(node);
 
     const config = animConfig || {};
     const presetName = config.type || 'fadeIn';
@@ -190,7 +191,7 @@ export class GsapAnimationEngine {
           node.style.display = 'none';
           this._channels.delete(elementId);
           gsap.set(node, { clearProps: 'transform,opacity,clipPath' });
-          // Restore mask clip-path if clipping mask system set one
+          this._restoreBaseStyles(node);
           this._restoreMaskClipPath(node);
           this._clearWillChange(elementId, node);
         },

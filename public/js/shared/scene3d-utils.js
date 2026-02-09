@@ -157,8 +157,11 @@ export class Scene3DController {
     const dirPos = props.directionalPosition || { x: 2, y: 3, z: 5 };
     this._dirLight.position.set(dirPos.x, dirPos.y, dirPos.z);
     this._dirLight.castShadow = true;
-    this._dirLight.shadow.mapSize.width = 1024;
-    this._dirLight.shadow.mapSize.height = 1024;
+    const blurRadius = props.shadowBlur ?? 4;
+    // Higher shadow map for large blur values (prevents blocky artifacts)
+    const mapSize = blurRadius > 20 ? 2048 : 1024;
+    this._dirLight.shadow.mapSize.width = mapSize;
+    this._dirLight.shadow.mapSize.height = mapSize;
     this._dirLight.shadow.camera.near = 0.1;
     this._dirLight.shadow.camera.far = 20;
     this._dirLight.shadow.camera.left = -3;
@@ -166,8 +169,9 @@ export class Scene3DController {
     this._dirLight.shadow.camera.top = 3;
     this._dirLight.shadow.camera.bottom = -3;
     this._dirLight.shadow.bias = -0.0005;
-    this._dirLight.shadow.radius = props.shadowBlur ?? 4;
-    this._dirLight.shadow.blurSamples = 8;
+    this._dirLight.shadow.radius = blurRadius;
+    // Scale blur samples with radius for quality (min 8, max 25)
+    this._dirLight.shadow.blurSamples = Math.min(25, Math.max(8, Math.round(blurRadius * 0.6)));
     this._scene.add(this._dirLight);
   }
 
@@ -494,6 +498,7 @@ export class Scene3DController {
     }
     if (newProps.shadowBlur !== undefined && this._dirLight) {
       this._dirLight.shadow.radius = newProps.shadowBlur;
+      this._dirLight.shadow.blurSamples = Math.min(25, Math.max(8, Math.round(newProps.shadowBlur * 0.6)));
     }
     if (newProps.shadowColor !== undefined && this._shadowPlane) {
       this._shadowPlane.material.color.set(newProps.shadowColor);

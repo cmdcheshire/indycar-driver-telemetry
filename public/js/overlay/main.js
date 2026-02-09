@@ -395,13 +395,19 @@ function buildPlayoutTimeline(elementAnimations, timeline) {
     const node = domMap ? domMap.get(config.elementId) : null;
     if (!node) { console.warn('[overlay] DOM node not found for', config.elementId); continue; }
 
+    // Reset display (exit animations set display:none) and restore base styles
+    // so GSAP from() captures the correct target values (prevents black text flash)
+    node.style.display = '';
+    node.style.opacity = '';
+    if (node.dataset.baseColor) node.style.color = node.dataset.baseColor;
+    if (node.dataset.baseBg) node.style.backgroundColor = node.dataset.baseBg;
+    if (node.dataset.baseTextShadow) node.style.textShadow = node.dataset.baseTextShadow;
+    node.style.willChange = 'transform, opacity';
+
     // ── Check for keyframe animation override (enter) ──
     const templateEl = currentTemplate?.elements?.find(e => e.id === config.elementId);
     const enterKf = templateEl?.enterKeyframeAnimation || templateEl?.keyframeAnimation;
     if (enterKf?.enabled && enterKf.tracks?.length > 0) {
-      node.style.opacity = '';
-      node.style.willChange = 'transform, opacity';
-
       const subTl = animationEngine.showWithKeyframes(config.elementId, enterKf);
       if (subTl) {
         const delay = (config.delay || 0) / 1000;
@@ -424,10 +430,6 @@ function buildPlayoutTimeline(elementAnimations, timeline) {
     const rawEasing = config.easing || preset.defaultEase || 'power2.out';
     const easing = resolveEasing(migrateEasing(rawEasing));
 
-    // Reset opacity and promote to GPU layer for animation
-    node.style.opacity = '';
-    node.style.willChange = 'transform, opacity';
-
     // Add enter animation to the master timeline at absolute offset
     tl.from(node, {
       ...preset.vars,
@@ -437,6 +439,10 @@ function buildPlayoutTimeline(elementAnimations, timeline) {
         // Clear GSAP-set inline transforms so element returns to CSS-defined position
         const clearStr = preset.clearProps || Object.keys(preset.vars).join(',');
         gsap.set(node, { clearProps: clearStr });
+        // Restore base styles after clearProps (prevents color loss on repeat cycles)
+        if (node.dataset.baseColor) node.style.color = node.dataset.baseColor;
+        if (node.dataset.baseBg) node.style.backgroundColor = node.dataset.baseBg;
+        if (node.dataset.baseTextShadow) node.style.textShadow = node.dataset.baseTextShadow;
         // Restore mask clip-path if set
         const maskClip = node.dataset?.maskClipPath;
         if (maskClip) node.style.clipPath = maskClip;

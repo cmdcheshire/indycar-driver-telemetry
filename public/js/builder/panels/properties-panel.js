@@ -968,7 +968,7 @@ function _addScene3dProps(p) {
     ], (v) => _emitProp({ dropShadow: v === 'true' })),
     _row([
       _numberInput('Opacity', p.shadowOpacity ?? 0.35, 0, 1, 0.05, (v) => _emitProp({ shadowOpacity: v })),
-      _numberInput('Blur', p.shadowBlur ?? 4, 0, 20, 1, (v) => _emitProp({ shadowBlur: v })),
+      _numberInput('Blur', p.shadowBlur ?? 4, 0, 50, 1, (v) => _emitProp({ shadowBlur: v })),
     ]),
     _row([
       _colorInputWithSwatch('Color', p.shadowColor || '#000000', (v) => _emitProp({ shadowColor: v })),
