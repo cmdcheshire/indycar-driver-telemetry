@@ -308,10 +308,20 @@ function _pointInPolygon(px, py, polygon) {
  *
  * @param {string} url - Image URL
  * @param {number} [maxSize=256] - Max tracing resolution
- * @returns {Promise<{ outers: {x,y}[][], holes: {x,y}[][], w: number, h: number, image: HTMLImageElement }>}
+ * @returns {Promise<{ outers, holes, w, h, textureCanvas }>}
  */
 export async function traceImageContours(url, maxSize = 256) {
   const img = await _loadImage(url);
+
+  // Capture full-resolution texture canvas immediately while image is valid
+  const imgW = img.naturalWidth || img.width;
+  const imgH = img.naturalHeight || img.height;
+  const textureCanvas = document.createElement('canvas');
+  textureCanvas.width = imgW;
+  textureCanvas.height = imgH;
+  const tCtx = textureCanvas.getContext('2d');
+  tCtx.drawImage(img, 0, 0, imgW, imgH);
+
   const { mask, w, h } = _imageToAlphaMask(img, maxSize);
 
   let { outers, holes } = _findContours(mask, w, h);
@@ -332,19 +342,19 @@ export async function traceImageContours(url, maxSize = 256) {
     holes = [];
   }
 
-  return { outers, holes, w, h, image: img };
+  return { outers, holes, w, h, textureCanvas };
 }
 
 /**
  * Build an extruded Three.js mesh from traced contour data.
  *
- * @param {{ outers, holes, w, h, image }} contourData - From traceImageContours
+ * @param {{ outers, holes, w, h, textureCanvas }} contourData - From traceImageContours
  * @param {number} depth - Extrusion depth in scene units
  * @param {object} props - Element properties (modelColor, metalness, roughness)
  * @returns {THREE.Mesh}
  */
 export function buildExtrudedMesh(contourData, depth, props) {
-  const { outers, holes, w, h, image } = contourData;
+  const { outers, holes, w, h, textureCanvas } = contourData;
 
   // Normalize coordinates: map pixel coords to centered scene coords
   // Image aspect ratio determines width; height = 1
@@ -401,22 +411,25 @@ export function buildExtrudedMesh(contourData, depth, props) {
 
   const geometry = new THREE.ExtrudeGeometry(shapes, extrudeSettings);
 
+  // Fix material group assignment.
+  // Three.js ExtrudeGeometry (r150+) creates 3 groups with bevelEnabled=false:
+  //   [0] side faces → materialIndex 0
+  //   [1] front cap  → materialIndex 0  (shares index with sides!)
+  //   [2] back cap   → materialIndex 1
+  // We need both caps on materialIndex 1 (textured) and sides on 0 (solid color).
+  for (let i = 1; i < geometry.groups.length; i++) {
+    geometry.groups[i].materialIndex = 1;
+  }
+
   // Compute UV mapping for the front/back faces based on image coordinates
   _computeImageUVs(geometry, aspect, halfW, halfH, depth);
 
   // Create materials
-  // Front/back: textured with the image
-  const imgW = image.naturalWidth || image.width || w;
-  const imgH = image.naturalHeight || image.height || h;
-  const canvas = document.createElement('canvas');
-  canvas.width = imgW;
-  canvas.height = imgH;
-  const ctx = canvas.getContext('2d');
-  ctx.drawImage(image, 0, 0, imgW, imgH);
-  const texture = new THREE.CanvasTexture(canvas);
+  const texture = new THREE.CanvasTexture(textureCanvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.needsUpdate = true;
 
+  // Front/back caps: textured with the image
   const frontBackMat = new THREE.MeshStandardMaterial({
     map: texture,
     transparent: true,
@@ -426,15 +439,14 @@ export function buildExtrudedMesh(contourData, depth, props) {
     side: THREE.DoubleSide,
   });
 
-  // Sides: solid color
+  // Sides: solid color, visible from both sides
   const sideMat = new THREE.MeshStandardMaterial({
     color: props.modelColor || '#5865f2',
     metalness: props.metalness ?? 0.3,
     roughness: props.roughness ?? 0.6,
+    side: THREE.DoubleSide,
   });
 
-  // ExtrudeGeometry creates groups: group 0 = sides, group 1 = front/back caps
-  // We want: sides = sideMat, caps = frontBackMat
   const mesh = new THREE.Mesh(geometry, [sideMat, frontBackMat]);
 
   // Center the geometry
