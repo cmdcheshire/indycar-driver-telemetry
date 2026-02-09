@@ -175,7 +175,7 @@ export class Scene3DController {
     const shadowY = props.shadowY ?? -1.2;
     const shadowColor = props.shadowColor || '#000000';
     const planeGeo = new THREE.PlaneGeometry(8, 8);
-    const planeMat = new THREE.ShadowMaterial({ opacity: shadowOpacity, color: shadowColor });
+    const planeMat = new THREE.ShadowMaterial({ opacity: shadowOpacity, color: shadowColor, depthWrite: false });
     this._shadowPlane = new THREE.Mesh(planeGeo, planeMat);
     this._shadowPlane.rotation.x = -Math.PI / 2;
     this._shadowPlane.position.y = shadowY;
@@ -336,7 +336,12 @@ export class Scene3DController {
       }
 
       this._model = gltf.scene;
-      this._model.traverse(child => { if (child.isMesh) child.castShadow = true; });
+      this._model.traverse(child => {
+        if (child.isMesh) {
+          child.castShadow = true;
+          child.material.side = THREE.DoubleSide;
+        }
+      });
 
       // Auto-scale to fit in view
       const box = new THREE.Box3().setFromObject(this._model);
