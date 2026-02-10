@@ -413,6 +413,12 @@ function buildPlayoutTimeline(elementAnimations, timeline) {
     const node = domMap ? domMap.get(config.elementId) : null;
     if (!node) { console.warn('[overlay] DOM node not found for', config.elementId); continue; }
 
+    // Skip mask-hidden elements entirely — don't play animations on them
+    if (node.dataset.maskHidden === 'true') {
+      console.log(`[overlay] Skipping animation for mask-hidden element ${config.elementId}`);
+      continue;
+    }
+
     // Kill any lingering tweens on this node (e.g. exit animations from a
     // previous TAKE OFF whose onComplete would set display:none mid-TAKE ON)
     gsap.killTweensOf(node);
