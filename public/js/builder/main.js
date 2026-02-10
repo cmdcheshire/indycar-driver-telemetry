@@ -1135,45 +1135,60 @@ async function _save() {
   const type = document.getElementById('templateType').value;
   const { width, height } = canvas.canvasSize;
 
-  // Capture thumbnail using off-screen 1920x1080 container at HOLD state
+  // Capture thumbnail at HOLD state by temporarily moving canvas off-screen
   let thumbnail = null;
+  const canvasContainer = document.getElementById('canvasContainer');
+  const canvasWrapper = document.getElementById('canvasWrapper');
+  const canvasArea = document.getElementById('canvasArea');
+
+  // Save current state
+  const savedStates = new Map();
+  const savedWrapperStyles = {
+    position: canvasWrapper.style.position,
+    top: canvasWrapper.style.top,
+    left: canvasWrapper.style.left,
+    zoom: canvasWrapper.style.zoom,
+    transform: canvasWrapper.style.transform,
+  };
+  const savedContainerStyles = {
+    width: canvasContainer.style.width,
+    height: canvasContainer.style.height,
+    background: canvasContainer.style.background,
+  };
 
   try {
-    // Create temporary off-screen container at exact 1920x1080
-    const tempContainer = document.createElement('div');
-    tempContainer.style.cssText = `
-      position: fixed;
-      top: -9999px;
-      left: -9999px;
-      width: 1920px;
-      height: 1080px;
-      background: transparent;
-      overflow: hidden;
-      pointer-events: none;
-      perspective: none;
-      transform-style: flat;
-    `;
-    document.body.appendChild(tempContainer);
+    // Move canvas wrapper off-screen and reset zoom
+    canvasWrapper.style.position = 'fixed';
+    canvasWrapper.style.top = '-9999px';
+    canvasWrapper.style.left = '-9999px';
+    canvasWrapper.style.zoom = '1';
+    canvasWrapper.style.transform = 'none';
 
-    // Clone all canvas elements into temp container at their hold state
-    const canvasContainer = document.getElementById('canvasContainer');
+    // Force exact dimensions and transparent background
+    canvasContainer.style.width = '1920px';
+    canvasContainer.style.height = '1080px';
+    canvasContainer.style.background = 'transparent';
+    canvasContainer.classList.add('capturing');
+
+    // Apply HOLD state to all elements
     const allNodes = canvasContainer.querySelectorAll('.canvas-element');
-
-    for (const srcNode of allNodes) {
-      const elementId = srcNode.dataset.elementId;
+    for (const node of allNodes) {
+      const elementId = node.dataset.elementId;
       const el = elements.find(e => e.id === elementId);
       if (!el) continue;
 
-      // Clone the node
-      const clone = srcNode.cloneNode(true);
-      tempContainer.appendChild(clone);
+      // Save current state
+      savedStates.set(elementId, {
+        transform: node.style.transform,
+        opacity: node.style.opacity,
+        clipPath: node.style.clipPath,
+      });
 
-      // Apply hold state to cloned element
+      // Apply hold state
       const enterKf = el.animation?.enterKeyframes || el.animation?.keyframes;
       const enterPreset = el.animation?.enter?.type;
 
       if (enterKf?.enabled && enterKf.tracks?.length > 0) {
-        // Keyframe: snap to final values
         const endState = {};
         for (const track of enterKf.tracks) {
           if (track.keyframes.length > 0) {
@@ -1185,50 +1200,67 @@ async function _save() {
           }
         }
         if (Object.keys(endState).length > 0) {
-          gsap.set(clone, endState);
+          gsap.set(node, endState);
         }
       } else if (enterPreset) {
-        // Preset: clear props and apply base transform
         const preset = getEnterPreset(enterPreset);
         if (preset) {
           const safeClearProps = preset.clearProps || Object.keys(preset.vars).join(',');
-          gsap.set(clone, { clearProps: safeClearProps });
+          gsap.set(node, { clearProps: safeClearProps });
 
           const transforms = [];
           if (el.rotation) transforms.push(`rotate(${el.rotation}deg)`);
           if (el.rotationX) transforms.push(`rotateX(${el.rotationX}deg)`);
           if (el.rotationY) transforms.push(`rotateY(${el.rotationY}deg)`);
           if (el.z) transforms.push(`translateZ(${el.z}px)`);
-          clone.style.transform = transforms.join(' ');
-          if (el.opacity !== undefined) clone.style.opacity = String(el.opacity);
+          node.style.transform = transforms.join(' ');
+          if (el.opacity !== undefined) node.style.opacity = String(el.opacity);
         }
       }
 
-      // Apply clip-path if element is masked
+      // Apply clip-path
       if (el.clipMask?.elementId) {
         const maskEl = elements.find(m => m.id === el.clipMask.elementId);
         if (maskEl) {
           const cp = computeClipPath(el, maskEl);
-          if (cp && cp !== 'none') {
-            clone.style.clipPath = cp;
-          }
+          node.style.clipPath = cp || 'none';
         }
       }
     }
 
-    // Capture the temp container
-    const shot = await html2canvas(tempContainer, {
+    // Capture the canvas container
+    const shot = await html2canvas(canvasContainer, {
       width: 1920,
       height: 1080,
-      scale: 0.2,  // 384x216 output
+      scale: 0.2,
       useCORS: true,
       backgroundColor: null,
       logging: false,
     });
     thumbnail = shot.toDataURL('image/webp', 0.7);
 
-    // Clean up temp container
-    document.body.removeChild(tempContainer);
+    // Restore element states
+    for (const [elementId, state] of savedStates) {
+      const node = canvasContainer.querySelector(`[data-element-id="${elementId}"]`);
+      if (node) {
+        node.style.transform = state.transform;
+        node.style.opacity = state.opacity;
+        node.style.clipPath = state.clipPath;
+      }
+    }
+
+    // Restore canvas styles
+    canvasContainer.style.width = savedContainerStyles.width;
+    canvasContainer.style.height = savedContainerStyles.height;
+    canvasContainer.style.background = savedContainerStyles.background;
+    canvasContainer.classList.remove('capturing');
+
+    // Restore wrapper position
+    canvasWrapper.style.position = savedWrapperStyles.position;
+    canvasWrapper.style.top = savedWrapperStyles.top;
+    canvasWrapper.style.left = savedWrapperStyles.left;
+    canvasWrapper.style.zoom = savedWrapperStyles.zoom;
+    canvasWrapper.style.transform = savedWrapperStyles.transform;
   } catch (e) {
     console.warn('Failed to capture thumbnail:', e);
   }
