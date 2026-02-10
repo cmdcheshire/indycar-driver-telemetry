@@ -244,11 +244,11 @@ export function renderRundown(instanceId, items, overlayUrl) {
           </div>
           <div class="gc-rundown-controls">
             <button class="gc-btn-config" data-action="config" data-item-id="${item.id}" title="Configure">${ICONS.gear}</button>
-            <button class="gc-btn-cue" data-action="cue" data-item-id="${item.id}" title="Cue (load without showing)">CUE</button>
-            <button class="gc-btn-take-on" data-action="take-on" data-item-id="${item.id}" title="Take On Air">TAKE ON</button>
-            <button class="gc-btn-take-off" data-action="take-off" data-item-id="${item.id}" title="Take Off Air">TAKE OFF</button>
-            <button class="gc-btn-resume ${isOnAir ? '' : 'hidden'}" data-action="resume" data-item-id="${item.id}" title="Resume (advance past pause point)">RESUME</button>
-            <div class="gc-rundown-on-air ${isOnAir ? 'active' : ''}" title="${isOnAir ? 'ON AIR' : 'Off'}"></div>
+            <button class="gc-btn-cue ${isCued ? 'active' : ''}" data-action="cue" data-item-id="${item.id}" title="Cue (load without showing)">CUE</button>
+            ${isOnAir ? '<span class="gc-live-badge">LIVE</span>' : ''}
+            <button class="gc-btn-take-on ${isOnAir ? 'active' : ''}" data-action="take-on" data-item-id="${item.id}" title="Take On Air">TAKE ON</button>
+            <button class="gc-btn-take-off ${isOnAir ? '' : 'active'}" data-action="take-off" data-item-id="${item.id}" title="Take Off Air">TAKE OFF</button>
+            <button class="gc-btn-resume ${isOnAir ? 'active' : 'disabled'}" data-action="resume" data-item-id="${item.id}" title="Resume (advance past pause point)">RESUME</button>
             <button class="gc-btn-remove" data-action="remove" data-item-id="${item.id}" title="Remove from rundown">${ICONS.remove}</button>
           </div>
         </div>
@@ -537,9 +537,10 @@ async function handleCue(itemId) {
 
 async function handleTakeOn(itemId) {
   try {
+    const autoCue = localStorage.getItem('autoCueEnabled') === 'true';
     const res = await authenticatedFetch(`/api/overlays/rundown/${itemId}/take`, {
       method: 'POST',
-      body: JSON.stringify({ action: 'on' }),
+      body: JSON.stringify({ action: 'on', autoCue }),
     });
 
     if (!res.ok) {

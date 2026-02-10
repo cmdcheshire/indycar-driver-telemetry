@@ -321,7 +321,7 @@ router.delete('/rundown/:itemId', requireRole('admin'), (req, res) => {
 
 router.post('/rundown/:itemId/take', requireRole('operator', 'admin'), async (req, res) => {
   try {
-    const { action } = req.body;
+    const { action, autoCue = false } = req.body;
     if (action !== 'on' && action !== 'off' && action !== 'cue' && action !== 'resume') {
       return res.status(400).json({ error: "action must be 'on', 'off', 'cue', or 'resume'" });
     }
@@ -479,6 +479,72 @@ router.post('/rundown/:itemId/take', requireRole('operator', 'admin'), async (re
       console.log('[take] TAKE ON — enterAnims:', enterElementAnims.length, 'timeline:', JSON.stringify(timelineConfig));
       wsService.sendOverlayVisibility(instanceId, true, enterAnimation, enterElementAnims, timelineConfig);
       overlayService.setRundownItemOnAir(itemId, true);
+
+      // AUTO-CUE: Automatically cue the next rundown item for instant transitions (if enabled)
+      if (autoCue) {
+        try {
+          const currentItem = db.prepare('SELECT order_index FROM rundown_items WHERE id = ?').get(itemId);
+          if (currentItem) {
+          const nextItem = db.prepare(
+            'SELECT * FROM rundown_items WHERE instance_id = ? AND order_index > ? ORDER BY order_index ASC LIMIT 1'
+          ).get(instanceId, currentItem.order_index);
+
+          if (nextItem) {
+            console.log('[auto-cue] Cueing next rundown item:', nextItem.id);
+
+            // Get next item's template and config
+            const nextTemplateData = overlayService.getTemplate(nextItem.template_id);
+            const nextConfigOverrides = nextItem.config_overrides ? JSON.parse(nextItem.config_overrides) : {};
+
+            // Extract animations for next item
+            let nextEnterAnims = [];
+            let nextTimelineConfig = null;
+            if (nextTemplateData) {
+              try {
+                const tData = typeof nextTemplateData.template_data === 'string'
+                  ? JSON.parse(nextTemplateData.template_data)
+                  : nextTemplateData.template_data;
+
+                if (tData && tData.timeline) {
+                  nextTimelineConfig = tData.timeline;
+                }
+
+                if (tData && Array.isArray(tData.elements)) {
+                  for (const el of tData.elements) {
+                    const anim = el.animation || {};
+                    const hasEnterPreset = anim.enter && anim.enter.type && anim.enter.type !== 'none';
+                    const hasEnterKeyframes = anim.enterKeyframes?.enabled
+                      && Array.isArray(anim.enterKeyframes.tracks) && anim.enterKeyframes.tracks.length > 0;
+                    if (hasEnterPreset || hasEnterKeyframes) {
+                      nextEnterAnims.push({
+                        elementId: el.id,
+                        type: (anim.enter && anim.enter.type) || 'none',
+                        duration: (anim.enter && anim.enter.duration) || 300,
+                        delay: (anim.enter && anim.enter.delay) || 0,
+                        easing: (anim.enter && anim.enter.easing) || 'power2.out',
+                      });
+                    }
+                  }
+                }
+              } catch (_) { /* ignore parse errors */ }
+            }
+
+            // Send CUE for next item
+            wsService.sendOverlayCue(
+              instanceId,
+              nextTemplateData,
+              nextConfigOverrides,
+              nextEnterAnims,
+              nextTimelineConfig
+            );
+          }
+          }
+        }
+        } catch (err) {
+          console.warn('[auto-cue] Failed to cue next item:', err.message);
+          // Don't fail the TAKE ON if auto-cue fails
+        }
+      }
     } else if (action === 'resume') {
       wsService.sendOverlayResume(instanceId);
     } else {

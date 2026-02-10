@@ -540,17 +540,21 @@
       padding: 4px 12px;
       font-size: 0.75rem;
       font-weight: 600;
-      background: var(--success);
+      background: transparent;
       border: 1px solid var(--success);
-      color: white;
+      color: var(--success);
       border-radius: var(--radius-sm);
       cursor: pointer;
       transition: all var(--transition);
     }
 
     .gc-btn-take-on:hover {
-      background: #0d9668;
-      border-color: #0d9668;
+      background: rgba(16, 185, 129, 0.15);
+    }
+
+    .gc-btn-take-on.active {
+      background: var(--success);
+      color: white;
     }
 
     .gc-btn-take-off {
@@ -569,6 +573,11 @@
       background: rgba(239, 68, 68, 0.15);
     }
 
+    .gc-btn-take-off.active {
+      background: var(--danger);
+      color: white;
+    }
+
     .gc-btn-resume {
       padding: 4px 10px;
       font-size: 0.7rem;
@@ -585,8 +594,21 @@
       background: rgba(59, 130, 246, 0.15);
     }
 
-    .gc-btn-resume.hidden {
-      display: none;
+    .gc-btn-resume.active {
+      background: var(--accent);
+      color: white;
+      animation: resume-pulse 1.5s ease-in-out infinite;
+    }
+
+    .gc-btn-resume.disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    @keyframes resume-pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+      50% { box-shadow: 0 0 0 6px rgba(59, 130, 246, 0); }
     }
 
     .gc-btn-cue {
@@ -605,17 +627,39 @@
       background: rgba(245, 158, 11, 0.15);
     }
 
+    .gc-btn-cue.active {
+      background: var(--warning);
+      color: white;
+    }
+
+    /* Live indicator badge (matches cued badge style) */
+    .gc-live-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 1px 6px;
+      border-radius: 999px;
+      font-size: 0.6rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--danger);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      white-space: nowrap;
+      animation: live-pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes live-pulse {
+      0%, 100% { opacity: 1; box-shadow: 0 0 6px rgba(239, 68, 68, 0.4); }
+      50% { opacity: 0.7; box-shadow: 0 0 12px rgba(239, 68, 68, 0.6); }
+    }
+
     .gc-rundown-on-air {
       width: 10px;
       height: 10px;
       border-radius: 50%;
       flex-shrink: 0;
-    }
-
-    .gc-rundown-on-air.active {
-      background: var(--danger);
-      box-shadow: 0 0 8px var(--danger);
-      animation: pulse 1.5s infinite;
+      display: none;
     }
 
     .gc-btn-remove {
@@ -1097,6 +1141,73 @@
       outline: none;
       min-width: 60px;
     }
+
+    /* ================================================================ *
+     *  Auto-Cue Toggle
+     * ================================================================ */
+    .gc-auto-cue-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 10px;
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all var(--transition);
+      user-select: none;
+    }
+
+    .gc-auto-cue-toggle:hover {
+      background: var(--accent-light);
+      border-color: var(--accent);
+    }
+
+    .gc-auto-cue-toggle.active {
+      background: var(--accent-light);
+      border-color: var(--accent);
+    }
+
+    .gc-auto-cue-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+    }
+
+    .gc-auto-cue-toggle.active .gc-auto-cue-label {
+      color: var(--accent);
+    }
+
+    .gc-toggle-switch {
+      position: relative;
+      width: 32px;
+      height: 18px;
+      background: var(--border);
+      border-radius: 999px;
+      transition: background var(--transition);
+    }
+
+    .gc-toggle-switch::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 14px;
+      height: 14px;
+      background: white;
+      border-radius: 50%;
+      transition: transform var(--transition);
+    }
+
+    .gc-auto-cue-toggle.active .gc-toggle-switch {
+      background: var(--accent);
+    }
+
+    .gc-auto-cue-toggle.active .gc-toggle-switch::after {
+      transform: translateX(14px);
+    }
   </style>
 </head>
 <body>
@@ -1150,7 +1261,13 @@
         <div class="gc-rundown-title">
           <h2 id="rundownTitle">Select an Output</h2>
         </div>
-        <button class="btn btn-sm btn-primary hidden" id="btnAddGraphic">+ Add Graphic</button>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div class="gc-auto-cue-toggle" id="autoCueToggle" title="Automatically cue the next graphic when one goes live">
+            <span class="gc-auto-cue-label">Auto-Cue</span>
+            <div class="gc-toggle-switch"></div>
+          </div>
+          <button class="btn btn-sm btn-primary hidden" id="btnAddGraphic">+ Add Graphic</button>
+        </div>
       </div>
       <div class="gc-url-bar hidden" id="urlBar">
         <span class="gc-url-label">URL</span>

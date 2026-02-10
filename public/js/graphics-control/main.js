@@ -206,6 +206,22 @@ async function init() {
     logoutBtn.addEventListener('click', () => logout());
   }
 
+  // Wire up auto-cue toggle
+  const autoCueToggle = document.getElementById('autoCueToggle');
+  if (autoCueToggle) {
+    // Load saved state from localStorage
+    const autoCueEnabled = localStorage.getItem('autoCueEnabled') === 'true';
+    if (autoCueEnabled) {
+      autoCueToggle.classList.add('active');
+    }
+
+    autoCueToggle.addEventListener('click', () => {
+      const isActive = autoCueToggle.classList.toggle('active');
+      localStorage.setItem('autoCueEnabled', String(isActive));
+      console.log('[auto-cue] Toggle:', isActive ? 'ON' : 'OFF');
+    });
+  }
+
   // Initialize all panels
   initOutputBrowser({
     onSelect: handleOutputSelect,
