@@ -46,6 +46,7 @@ import { initPreviewPanel, destroyPreviewPanel } from './panels/preview-panel.js
 import { showPresetPicker, hidePresetPicker } from './panels/data-presets.js';
 import { initTimelinePanel, renderTimelinePanel } from './panels/timeline-panel.js';
 import { loadCustomFonts } from '/js/shared/font-loader.js';
+import { showLibraryPicker } from '/js/shared/library-picker.js';
 
 /* ================================================================ *
  *  State
@@ -415,6 +416,85 @@ function _initToolbar() {
     });
   }
 
+  // Canvas background selector
+  const bgBtn = document.getElementById('btnCanvasBackground');
+  const bgDropdown = document.getElementById('bgSelectorDropdown');
+  const canvasContainer = document.getElementById('canvasContainer');
+  let currentBackground = 'dark'; // default
+  let referenceImageUrl = null;
+
+  if (bgBtn && bgDropdown) {
+    // Toggle dropdown
+    bgBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      bgDropdown.classList.toggle('hidden');
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!bgDropdown.contains(e.target) && e.target !== bgBtn) {
+        bgDropdown.classList.add('hidden');
+      }
+    });
+
+    // Handle background selection
+    bgDropdown.querySelectorAll('.bg-option').forEach(option => {
+      option.addEventListener('click', async () => {
+        const bgType = option.dataset.bg;
+
+        if (bgType === 'reference') {
+          // Show file picker for reference image
+          const input = document.createElement('input');
+          input.type = 'file';
+          input.accept = 'image/*';
+          input.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // Upload to library
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+              const token = localStorage.getItem('token');
+              const res = await fetch('/api/library/assets/upload', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData,
+              });
+
+              if (!res.ok) throw new Error('Upload failed');
+
+              const data = await res.json();
+              const assetId = data.asset?.id || data.id;
+              referenceImageUrl = `/api/library/assets/${assetId}/file`;
+
+              // Apply reference background
+              canvasContainer.classList.remove('bg-light');
+              canvasContainer.style.setProperty('--reference-bg-url', `url('${referenceImageUrl}')`);
+              canvasContainer.classList.add('bg-reference');
+              currentBackground = 'reference';
+              showToast('Reference image uploaded', 'success');
+            } catch (err) {
+              console.error('[builder] Failed to upload reference image:', err);
+              showToast('Failed to upload reference image', 'error');
+            }
+          });
+          input.click();
+        } else {
+          // Switch to dark or light checkers
+          canvasContainer.classList.remove('bg-light', 'bg-reference');
+          if (bgType === 'light') {
+            canvasContainer.classList.add('bg-light');
+          }
+          currentBackground = bgType;
+        }
+
+        bgDropdown.classList.add('hidden');
+      });
+    });
+  }
+
   // Group / Ungroup
   document.getElementById('btnGroupLayers').addEventListener('click', () => _groupSelected());
   document.getElementById('btnUngroupLayers').addEventListener('click', () => _ungroupSelected());
@@ -666,8 +746,9 @@ function _createElementAtMouse(tool, event) {
       el = createTextElement(pos.x, pos.y);
       break;
     case 'image':
-      el = createImageElement(pos.x, pos.y);
-      break;
+      // Show library picker instead of immediately creating
+      _showImageLibraryPicker(pos);
+      return; // Don't fall through to the rest of the function
     case 'shape':
       el = createShapeElement(pos.x, pos.y);
       break;
@@ -835,6 +916,82 @@ function _showGaugeTypePicker(pos, event) {
     picker.style.left = '50%';
     picker.style.top = '50%';
     picker.style.transform = 'translate(-50%,-50%)';
+  }
+}
+
+/**
+ * Show library picker to select an image and create an image element.
+ * Places image at natural resolution (or scaled to fit if too large).
+ * @param {{ x: number, y: number }} pos - Canvas position where the element should be placed.
+ */
+async function _showImageLibraryPicker(pos) {
+  const result = await showLibraryPicker({
+    filter: ['image'],
+    title: 'Select Image from Library',
+  });
+
+  if (!result) {
+    // User cancelled - switch back to select tool
+    setActiveTool('select');
+    return;
+  }
+
+  const { url, asset } = result;
+
+  // Load the image to get its natural dimensions
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+
+  try {
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = reject;
+      img.src = url;
+    });
+
+    // Calculate dimensions in canvas percentage
+    // Canvas is 1920x1080, use natural image dimensions at 100% (1:1 pixel ratio)
+    const { width: canvasWidth, height: canvasHeight } = canvas.canvasSize;
+    const naturalWidthPercent = (img.naturalWidth / canvasWidth) * 100;
+    const naturalHeightPercent = (img.naturalHeight / canvasHeight) * 100;
+
+    // If image is larger than canvas, scale it to fit while maintaining aspect ratio
+    let finalWidth = naturalWidthPercent;
+    let finalHeight = naturalHeightPercent;
+
+    const maxWidthPercent = 80; // Don't exceed 80% of canvas width
+    const maxHeightPercent = 80; // Don't exceed 80% of canvas height
+
+    if (finalWidth > maxWidthPercent || finalHeight > maxHeightPercent) {
+      const scaleX = maxWidthPercent / finalWidth;
+      const scaleY = maxHeightPercent / finalHeight;
+      const scale = Math.min(scaleX, scaleY);
+      finalWidth *= scale;
+      finalHeight *= scale;
+    }
+
+    // Create image element at mouse position with calculated dimensions
+    const el = createImageElement(pos.x, pos.y);
+    el.width = finalWidth;
+    el.height = finalHeight;
+    el.props.src = url;
+    el.name = asset.original_name || asset.filename || 'Image';
+
+    // Assign z-index based on current count
+    el.zIndex = elements.length;
+
+    elements.push(el);
+    canvas.addElement(el);
+    _pushHistory();
+
+    // Switch back to select tool and select the new element
+    setActiveTool('select');
+    selection.selectElement(el.id);
+    showToast(`Image added: ${el.name}`, 'success', 2000);
+  } catch (err) {
+    console.error('[builder] Failed to load image:', err);
+    showToast('Failed to load image', 'error');
+    setActiveTool('select');
   }
 }
 
