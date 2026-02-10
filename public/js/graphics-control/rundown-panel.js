@@ -241,11 +241,11 @@ export function renderRundown(instanceId, items, overlayUrl) {
                   title="Double-click to rename">${escapeHtml(displayName)}</span>
             ${typeBadge}
             ${isCued ? '<span class="gc-cued-badge">CUED</span>' : ''}
+            ${isOnAir ? '<span class="gc-live-badge">LIVE</span>' : ''}
           </div>
           <div class="gc-rundown-controls">
             <button class="gc-btn-config" data-action="config" data-item-id="${item.id}" title="Configure">${ICONS.gear}</button>
             <button class="gc-btn-cue ${isCued ? 'active' : ''}" data-action="cue" data-item-id="${item.id}" title="Cue (load without showing)">CUE</button>
-            ${isOnAir ? '<span class="gc-live-badge">LIVE</span>' : ''}
             <button class="gc-btn-take-on ${isOnAir ? 'active' : ''}" data-action="take-on" data-item-id="${item.id}" title="Take On Air">TAKE ON</button>
             <button class="gc-btn-take-off ${isOnAir ? '' : 'active'}" data-action="take-off" data-item-id="${item.id}" title="Take Off Air">TAKE OFF</button>
             <button class="gc-btn-resume ${isOnAir ? 'active' : 'disabled'}" data-action="resume" data-item-id="${item.id}" title="Resume (advance past pause point)">RESUME</button>
