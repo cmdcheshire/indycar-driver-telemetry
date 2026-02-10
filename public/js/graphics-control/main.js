@@ -86,18 +86,7 @@ async function refreshRundown() {
     return;
   }
 
-  // Show loading spinner in rundown list
-  const listEl = document.getElementById('rundownList');
-  if (listEl) {
-    const spinner = createSpinner({ size: 32 });
-    listEl.innerHTML = `
-      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px; gap: 12px; color: var(--text-muted, #8892b0);">
-        ${spinner.outerHTML}
-        <span style="font-size: 13px;">Loading rundown...</span>
-      </div>
-    `;
-  }
-
+  // Fetch rundown items (no loading spinner - operations are fast)
   const items = await fetchRundown(selectedOutputId);
 
   // Build overlay URL for the selected output

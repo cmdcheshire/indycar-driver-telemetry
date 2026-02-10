@@ -1,7 +1,276 @@
 /**
- * Custom color picker with hex code input and alpha support.
+ * Custom color picker with hex code input, alpha support, and configurable palettes.
  * Returns color in rgba() format.
  */
+
+// ── Palette Management ──
+
+const PALETTE_STORAGE_KEY = 'colorPickerPalettes';
+const DEFAULT_PALETTE = 'Default';
+
+/**
+ * Load all saved palettes from localStorage.
+ * @returns {object} Palettes object { paletteName: [colors...] }
+ */
+function loadPalettes() {
+  try {
+    const stored = localStorage.getItem(PALETTE_STORAGE_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (e) {
+    console.warn('[color-picker] Failed to load palettes:', e);
+  }
+  // Return default palette
+  return {
+    [DEFAULT_PALETTE]: [
+      '#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff',
+      '#ffffff', '#000000', '#808080', '#ffa500', '#800080', '#ffc0cb',
+    ],
+  };
+}
+
+/**
+ * Save palettes to localStorage.
+ * @param {object} palettes - Palettes object
+ */
+function savePalettes(palettes) {
+  try {
+    localStorage.setItem(PALETTE_STORAGE_KEY, JSON.stringify(palettes));
+  } catch (e) {
+    console.warn('[color-picker] Failed to save palettes:', e);
+  }
+}
+
+/**
+ * Show palette manager dialog.
+ * @param {object} palettes - Current palettes
+ * @param {string} currentName - Currently selected palette name
+ * @param {function} onSave - Callback with updated palettes and current name
+ */
+function showPaletteManager(palettes, currentName, onSave) {
+  // Create overlay
+  const overlay = document.createElement('div');
+  overlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 100001;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  `;
+
+  const modal = document.createElement('div');
+  modal.style.cssText = `
+    background: #1a1d2e;
+    border: 1px solid #2d3451;
+    border-radius: 12px;
+    width: 400px;
+    max-height: 500px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  `;
+
+  // Header
+  const header = document.createElement('div');
+  header.style.cssText = `
+    padding: 16px 20px;
+    border-bottom: 1px solid #2d3451;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  `;
+  header.innerHTML = `
+    <h3 style="margin: 0; font-size: 16px; font-weight: 600; color: #fff;">Manage Palettes</h3>
+    <button class="close-btn" style="background: none; border: none; color: #8892b0; font-size: 24px; cursor: pointer; padding: 0;">&times;</button>
+  `;
+
+  // Body
+  const body = document.createElement('div');
+  body.style.cssText = 'padding: 16px 20px; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;';
+
+  const palettesCopy = JSON.parse(JSON.stringify(palettes));
+  let selectedName = currentName;
+
+  const renderList = () => {
+    body.innerHTML = '';
+
+    Object.keys(palettesCopy).forEach(name => {
+      const row = document.createElement('div');
+      row.style.cssText = `
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px;
+        background: ${name === selectedName ? 'rgba(59, 130, 246, 0.1)' : 'transparent'};
+        border: 1px solid ${name === selectedName ? '#3b82f6' : '#2d3451'};
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+      `;
+
+      const nameLabel = document.createElement('span');
+      nameLabel.style.cssText = 'flex: 1; font-size: 13px; color: #fff;';
+      nameLabel.textContent = name;
+
+      const renameBtn = document.createElement('button');
+      renameBtn.textContent = '✏';
+      renameBtn.title = 'Rename';
+      renameBtn.style.cssText = `
+        padding: 4px 8px;
+        background: #0f1118;
+        border: 1px solid #2d3451;
+        border-radius: 4px;
+        color: #8892b0;
+        font-size: 12px;
+        cursor: pointer;
+      `;
+      renameBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const newName = prompt('Rename palette:', name);
+        if (newName && newName.trim() && newName !== name) {
+          if (palettesCopy[newName.trim()]) {
+            alert('A palette with this name already exists');
+            return;
+          }
+          palettesCopy[newName.trim()] = palettesCopy[name];
+          delete palettesCopy[name];
+          if (selectedName === name) selectedName = newName.trim();
+          renderList();
+        }
+      });
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.textContent = '×';
+      deleteBtn.title = 'Delete';
+      deleteBtn.style.cssText = `
+        padding: 4px 8px;
+        background: #0f1118;
+        border: 1px solid #2d3451;
+        border-radius: 4px;
+        color: #ff4444;
+        font-size: 16px;
+        cursor: pointer;
+      `;
+      deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (Object.keys(palettesCopy).length === 1) {
+          alert('Cannot delete the last palette');
+          return;
+        }
+        if (confirm(`Delete palette "${name}"?`)) {
+          delete palettesCopy[name];
+          if (selectedName === name) {
+            selectedName = Object.keys(palettesCopy)[0];
+          }
+          renderList();
+        }
+      });
+
+      row.addEventListener('click', () => {
+        selectedName = name;
+        renderList();
+      });
+
+      row.appendChild(nameLabel);
+      row.appendChild(renameBtn);
+      row.appendChild(deleteBtn);
+      body.appendChild(row);
+    });
+
+    // Add new palette button
+    const addBtn = document.createElement('button');
+    addBtn.textContent = '+ New Palette';
+    addBtn.style.cssText = `
+      padding: 8px 12px;
+      background: rgba(59, 130, 246, 0.1);
+      border: 1px dashed #3b82f6;
+      border-radius: 6px;
+      color: #3b82f6;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 8px;
+    `;
+    addBtn.addEventListener('click', () => {
+      const newName = prompt('New palette name:');
+      if (newName && newName.trim()) {
+        if (palettesCopy[newName.trim()]) {
+          alert('A palette with this name already exists');
+          return;
+        }
+        palettesCopy[newName.trim()] = [];
+        selectedName = newName.trim();
+        renderList();
+      }
+    });
+    body.appendChild(addBtn);
+  };
+
+  renderList();
+
+  // Footer
+  const footer = document.createElement('div');
+  footer.style.cssText = `
+    padding: 16px 20px;
+    border-top: 1px solid #2d3451;
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+  `;
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.textContent = 'Cancel';
+  cancelBtn.style.cssText = `
+    padding: 8px 16px;
+    background: transparent;
+    border: 1px solid #2d3451;
+    border-radius: 6px;
+    color: #8892b0;
+    font-size: 13px;
+    cursor: pointer;
+  `;
+
+  const saveBtn = document.createElement('button');
+  saveBtn.textContent = 'Save';
+  saveBtn.style.cssText = `
+    padding: 8px 16px;
+    background: #3b82f6;
+    border: none;
+    border-radius: 6px;
+    color: #fff;
+    font-size: 13px;
+    cursor: pointer;
+  `;
+
+  footer.appendChild(cancelBtn);
+  footer.appendChild(saveBtn);
+
+  modal.appendChild(header);
+  modal.appendChild(body);
+  modal.appendChild(footer);
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+
+  // Event handlers
+  const close = () => overlay.remove();
+
+  header.querySelector('.close-btn').addEventListener('click', close);
+  cancelBtn.addEventListener('click', close);
+  saveBtn.addEventListener('click', () => {
+    onSave(palettesCopy, selectedName);
+    close();
+  });
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) close();
+  });
+}
 
 /**
  * Parse any CSS color value to RGBA components.
@@ -91,6 +360,13 @@ export async function showColorPicker(options = {}) {
   const rgba = parseColor(initialColor);
   let currentColor = { ...rgba };
 
+  // Load palettes
+  let palettes = loadPalettes();
+  let currentPaletteName = DEFAULT_PALETTE;
+  if (!palettes[currentPaletteName]) {
+    currentPaletteName = Object.keys(palettes)[0] || DEFAULT_PALETTE;
+  }
+
   return new Promise((resolve) => {
     // Build modal overlay
     const overlay = document.createElement('div');
@@ -170,6 +446,216 @@ export async function showColorPicker(options = {}) {
       background: ${initialColor};
     `;
     preview.appendChild(previewColor);
+
+    // Palette section
+    const paletteSection = document.createElement('div');
+    paletteSection.style.cssText = 'display: flex; flex-direction: column; gap: 8px;';
+
+    // Palette header with dropdown and manage button
+    const paletteHeader = document.createElement('div');
+    paletteHeader.style.cssText = 'display: flex; align-items: center; gap: 6px; justify-content: space-between;';
+
+    const paletteLabel = document.createElement('label');
+    paletteLabel.style.cssText = 'font-size: 12px; font-weight: 500; color: #8892b0; text-transform: uppercase;';
+    paletteLabel.textContent = 'Palettes';
+
+    const paletteControls = document.createElement('div');
+    paletteControls.style.cssText = 'display: flex; align-items: center; gap: 6px;';
+
+    const paletteSelect = document.createElement('select');
+    paletteSelect.style.cssText = `
+      padding: 4px 8px;
+      background: #0f1118;
+      border: 1px solid #2d3451;
+      border-radius: 4px;
+      color: #fff;
+      font-size: 11px;
+      outline: none;
+      cursor: pointer;
+    `;
+    Object.keys(palettes).forEach(name => {
+      const option = document.createElement('option');
+      option.value = name;
+      option.textContent = name;
+      option.selected = name === currentPaletteName;
+      paletteSelect.appendChild(option);
+    });
+
+    const manageBtn = document.createElement('button');
+    manageBtn.textContent = '⚙';
+    manageBtn.title = 'Manage Palettes';
+    manageBtn.style.cssText = `
+      padding: 4px 8px;
+      background: #0f1118;
+      border: 1px solid #2d3451;
+      border-radius: 4px;
+      color: #8892b0;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+    `;
+    manageBtn.addEventListener('mouseenter', () => {
+      manageBtn.style.background = 'rgba(255, 255, 255, 0.05)';
+    });
+    manageBtn.addEventListener('mouseleave', () => {
+      manageBtn.style.background = '#0f1118';
+    });
+
+    paletteControls.appendChild(paletteSelect);
+    paletteControls.appendChild(manageBtn);
+    paletteHeader.appendChild(paletteLabel);
+    paletteHeader.appendChild(paletteControls);
+    paletteSection.appendChild(paletteHeader);
+
+    // Palette color grid
+    const paletteGrid = document.createElement('div');
+    paletteGrid.style.cssText = `
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 6px;
+      padding: 8px;
+      background: #0f1118;
+      border: 1px solid #2d3451;
+      border-radius: 6px;
+      min-height: 48px;
+    `;
+
+    const renderPaletteGrid = () => {
+      paletteGrid.innerHTML = '';
+      const colors = palettes[currentPaletteName] || [];
+
+      if (colors.length === 0) {
+        const emptyMsg = document.createElement('div');
+        emptyMsg.style.cssText = 'grid-column: 1 / -1; text-align: center; color: #4a5568; font-size: 11px; padding: 8px;';
+        emptyMsg.textContent = 'No colors in palette';
+        paletteGrid.appendChild(emptyMsg);
+        return;
+      }
+
+      colors.forEach((color, index) => {
+        const swatch = document.createElement('div');
+        swatch.style.cssText = `
+          width: 100%;
+          aspect-ratio: 1;
+          background: ${color};
+          border: 2px solid #2d3451;
+          border-radius: 4px;
+          cursor: pointer;
+          transition: all 0.15s;
+          position: relative;
+        `;
+        swatch.title = color;
+
+        swatch.addEventListener('mouseenter', () => {
+          swatch.style.borderColor = '#3b82f6';
+          swatch.style.transform = 'scale(1.1)';
+        });
+        swatch.addEventListener('mouseleave', () => {
+          swatch.style.borderColor = '#2d3451';
+          swatch.style.transform = 'scale(1)';
+        });
+
+        // Left-click: select color
+        swatch.addEventListener('click', () => {
+          const parsed = parseColor(color);
+          currentColor.r = parsed.r;
+          currentColor.g = parsed.g;
+          currentColor.b = parsed.b;
+          currentColor.a = parsed.a;
+          hexInput.value = rgbaToHex(currentColor);
+          rInput.input.value = String(currentColor.r);
+          gInput.input.value = String(currentColor.g);
+          bInput.input.value = String(currentColor.b);
+          if (showAlpha && alphaInput) {
+            alphaInput.value = String(Math.round(currentColor.a * 100));
+            const alphaValueLabel = alphaRow.querySelector('#alphaValue');
+            if (alphaValueLabel) {
+              alphaValueLabel.textContent = `${alphaInput.value}%`;
+            }
+          }
+          updatePreview();
+        });
+
+        // Right-click: remove color
+        swatch.addEventListener('contextmenu', (e) => {
+          e.preventDefault();
+          if (confirm(`Remove ${color} from palette?`)) {
+            palettes[currentPaletteName].splice(index, 1);
+            savePalettes(palettes);
+            renderPaletteGrid();
+          }
+        });
+
+        paletteGrid.appendChild(swatch);
+      });
+    };
+
+    renderPaletteGrid();
+    paletteSection.appendChild(paletteGrid);
+
+    // Add current color button
+    const addColorBtn = document.createElement('button');
+    addColorBtn.textContent = '+ Add Current Color to Palette';
+    addColorBtn.style.cssText = `
+      padding: 6px 10px;
+      background: #0f1118;
+      border: 1px solid #2d3451;
+      border-radius: 4px;
+      color: #8892b0;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    `;
+    addColorBtn.addEventListener('mouseenter', () => {
+      addColorBtn.style.background = 'rgba(59, 130, 246, 0.1)';
+      addColorBtn.style.borderColor = '#3b82f6';
+      addColorBtn.style.color = '#3b82f6';
+    });
+    addColorBtn.addEventListener('mouseleave', () => {
+      addColorBtn.style.background = '#0f1118';
+      addColorBtn.style.borderColor = '#2d3451';
+      addColorBtn.style.color = '#8892b0';
+    });
+    addColorBtn.addEventListener('click', () => {
+      const colorHex = rgbaToHex(currentColor);
+      if (!palettes[currentPaletteName]) {
+        palettes[currentPaletteName] = [];
+      }
+      if (!palettes[currentPaletteName].includes(colorHex)) {
+        palettes[currentPaletteName].push(colorHex);
+        savePalettes(palettes);
+        renderPaletteGrid();
+      }
+    });
+    paletteSection.appendChild(addColorBtn);
+
+    // Palette select change handler
+    paletteSelect.addEventListener('change', () => {
+      currentPaletteName = paletteSelect.value;
+      renderPaletteGrid();
+    });
+
+    // Manage palettes button handler
+    manageBtn.addEventListener('click', () => {
+      showPaletteManager(palettes, currentPaletteName, (updatedPalettes, newCurrentName) => {
+        palettes = updatedPalettes;
+        currentPaletteName = newCurrentName;
+        savePalettes(palettes);
+
+        // Rebuild palette select
+        paletteSelect.innerHTML = '';
+        Object.keys(palettes).forEach(name => {
+          const option = document.createElement('option');
+          option.value = name;
+          option.textContent = name;
+          option.selected = name === currentPaletteName;
+          paletteSelect.appendChild(option);
+        });
+
+        renderPaletteGrid();
+      });
+    });
 
     // Hex input
     const hexRow = document.createElement('div');
@@ -397,6 +883,7 @@ export async function showColorPicker(options = {}) {
 
     // Assemble modal
     body.appendChild(preview);
+    body.appendChild(paletteSection);
     body.appendChild(hexRow);
     body.appendChild(rgbRow);
     if (showAlpha && alphaRow) {

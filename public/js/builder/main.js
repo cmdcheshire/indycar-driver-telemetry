@@ -418,31 +418,16 @@ function _initToolbar() {
     });
   }
 
-  // Canvas background selector
-  const bgBtn = document.getElementById('btnCanvasBackground');
-  const bgDropdown = document.getElementById('bgSelectorDropdown');
+  // Canvas background selector (toggle buttons)
   const canvasContainer = document.getElementById('canvasContainer');
+  const bgToggleButtons = document.querySelectorAll('.bg-selector-toggle button');
   let currentBackground = 'dark'; // default
   let referenceImageUrl = null;
 
-  if (bgBtn && bgDropdown) {
-    // Toggle dropdown
-    bgBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      bgDropdown.classList.toggle('hidden');
-    });
-
-    // Close dropdown when clicking outside
-    document.addEventListener('click', (e) => {
-      if (!bgDropdown.contains(e.target) && e.target !== bgBtn) {
-        bgDropdown.classList.add('hidden');
-      }
-    });
-
-    // Handle background selection
-    bgDropdown.querySelectorAll('.bg-option').forEach(option => {
-      option.addEventListener('click', async () => {
-        const bgType = option.dataset.bg;
+  if (bgToggleButtons.length > 0) {
+    bgToggleButtons.forEach(button => {
+      button.addEventListener('click', async () => {
+        const bgType = button.dataset.bg;
 
         if (bgType === 'reference') {
           // Show file picker for reference image
@@ -476,6 +461,11 @@ function _initToolbar() {
               canvasContainer.style.setProperty('--reference-bg-url', `url('${referenceImageUrl}')`);
               canvasContainer.classList.add('bg-reference');
               currentBackground = 'reference';
+
+              // Update active button
+              bgToggleButtons.forEach(btn => btn.classList.remove('active'));
+              button.classList.add('active');
+
               showToast('Reference image uploaded', 'success');
             } catch (err) {
               console.error('[builder] Failed to upload reference image:', err);
@@ -490,9 +480,11 @@ function _initToolbar() {
             canvasContainer.classList.add('bg-light');
           }
           currentBackground = bgType;
-        }
 
-        bgDropdown.classList.add('hidden');
+          // Update active button
+          bgToggleButtons.forEach(btn => btn.classList.remove('active'));
+          button.classList.add('active');
+        }
       });
     });
   }

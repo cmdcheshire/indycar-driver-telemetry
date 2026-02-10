@@ -8,11 +8,37 @@ import { authenticatedFetch } from '/js/modules/auth.js';
 import { showToast, showConfirm } from '/js/modules/ui.js';
 import { getSettingDef, EXPOSABLE_SETTINGS } from '/js/shared/exposed-settings.js';
 import { showColorPicker } from '/js/shared/color-picker.js';
+import { setButtonLoading } from '/js/shared/loading-spinner.js';
 
 let callbacks = { onRefresh: null };
 let currentInstanceId = null;
 let dragSourceIndex = null;
 let cuedItemId = null; // Tracks which rundown item is currently cued
+
+// Restore cued state from localStorage on init
+try {
+  const saved = localStorage.getItem('cuedItemState');
+  if (saved) {
+    const state = JSON.parse(saved);
+    cuedItemId = state.itemId || null;
+    currentInstanceId = state.instanceId || null;
+  }
+} catch (e) {
+  console.warn('[rundown-panel] Failed to restore cued state:', e);
+}
+
+// Helper to persist cued state
+function saveCuedState(itemId, instanceId) {
+  try {
+    if (itemId === null) {
+      localStorage.removeItem('cuedItemState');
+    } else {
+      localStorage.setItem('cuedItemState', JSON.stringify({ itemId, instanceId }));
+    }
+  } catch (e) {
+    console.warn('[rundown-panel] Failed to save cued state:', e);
+  }
+}
 
 // ── SVG Icons ──
 
@@ -62,6 +88,22 @@ export function initRundownPanel({ onRefresh }) {
 
 export function renderRundown(instanceId, items, overlayUrl) {
   currentInstanceId = instanceId;
+
+  // Validate that the saved cued item belongs to this instance
+  try {
+    const saved = localStorage.getItem('cuedItemState');
+    if (saved) {
+      const state = JSON.parse(saved);
+      if (state.instanceId !== instanceId) {
+        // Cued item belongs to a different instance, clear it for this view
+        cuedItemId = null;
+      } else {
+        cuedItemId = state.itemId || null;
+      }
+    }
+  } catch (e) {
+    console.warn('[rundown-panel] Failed to validate cued state:', e);
+  }
 
   const titleEl = document.getElementById('rundownTitle');
   const listEl = document.getElementById('rundownList');
@@ -276,11 +318,11 @@ export function renderRundown(instanceId, items, overlayUrl) {
       const action = btn.dataset.action;
       const itemId = parseInt(btn.dataset.itemId, 10);
 
-      if (action === 'cue') handleCue(itemId);
-      else if (action === 'take-on') handleTakeOn(itemId);
-      else if (action === 'take-off') handleTakeOff(itemId);
-      else if (action === 'resume') handleResume(itemId);
-      else if (action === 'remove') handleRemove(itemId);
+      if (action === 'cue') handleCue(itemId, btn);
+      else if (action === 'take-on') handleTakeOn(itemId, btn);
+      else if (action === 'take-off') handleTakeOff(itemId, btn);
+      else if (action === 'resume') handleResume(itemId, btn);
+      else if (action === 'remove') handleRemove(itemId, btn);
       else if (action === 'config') handleToggleConfig(itemId, btn);
     });
   });
@@ -551,7 +593,8 @@ async function saveDisplayName(itemId, displayName) {
 
 // ── Take Actions ──
 
-async function handleCue(itemId) {
+async function handleCue(itemId, button) {
+  const cleanup = button ? setButtonLoading(button) : null;
   try {
     const res = await authenticatedFetch(`/api/overlays/rundown/${itemId}/take`, {
       method: 'POST',
@@ -564,15 +607,19 @@ async function handleCue(itemId) {
     }
 
     cuedItemId = itemId;
+    saveCuedState(itemId, currentInstanceId);
     showToast('Graphic cued', 'success');
     if (callbacks.onRefresh) await callbacks.onRefresh();
   } catch (err) {
     console.error('Failed to cue graphic:', err);
     showToast(err.message || 'Failed to cue graphic', 'error');
+  } finally {
+    if (cleanup) cleanup();
   }
 }
 
-async function handleTakeOn(itemId) {
+async function handleTakeOn(itemId, button) {
+  const cleanup = button ? setButtonLoading(button) : null;
   try {
     const autoCue = localStorage.getItem('autoCueEnabled') === 'true';
     const res = await authenticatedFetch(`/api/overlays/rundown/${itemId}/take`, {
@@ -586,6 +633,7 @@ async function handleTakeOn(itemId) {
     }
 
     cuedItemId = null; // Clear cued state — item is now on-air
+    saveCuedState(null, currentInstanceId);
     showToast('Graphic taken ON AIR', 'success');
     if (callbacks.onRefresh) await callbacks.onRefresh();
 
@@ -602,6 +650,7 @@ async function handleTakeOn(itemId) {
           const nextItem = rundownItems[currentIndex + 1];
           const nextItemId = parseInt(nextItem.dataset.itemId);
           cuedItemId = nextItemId;
+          saveCuedState(nextItemId, currentInstanceId);
           await callbacks.onRefresh();
         }
       }, 200); // Wait for backend auto-cue to complete
@@ -609,10 +658,13 @@ async function handleTakeOn(itemId) {
   } catch (err) {
     console.error('Failed to take on:', err);
     showToast(err.message || 'Failed to take on', 'error');
+  } finally {
+    if (cleanup) cleanup();
   }
 }
 
-async function handleTakeOff(itemId) {
+async function handleTakeOff(itemId, button) {
+  const cleanup = button ? setButtonLoading(button) : null;
   try {
     const res = await authenticatedFetch(`/api/overlays/rundown/${itemId}/take`, {
       method: 'POST',
@@ -625,15 +677,19 @@ async function handleTakeOff(itemId) {
     }
 
     cuedItemId = null; // Clear cued state
+    saveCuedState(null, currentInstanceId);
     showToast('Graphic taken OFF AIR', 'info');
     if (callbacks.onRefresh) await callbacks.onRefresh();
   } catch (err) {
     console.error('Failed to take off:', err);
     showToast(err.message || 'Failed to take off', 'error');
+  } finally {
+    if (cleanup) cleanup();
   }
 }
 
-async function handleResume(itemId) {
+async function handleResume(itemId, button) {
+  const cleanup = button ? setButtonLoading(button) : null;
   try {
     const res = await authenticatedFetch(`/api/overlays/rundown/${itemId}/take`, {
       method: 'POST',
@@ -647,13 +703,16 @@ async function handleResume(itemId) {
   } catch (err) {
     console.error('Failed to resume:', err);
     showToast(err.message || 'Failed to resume', 'error');
+  } finally {
+    if (cleanup) cleanup();
   }
 }
 
-async function handleRemove(itemId) {
+async function handleRemove(itemId, button) {
   const confirmed = await showConfirm('Remove Graphic', 'Remove this graphic from the rundown?');
   if (!confirmed) return;
 
+  const cleanup = button ? setButtonLoading(button) : null;
   try {
     const res = await authenticatedFetch(`/api/overlays/rundown/${itemId}`, {
       method: 'DELETE',
@@ -669,6 +728,8 @@ async function handleRemove(itemId) {
   } catch (err) {
     console.error('Failed to remove graphic:', err);
     showToast(err.message || 'Failed to remove graphic', 'error');
+  } finally {
+    if (cleanup) cleanup();
   }
 }
 

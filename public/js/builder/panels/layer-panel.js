@@ -422,7 +422,10 @@ function _renderElementNode(el, container, selectedIds, depth) {
 
   item.addEventListener('dragover', (e) => {
     e.preventDefault();
-    if (_dragSourceId && _dragSourceId !== el.id) {
+    // Accept both elements and groups
+    const isDraggingElement = _dragSourceId && _dragSourceId !== el.id;
+    const isDraggingGroup = e.dataTransfer.types.includes('text/group-id');
+    if (isDraggingElement || isDraggingGroup) {
       item.classList.add('drag-over');
     }
   });
@@ -434,18 +437,34 @@ function _renderElementNode(el, container, selectedIds, depth) {
   item.addEventListener('drop', (e) => {
     e.preventDefault();
     item.classList.remove('drag-over');
-    if (!_dragSourceId || _dragSourceId === el.id || !onReorder) return;
 
-    // Get all element items in visual order (descending zIndex = front at top)
-    const allItems = [...layerListEl.querySelectorAll('.layer-item[data-element-id]')];
-    const totalElements = allItems.length;
-    const targetVisualIdx = allItems.indexOf(item);
+    // Handle element drop
+    if (_dragSourceId && _dragSourceId !== el.id && onReorder) {
+      // Get all element items in visual order (descending zIndex = front at top)
+      const allItems = [...layerListEl.querySelectorAll('.layer-item[data-element-id]')];
+      const totalElements = allItems.length;
+      const targetVisualIdx = allItems.indexOf(item);
 
-    // Visual order is descending zIndex, but _reorderElementToIndex uses ascending.
-    // Convert: ascendingIndex = (totalElements - 1) - visualIndex
-    const targetAscIdx = (totalElements - 1) - targetVisualIdx;
-    onReorder(_dragSourceId, targetAscIdx);
-    _dragSourceId = null;
+      // Visual order is descending zIndex, but _reorderElementToIndex uses ascending.
+      // Convert: ascendingIndex = (totalElements - 1) - visualIndex
+      const targetAscIdx = (totalElements - 1) - targetVisualIdx;
+      onReorder(_dragSourceId, targetAscIdx);
+      _dragSourceId = null;
+      return;
+    }
+
+    // Handle group drop (reorder group row in the layer list)
+    const droppedGroupId = e.dataTransfer.getData('text/group-id');
+    if (droppedGroupId) {
+      console.log(`[layer-panel] Group dropped on layer item, reordering group: ${droppedGroupId}`);
+
+      // Find the group row and the target position
+      const groupRow = layerListEl.querySelector(`.layer-group-row[data-group-id="${droppedGroupId}"]`);
+      if (groupRow && item.parentElement) {
+        // Insert group row before the target item
+        item.parentElement.insertBefore(groupRow, item);
+      }
+    }
   });
 
   // Type icon
