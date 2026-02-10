@@ -316,7 +316,7 @@ function _addTextProps(p) {
     ]),
     _row([
       _colorInputWithSwatch('Color', p.color || '#FFFFFF', (v) => _emitProp({ color: v })),
-      _colorInputWithSwatch('BG', p.backgroundColor || 'transparent', (v) => _emitProp({ backgroundColor: v })),
+      _colorInputWithSwatch('BG', p.backgroundColor || 'transparent', (v) => _emitProp({ backgroundColor: v }), true),
     ]),
     _alignButtonGroup(p.textAlign || 'left', p.verticalAlign || 'top',
       (v) => _emitProp({ textAlign: v }),
@@ -719,7 +719,7 @@ function _addArcGaugeProps(p) {
     ]),
     _row([
       _colorInputWithSwatch('Fill', p.fillColor || '#00e676', (v) => _emitProp({ fillColor: v })),
-      _colorInputWithSwatch('BG', p.bgColor || '#333333', (v) => _emitProp({ bgColor: v })),
+      _colorInputWithSwatch('BG', p.bgColor || '#333333', (v) => _emitProp({ bgColor: v }), true),
     ]),
     _rangeInput('Preview', p._previewValue ?? 50, p.min ?? 0, p.max ?? 100, 1, '', (v) => _emitProp({ _previewValue: v })),
   ]);
@@ -739,7 +739,7 @@ function _addBarGaugeProps(p) {
     ]),
     _row([
       _colorInputWithSwatch('Fill', p.fillColor || '#00e676', (v) => _emitProp({ fillColor: v })),
-      _colorInputWithSwatch('BG', p.bgColor || '#333333', (v) => _emitProp({ bgColor: v })),
+      _colorInputWithSwatch('BG', p.bgColor || '#333333', (v) => _emitProp({ bgColor: v }), true),
     ]),
     _numberInput('Radius', p.borderRadius ?? 0, 0, 100, 1, (v) => _emitProp({ borderRadius: v })),
     _rangeInput('Preview', p._previewValue ?? 50, p.min ?? 0, p.max ?? 100, 1, '', (v) => _emitProp({ _previewValue: v })),
@@ -763,7 +763,7 @@ function _addRingSegmentProps(p) {
       _numberInput('Min', p.min ?? 0, -10000, 100000, 1, (v) => _emitProp({ min: v })),
       _numberInput('Max', p.max ?? 100, -10000, 100000, 1, (v) => _emitProp({ max: v })),
     ]),
-    _colorInputWithSwatch('BG', p.bgColor || '#333333', (v) => _emitProp({ bgColor: v })),
+    _colorInputWithSwatch('BG', p.bgColor || '#333333', (v) => _emitProp({ bgColor: v }), true),
     _addColorStopsEditor(p),
     _rangeInput('Preview', p._previewValue ?? 50, p.min ?? 0, p.max ?? 100, 1, '', (v) => _emitProp({ _previewValue: v })),
   ]);
@@ -2181,7 +2181,7 @@ function _groupedEasingSelect(label, value, onChange) {
   return wrapper;
 }
 
-function _colorInputWithSwatch(label, value, onChange) {
+function _colorInputWithSwatch(label, value, onChange, showClearButton = false) {
   const wrapper = document.createElement('div');
   wrapper.className = 'color-swatch-wrapper';
 
@@ -2216,6 +2216,22 @@ function _colorInputWithSwatch(label, value, onChange) {
     swatch.style.backgroundColor = input.value;
     onChange(input.value);
   });
+
+  // Optional clear button (for backgrounds)
+  if (showClearButton) {
+    const clearBtn = document.createElement('button');
+    clearBtn.className = 'btn-icon-sm';
+    clearBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M9 3L3 9M3 3l6 6"/></svg>';
+    clearBtn.title = 'Clear background (transparent)';
+    clearBtn.style.cssText = 'padding:2px; margin-left:2px; opacity:0.6; transition:opacity 0.15s;';
+    clearBtn.addEventListener('mouseenter', () => clearBtn.style.opacity = '1');
+    clearBtn.addEventListener('mouseleave', () => clearBtn.style.opacity = '0.6');
+    clearBtn.addEventListener('click', () => {
+      swatch.style.backgroundColor = 'transparent';
+      onChange('transparent');
+    });
+    wrapper.appendChild(clearBtn);
+  }
 
   wrapper.style.position = 'relative';
   return wrapper;
