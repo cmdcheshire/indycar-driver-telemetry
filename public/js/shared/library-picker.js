@@ -24,6 +24,7 @@ export async function showLibraryPicker(options = {}) {
   let folders = [];
   let assets = [];
   let currentFolderId = null;
+  let searchQuery = '';
 
   try {
     const [foldersRes, assetsRes] = await Promise.all([
@@ -128,6 +129,39 @@ export async function showLibraryPicker(options = {}) {
       background: #161928;
     `;
 
+    // Search box
+    const searchBox = document.createElement('div');
+    searchBox.style.cssText = `
+      padding: 12px 16px;
+      border-bottom: 1px solid #2d3451;
+      background: #161928;
+    `;
+    const searchInput = document.createElement('input');
+    searchInput.type = 'text';
+    searchInput.placeholder = 'Search assets...';
+    searchInput.style.cssText = `
+      width: 100%;
+      padding: 8px 12px;
+      background: #0f1118;
+      border: 1px solid #2d3451;
+      border-radius: 6px;
+      color: #fff;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+    `;
+    searchInput.addEventListener('focus', () => {
+      searchInput.style.borderColor = '#3b82f6';
+    });
+    searchInput.addEventListener('blur', () => {
+      searchInput.style.borderColor = '#2d3451';
+    });
+    searchInput.addEventListener('input', (e) => {
+      searchQuery = e.target.value.toLowerCase().trim();
+      renderAssets();
+    });
+    searchBox.appendChild(searchInput);
+
     // Asset grid
     const grid = document.createElement('div');
     grid.style.cssText = `
@@ -144,6 +178,7 @@ export async function showLibraryPicker(options = {}) {
     body.style.cssText = 'display: flex; flex: 1; overflow: hidden;';
     body.appendChild(sidebar);
     content.appendChild(breadcrumb);
+    content.appendChild(searchBox);
     content.appendChild(grid);
     body.appendChild(content);
 
@@ -170,6 +205,8 @@ export async function showLibraryPicker(options = {}) {
       rootItem.textContent = '📁 All Assets';
       rootItem.addEventListener('click', () => {
         currentFolderId = null;
+        searchQuery = '';
+        searchInput.value = '';
         renderFolders();
         renderAssets();
       });
@@ -198,6 +235,8 @@ export async function showLibraryPicker(options = {}) {
         folderItem.textContent = `📁 ${folder.name}`;
         folderItem.addEventListener('click', () => {
           currentFolderId = folder.id;
+          searchQuery = '';
+          searchInput.value = '';
           renderFolders();
           renderAssets();
         });
@@ -224,10 +263,18 @@ export async function showLibraryPicker(options = {}) {
       }
 
       // Filter by current folder
-      const folderAssets = filteredAssets.filter(asset => {
+      let folderAssets = filteredAssets.filter(asset => {
         if (currentFolderId === null) return true; // Show all when no folder selected
         return asset.folder_id === currentFolderId;
       });
+
+      // Filter by search query
+      if (searchQuery) {
+        folderAssets = folderAssets.filter(asset => {
+          const filename = (asset.original_name || asset.filename).toLowerCase();
+          return filename.includes(searchQuery);
+        });
+      }
 
       if (folderAssets.length === 0) {
         const empty = document.createElement('div');
