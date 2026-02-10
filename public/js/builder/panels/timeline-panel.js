@@ -1163,7 +1163,7 @@ function _hardReset() {
   _updateTransportButtons();
 }
 
-function _resetAllElements() {
+function _resetAllElements(restoreHoldState = true) {
   if (!_getElements) return;
   const elements = _getElements();
   for (const el of elements) {
@@ -1193,7 +1193,7 @@ function _resetAllElements() {
       gsap.set(node, { clearProps: [...clearSet].join(',') });
       _restoreBaseTransform(el, node);
       // Re-apply final keyframe values so element stays in hold state, not CSS rest
-      if (enterKf?.enabled && enterKf.tracks?.length > 0) {
+      if (restoreHoldState && enterKf?.enabled && enterKf.tracks?.length > 0) {
         const endState = {};
         for (const track of enterKf.tracks) {
           if (track.keyframes.length > 0) {
@@ -1531,8 +1531,8 @@ function _goToStart() {
   if (_holdTimer) { clearTimeout(_holdTimer); _holdTimer = null; }
   _isScrubbing = false;
 
-  // Reset all GSAP transforms so elements are back in their editing state
-  _resetAllElements();
+  // Clear all GSAP transforms without restoring hold state (show CSS rest = start position)
+  _resetAllElements(false);
 
   _currentPhase = 'idle';
   _isPlaying = false;

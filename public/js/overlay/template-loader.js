@@ -189,9 +189,12 @@ function _applyClipPaths(elements, domMap) {
     if (el.clipMask.hideMask) {
       const maskDom = domMap.get(el.clipMask.elementId);
       if (maskDom) {
+        console.log(`[template-loader] Hiding mask element ${el.clipMask.elementId} (hideMask=true)`);
         maskDom.style.display = 'none';
         // Mark as intentionally hidden so TAKE ON display restoration skips it
         maskDom.dataset.maskHidden = 'true';
+      } else {
+        console.warn(`[template-loader] Mask element ${el.clipMask.elementId} not found in domMap (may have visible=false)`);
       }
     }
   }
