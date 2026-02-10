@@ -26,6 +26,7 @@ import {
 } from './element-factory.js';
 import {
   createGroup,
+  createEmptyGroup,
   deleteGroup,
   renameGroup,
   toggleGroupExpanded,
@@ -496,7 +497,8 @@ function _initToolbar() {
     });
   }
 
-  // Group / Ungroup
+  // Group / Ungroup / New Group
+  document.getElementById('btnNewGroup').addEventListener('click', () => _createNewGroup());
   document.getElementById('btnGroupLayers').addEventListener('click', () => _groupSelected());
   document.getElementById('btnUngroupLayers').addEventListener('click', () => _ungroupSelected());
 
@@ -1119,6 +1121,25 @@ function _duplicateSelected() {
   _pushHistory();
   _refreshPanels();
   showToast('Element(s) duplicated', 'info', 2000);
+}
+
+function _createNewGroup() {
+  // Check if a group is selected to make the new group nested
+  let parentGroupId = null;
+  const selectedIds = selection.getSelected();
+
+  // Check if any selected element belongs to a group - nest inside that group
+  if (selectedIds.length > 0) {
+    const firstElement = _getElementById(selectedIds[0]);
+    if (firstElement && firstElement.groupId) {
+      parentGroupId = firstElement.groupId;
+    }
+  }
+
+  const group = createEmptyGroup('New Group', parentGroupId, groups);
+  _pushHistory();
+  _refreshPanels();
+  showToast(`Created "${group.name}"`, 'info', 2000);
 }
 
 function _groupSelected() {
