@@ -468,6 +468,13 @@ router.post('/rundown/:itemId/take', requireRole('operator', 'admin'), async (re
         await new Promise(resolve => setTimeout(resolve, exitDurationMs));
       }
 
+      // Send template data first (in case overlay doesn't have it cued)
+      // This ensures the overlay has the correct template before TAKE ON fires
+      wsService.sendOverlayTemplateUpdate(instanceId, templateData);
+
+      // Brief delay to ensure template update is processed before visibility
+      await new Promise(resolve => setTimeout(resolve, 50));
+
       // Send TAKE ON visibility (overlay will use cued template if available, otherwise build now)
       console.log('[take] TAKE ON — enterAnims:', enterElementAnims.length, 'timeline:', JSON.stringify(timelineConfig));
       wsService.sendOverlayVisibility(instanceId, true, enterAnimation, enterElementAnims, timelineConfig);

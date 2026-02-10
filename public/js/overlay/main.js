@@ -511,23 +511,14 @@ function handleVisibility(msg) {
       // Swap roots: cued becomes active
       swapRoots();
 
-      // **FIX: Rebuild timeline with the NEW active animation engine**
-      // The prebuilt timeline was created with the old cuedAnimationEngine.
-      // After the swap, we need to rebuild it with the new activeAnimationEngine
-      // to ensure all keyframe callbacks reference the correct engine instance.
+      // Use the prebuilt timeline directly — no rebuild needed!
+      // After swapping, activeAnimationEngine points to the same engine object
+      // that the timeline was built with, so all callbacks are still valid.
       activeRoot.style.display = 'block';  // Explicit value to override CSS class
-
-      console.log('[overlay] Rebuilding timeline with active animation engine (was cued)');
-      activePlayoutTimeline = buildPlayoutTimeline(
-        activeDomMap,
-        activeAnimationEngine,
-        elementAnimations || [],
-        timeline || null,
-        { buildOnly: false }  // Play immediately
-      );
+      activePlayoutTimeline = cuedPrebuiltTimeline;
       cuedPrebuiltTimeline = null;
 
-      console.log('[overlay] Playing rebuilt timeline (', activePlayoutTimeline.duration(), 's)');
+      console.log('[overlay] Playing prebuilt timeline (instant!)', activePlayoutTimeline.duration(), 's');
       activePlayoutTimeline.play();
       return;  // Done!
     }
