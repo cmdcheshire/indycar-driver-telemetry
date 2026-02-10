@@ -494,10 +494,10 @@ function handleVisibility(msg) {
     // ── TAKE ON ──
 
     // Check if we have a pre-built cued template ready
-    const hasCuedTemplate = cuedPrebuiltTimeline !== null && cuedDomMap !== null;
+    const hasCuedTemplate = cuedPrebuiltTimeline !== null && cuedDomMap !== null && cuedDomMap.size > 0;
 
     if (hasCuedTemplate) {
-      console.log('[overlay] TAKE ON: Using prebuilt cued template - instant root swap!');
+      console.log('[overlay] TAKE ON: Using cued template - instant root swap!');
 
       // Take off old active root (if visible)
       if (activeRoot && activeRoot.style.display !== 'none') {
@@ -511,18 +511,35 @@ function handleVisibility(msg) {
       // Swap roots: cued becomes active
       swapRoots();
 
-      // Show new active root and play prebuilt timeline
+      // **FIX: Rebuild timeline with the NEW active animation engine**
+      // The prebuilt timeline was created with the old cuedAnimationEngine.
+      // After the swap, we need to rebuild it with the new activeAnimationEngine
+      // to ensure all keyframe callbacks reference the correct engine instance.
       activeRoot.style.display = 'block';  // Explicit value to override CSS class
-      activePlayoutTimeline = cuedPrebuiltTimeline;
+
+      console.log('[overlay] Rebuilding timeline with active animation engine (was cued)');
+      activePlayoutTimeline = buildPlayoutTimeline(
+        activeDomMap,
+        activeAnimationEngine,
+        elementAnimations || [],
+        timeline || null,
+        { buildOnly: false }  // Play immediately
+      );
       cuedPrebuiltTimeline = null;
 
-      console.log('[overlay] Playing prebuilt timeline (', activePlayoutTimeline.duration(), 's)');
+      console.log('[overlay] Playing rebuilt timeline (', activePlayoutTimeline.duration(), 's)');
       activePlayoutTimeline.play();
       return;  // Done!
     }
 
     // No cued template - build timeline now (normal flow)
     console.log('[overlay] TAKE ON: No cued template, building now');
+
+    // **FIX: Verify activeDomMap exists before attempting to build**
+    if (!activeDomMap || activeDomMap.size === 0) {
+      console.error('[overlay] TAKE ON failed: activeDomMap is empty. No INIT or CUE was received.');
+      return;
+    }
 
     // Clean up any previous playout state
     if (activeHoldTimer) { clearTimeout(activeHoldTimer); activeHoldTimer = null; }
@@ -841,8 +858,13 @@ function onEnterComplete() {
  * Kills emphasis, plays exit animations, then hides the root.
  */
 function performTakeOff() {
-  const rootEl = document.getElementById('overlay-root');
-  if (!rootEl) return;
+  // **FIX: Use activeRoot instead of non-existent 'overlay-root' element**
+  if (!activeRoot) {
+    console.error('[overlay] performTakeOff failed: activeRoot is null');
+    return;
+  }
+
+  console.log('[overlay] Performing TAKE OFF from active root:', activeRootId);
 
   // Kill active playout timeline (if still in IN phase)
   if (activePlayoutTimeline) {
@@ -907,12 +929,15 @@ function performTakeOff() {
 
     // Hide root after the longer of keyframe or preset exits finish
     const hideDurMs = Math.max(kfDurMs, maxPresetDur);
-    exitHideTimer = setTimeout(() => {
-      exitHideTimer = null;
-      rootEl.style.display = 'none';
+    // **FIX: Use activeExitHideTimer instead of exitHideTimer**
+    activeExitHideTimer = setTimeout(() => {
+      activeExitHideTimer = null;
+      activeRoot.style.display = 'none';
+      console.log('[overlay] Active root hidden after exit animations');
     }, hideDurMs + 50);
   } else {
-    rootEl.style.display = 'none';
+    activeRoot.style.display = 'none';
+    console.log('[overlay] Active root hidden (no exit animations)');
   }
 }
 
