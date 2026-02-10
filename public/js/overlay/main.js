@@ -365,10 +365,14 @@ function handleVisibility(msg) {
     // Also restore mask clip-paths that may have been cleared by killed exit animations.
     if (domMap) {
       for (const [elementId, node] of domMap) {
+        // Restore display for elements hidden by exit animations (skip mask-hidden and operator-hidden)
         if (node.style.display === 'none' && node.dataset.maskHidden !== 'true' && node.dataset.operatorHidden !== 'true') {
           node.style.display = node.dataset.baseDisplay || '';
-        } else if (node.style.display === 'none' && node.dataset.maskHidden === 'true') {
-          console.log(`[overlay] Keeping mask-hidden element ${elementId} hidden during TAKE ON`);
+        }
+        // Mask-hidden elements use visibility:hidden (not display:none) so they stay in layout for transform tracking
+        if (node.dataset.maskHidden === 'true') {
+          console.log(`[overlay] Keeping mask-hidden element ${elementId} invisible (visibility:hidden)`);
+          node.style.visibility = 'hidden';
         }
         if (node.dataset.maskClipPath) {
           node.style.clipPath = node.dataset.maskClipPath;
@@ -413,22 +417,18 @@ function buildPlayoutTimeline(elementAnimations, timeline) {
     const node = domMap ? domMap.get(config.elementId) : null;
     if (!node) { console.warn('[overlay] DOM node not found for', config.elementId); continue; }
 
-    // Skip mask-hidden elements entirely — don't play animations on them
-    if (node.dataset.maskHidden === 'true') {
-      console.log(`[overlay] Skipping animation for mask-hidden element ${config.elementId}`);
-      continue;
-    }
-
     // Kill any lingering tweens on this node (e.g. exit animations from a
     // previous TAKE OFF whose onComplete would set display:none mid-TAKE ON)
     gsap.killTweensOf(node);
 
     // Reset display and restore base styles (exit animations may have altered them)
-    // Skip restoring display for mask-hidden elements (clip-path system)
-    if (node.dataset.maskHidden !== 'true') {
+    // For mask-hidden elements: keep them invisible but in layout (for transform tracking)
+    if (node.dataset.maskHidden === 'true') {
+      console.log(`[overlay] Playing animation for mask-hidden element ${config.elementId} but keeping it invisible`);
+      node.style.visibility = 'hidden';
       node.style.display = node.dataset.baseDisplay || '';
     } else {
-      console.log(`[overlay] Skipping display restore for mask-hidden element ${config.elementId}`);
+      node.style.display = node.dataset.baseDisplay || '';
     }
     node.style.opacity = node.dataset.baseOpacity || '';
     if (node.dataset.baseColor) node.style.color = node.dataset.baseColor;

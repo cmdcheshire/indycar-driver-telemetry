@@ -190,8 +190,10 @@ function _applyClipPaths(elements, domMap) {
       const maskDom = domMap.get(el.clipMask.elementId);
       if (maskDom) {
         console.log(`[template-loader] Hiding mask element ${el.clipMask.elementId} (hideMask=true)`);
-        maskDom.style.display = 'none';
-        // Mark as intentionally hidden so TAKE ON display restoration skips it
+        // Use visibility:hidden instead of display:none to keep element in layout
+        // for transform tracking (animated clip-paths need to read mask transforms)
+        maskDom.style.visibility = 'hidden';
+        // Mark as intentionally hidden so TAKE ON handles it correctly
         maskDom.dataset.maskHidden = 'true';
       } else {
         console.warn(`[template-loader] Mask element ${el.clipMask.elementId} not found in domMap (may have visible=false)`);
