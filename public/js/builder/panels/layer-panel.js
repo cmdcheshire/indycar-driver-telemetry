@@ -294,6 +294,58 @@ function _renderGroupNode(node, container, selectedIds, depth) {
   });
   row.appendChild(expBtn);
 
+  // Make group row draggable
+  row.draggable = true;
+
+  // Drag handle
+  const handle = document.createElement('span');
+  handle.className = 'layer-drag-handle';
+  handle.innerHTML = _dragHandleIcon();
+  handle.style.marginRight = '4px';
+  row.insertBefore(handle, row.firstChild);
+
+  // Drag events
+  row.addEventListener('dragstart', (e) => {
+    row.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/group-id', group.id);
+  });
+
+  row.addEventListener('dragend', () => {
+    row.classList.remove('dragging');
+    layerListEl.querySelectorAll('.layer-group-row.drag-over').forEach(el => el.classList.remove('drag-over'));
+  });
+
+  row.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+
+    // Only allow dropping groups on other groups at the same level
+    const draggingGroupId = e.dataTransfer.types.includes('text/group-id');
+    if (draggingGroupId && !row.classList.contains('dragging')) {
+      row.classList.add('drag-over');
+    }
+  });
+
+  row.addEventListener('dragleave', () => {
+    row.classList.remove('drag-over');
+  });
+
+  row.addEventListener('drop', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    row.classList.remove('drag-over');
+
+    const droppedGroupId = e.dataTransfer.getData('text/group-id');
+    if (droppedGroupId && droppedGroupId !== group.id) {
+      console.log(`[layer-panel] Group drag-and-drop: ${droppedGroupId} → ${group.id}`);
+      // TODO: Implement group reordering
+      // Groups don't have a z-index/order property yet
+      // Need to add onGroupReorder callback and implement in main.js
+      // For now, groups are draggable but order doesn't persist
+    }
+  });
+
   // Click to select group
   row.addEventListener('click', (e) => {
     if (onGroupSelect) onGroupSelect(group.id);
