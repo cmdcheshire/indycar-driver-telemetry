@@ -155,6 +155,41 @@ export class SelectionManager {
   }
 
   /**
+   * Render a unified selection box for multiple selected elements.
+   * Shows only a blue outline without resize/rotation handles.
+   * @param {{x: number, y: number, width: number, height: number, rotation: number}} boundingBox
+   */
+  renderMultiSelectionBox(boundingBox) {
+    this.clearSelectionHandles();
+
+    if (!boundingBox) return;
+
+    this.#selectionOverlay = document.createElement('div');
+    this.#selectionOverlay.className = 'selection-overlay multi-selection';
+    this.#selectionOverlay.style.cssText = `
+      position: absolute;
+      left: ${boundingBox.x}%;
+      top: ${boundingBox.y}%;
+      width: ${boundingBox.width}%;
+      height: ${boundingBox.height}%;
+      pointer-events: none;
+      z-index: 9000;
+    `;
+
+    if (boundingBox.rotation) {
+      this.#selectionOverlay.style.transform = `rotate(${boundingBox.rotation}deg)`;
+    }
+
+    // Blue selection border only (no handles for multi-selection)
+    const outline = document.createElement('div');
+    outline.className = 'selection-outline';
+    outline.style.cssText = 'inset: 0; position: absolute;';
+    this.#selectionOverlay.appendChild(outline);
+
+    this.#container.appendChild(this.#selectionOverlay);
+  }
+
+  /**
    * Update the position/size of the selection handles to match element.
    * @param {object} element
    */

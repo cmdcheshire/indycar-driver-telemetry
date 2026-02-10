@@ -1503,11 +1503,69 @@ function _onSelectionChanged(selectedIds) {
       selection.renderSelectionHandles(el, node);
       updatePropertiesPanel(el);
     }
+  } else if (selectedIds.length > 1) {
+    // Multiple elements selected - draw unified bounding box
+    const boundingBox = _calculateBoundingBox(selectedIds);
+    if (boundingBox) {
+      selection.renderMultiSelectionBox(boundingBox);
+    }
+    updatePropertiesPanel(null);
   } else {
     updatePropertiesPanel(null);
   }
 
   renderLayerPanel(elements, groups);
+}
+
+/**
+ * Calculate the bounding box that encompasses all selected elements.
+ * @param {string[]} elementIds
+ * @returns {{x: number, y: number, width: number, height: number, rotation: number}|null}
+ */
+function _calculateBoundingBox(elementIds) {
+  if (elementIds.length === 0) return null;
+
+  const selectedElements = elementIds.map(id => _getElementById(id)).filter(Boolean);
+  if (selectedElements.length === 0) return null;
+
+  // Calculate min/max bounds considering rotation
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+  for (const el of selectedElements) {
+    // For rotated elements, we need to consider the corners
+    const cx = el.x + el.width / 2;
+    const cy = el.y + el.height / 2;
+    const rotation = (el.rotation || 0) * Math.PI / 180;
+
+    // Calculate the four corners of the element
+    const corners = [
+      { x: el.x, y: el.y },
+      { x: el.x + el.width, y: el.y },
+      { x: el.x + el.width, y: el.y + el.height },
+      { x: el.x, y: el.y + el.height }
+    ];
+
+    // Rotate each corner around the center
+    for (const corner of corners) {
+      const dx = corner.x - cx;
+      const dy = corner.y - cy;
+      const rotatedX = cx + dx * Math.cos(rotation) - dy * Math.sin(rotation);
+      const rotatedY = cy + dx * Math.sin(rotation) + dy * Math.cos(rotation);
+
+      minX = Math.min(minX, rotatedX);
+      minY = Math.min(minY, rotatedY);
+      maxX = Math.max(maxX, rotatedX);
+      maxY = Math.max(maxY, rotatedY);
+    }
+  }
+
+  return {
+    x: minX,
+    y: minY,
+    width: maxX - minX,
+    height: maxY - minY,
+    rotation: 0 // Bounding box is always axis-aligned
+  };
 }
 
 function _refreshPanels() {
