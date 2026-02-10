@@ -512,7 +512,7 @@ function handleVisibility(msg) {
       swapRoots();
 
       // Show new active root and play prebuilt timeline
-      activeRoot.style.display = '';
+      activeRoot.style.display = 'block';  // Explicit value to override CSS class
       activePlayoutTimeline = cuedPrebuiltTimeline;
       cuedPrebuiltTimeline = null;
 
@@ -529,7 +529,7 @@ function handleVisibility(msg) {
     if (activeExitHideTimer) { clearTimeout(activeExitHideTimer); activeExitHideTimer = null; }
     if (activePlayoutTimeline) { activePlayoutTimeline.kill(); activePlayoutTimeline = null; }
 
-    activeRoot.style.display = '';
+    activeRoot.style.display = 'block';  // Explicit value to override CSS class
 
     // Reset display on ALL elements (not just animated ones) so scene3d and
     // other elements hidden by exit animations become visible again.
