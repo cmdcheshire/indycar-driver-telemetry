@@ -16,22 +16,37 @@ import { resolveEasing } from '/js/shared/motorsport-easings.js';
 import { computeClipPath, offsetMaskBounds } from '/js/shared/clip-path.js';
 
 // ---------------------------------------------------------------------------
-// State
+// State - Dual-root architecture
 // ---------------------------------------------------------------------------
 
+// Dual roots allow one template on-air while precomputing another during CUE
 let ws = null;
-let dataBinder = null;
-let animationEngine = null;
-let domMap = null;           // elementId -> DOM node
 let heartbeatTimer = null;
 let reconnectTimer = null;
-let currentTemplate = null;
-let currentConfig = null;
-let holdTimer = null;          // Auto-exit timer for hold duration
-let exitHideTimer = null;      // Timer to hide root after exit animations finish
-let playoutTimeline = null;    // GSAP master timeline for IN phase (pause points + enter anims)
-let initPromise = null;        // Tracks async init to queue messages during await
-let pendingMessages = [];      // Messages queued while init is running
+let initPromise = null;
+let pendingMessages = [];
+
+// Active root (currently on-air or ready for on-air)
+let activeRootId = 'overlay-root-a';
+let activeRoot = null;
+let activeTemplate = null;
+let activeConfig = null;
+let activeDomMap = null;
+let activeAnimationEngine = null;
+let activeDataBinder = null;
+let activePlayoutTimeline = null;
+let activeHoldTimer = null;
+let activeExitHideTimer = null;
+
+// Cued root (being prepared in background during CUE)
+let cuedRootId = 'overlay-root-b';
+let cuedRoot = null;
+let cuedTemplate = null;
+let cuedConfig = null;
+let cuedDomMap = null;
+let cuedAnimationEngine = null;
+let cuedDataBinder = null;
+let cuedPrebuiltTimeline = null;  // GSAP timeline built but not played
 
 const HEARTBEAT_INTERVAL_MS = 10_000;
 const RECONNECT_DELAY_MS    = 3_000;
@@ -63,6 +78,32 @@ function setConnectionStatus(state, text) {
 setConnectionStatus('connecting', 'Connecting...');
 
 // ---------------------------------------------------------------------------
+// Dual-root helpers
+// ---------------------------------------------------------------------------
+
+function initializeRoots() {
+  activeRoot = document.getElementById(activeRootId);
+  cuedRoot = document.getElementById(cuedRootId);
+
+  if (!activeRoot || !cuedRoot) {
+    console.error('[overlay] Dual roots not found in DOM');
+  }
+}
+
+function swapRoots() {
+  // Swap the root IDs and references
+  [activeRootId, cuedRootId] = [cuedRootId, activeRootId];
+  [activeRoot, cuedRoot] = [cuedRoot, activeRoot];
+  [activeTemplate, cuedTemplate] = [cuedTemplate, activeTemplate];
+  [activeConfig, cuedConfig] = [cuedConfig, activeConfig];
+  [activeDomMap, cuedDomMap] = [cuedDomMap, activeDomMap];
+  [activeAnimationEngine, cuedAnimationEngine] = [cuedAnimationEngine, activeAnimationEngine];
+  [activeDataBinder, cuedDataBinder] = [cuedDataBinder, activeDataBinder];
+
+  console.log(`[overlay] Swapped roots - active: ${activeRootId}, cued: ${cuedRootId}`);
+}
+
+// ---------------------------------------------------------------------------
 // Bootstrap
 // ---------------------------------------------------------------------------
 
@@ -72,6 +113,7 @@ if (!accessToken) {
   console.warn('[overlay] No access token found in URL. Connection may be rejected.');
 }
 
+initializeRoots();
 connect();
 
 // ---------------------------------------------------------------------------
@@ -189,6 +231,14 @@ function processMessage(msg) {
       handleDataUpdate(msg);
       break;
 
+    case 'cue':
+      // NEW: Pre-build template in cued root with full precomputation
+      initPromise = handleCue(msg).finally(() => {
+        initPromise = null;
+        drainPendingMessages();
+      });
+      break;
+
     case 'visibility':
       handleVisibility(msg);
       break;
@@ -202,9 +252,9 @@ function processMessage(msg) {
       break;
 
     case 'resume':
-      if (playoutTimeline && playoutTimeline.paused()) {
+      if (activePlayoutTimeline && activePlayoutTimeline.paused()) {
         console.log('[overlay] Resuming playout timeline (advancing past pause point)');
-        playoutTimeline.play();
+        activePlayoutTimeline.play();
       }
       break;
 
@@ -228,7 +278,7 @@ function drainPendingMessages() {
 async function handleInit(msg) {
   const { template, config, referenceData, snapshot } = msg.data || {};
 
-  console.log('[overlay] Received init – building overlay');
+  console.log('[overlay] Received init – building into active root');
 
   // Load custom fonts from library before rendering
   await loadCustomFonts();
@@ -238,29 +288,28 @@ async function handleInit(msg) {
     template.elements = normalizeElements(template.elements);
   }
 
-  currentTemplate = template || { elements: [] };
-  currentConfig   = config;
+  activeTemplate = template || { elements: [] };
+  activeConfig   = config;
 
   // Kill previous animation engine (reverts gsap.context, frees GPU memory)
-  if (animationEngine) animationEngine.killAll();
+  if (activeAnimationEngine) activeAnimationEngine.killAll();
 
-  // Build the DOM from the template
-  const rootEl = document.getElementById('overlay-root');
+  // Build the DOM from the template into ACTIVE root
   // Dispose scene3d controllers before clearing DOM (frees WebGL resources)
-  rootEl.querySelectorAll('[data-scene3d-type]').forEach(node => {
+  activeRoot.querySelectorAll('[data-scene3d-type]').forEach(node => {
     if (node.__scene3dController) node.__scene3dController.dispose();
   });
-  rootEl.innerHTML = '';
+  activeRoot.innerHTML = '';
 
-  domMap = buildOverlay(rootEl, currentTemplate, referenceData);
+  activeDomMap = buildOverlay(activeRoot, activeTemplate, referenceData);
 
   // Create shared animation engine + binder
-  animationEngine = new GsapAnimationEngine(domMap);
-  dataBinder      = new DataBinder(currentTemplate.elements, domMap, animationEngine);
+  activeAnimationEngine = new GsapAnimationEngine(activeDomMap);
+  activeDataBinder      = new DataBinder(activeTemplate.elements, activeDomMap, activeAnimationEngine);
 
   // Apply target cars from config
   if (config && config.targetCars) {
-    dataBinder.setTargetCars(config.targetCars);
+    activeDataBinder.setTargetCars(config.targetCars);
   }
 
   // Store reference data as a flat array for data binding
@@ -268,32 +317,111 @@ async function handleInit(msg) {
     const driversArray = Object.entries(referenceData.drivers).map(([carNum, d]) => ({
       carNumber: carNum, ...d,
     }));
-    dataBinder.updateData('referenceData', driversArray);
+    activeDataBinder.updateData('referenceData', driversArray);
   }
 
   // Feed snapshot data (each key is a data type)
   if (snapshot) {
     for (const [dataType, data] of Object.entries(snapshot)) {
-      dataBinder.updateData(dataType, data);
+      activeDataBinder.updateData(dataType, data);
     }
-    dataBinder.resolveBindings();
-    dataBinder.resolveGaugeBindings();
-    dataBinder.resolveScene3dBindings();
-    dataBinder.resolveUniversalBindings();
+    activeDataBinder.resolveBindings();
+    activeDataBinder.resolveGaugeBindings();
+    activeDataBinder.resolveScene3dBindings();
+    activeDataBinder.resolveUniversalBindings();
   }
 
   // Apply element overrides from config
-  if (config && config.elementOverrides && domMap) {
+  if (config && config.elementOverrides && activeDomMap) {
     applyElementOverrides(config.elementOverrides);
   }
 
   // Respect initial visibility — hide overlay if nothing is on-air
   if (!config || config.visible === false) {
-    rootEl.style.display = 'none';
+    activeRoot.style.display = 'none';
   }
 
   // Pre-cache image assets for this template
-  precacheTemplate(currentTemplate, referenceData || {}, currentConfig || {});
+  precacheTemplate(activeTemplate, referenceData || {}, activeConfig || {});
+}
+
+// ---------------------------------------------------------------------------
+// CUE - Pre-build template with full precomputation (performance critical!)
+// ---------------------------------------------------------------------------
+
+async function handleCue(msg) {
+  const { template, config, referenceData, elementAnimations, timeline } = msg.data || {};
+
+  console.log('[overlay] CUE received – pre-building in cued root with precomputation');
+
+  // Load custom fonts from library before rendering
+  await loadCustomFonts();
+
+  // Normalize builder elements to flat format
+  if (template && template.elements) {
+    template.elements = normalizeElements(template.elements);
+  }
+
+  cuedTemplate = template || { elements: [] };
+  cuedConfig = config;
+
+  // Kill previous cued animation engine (if re-cueing)
+  if (cuedAnimationEngine) cuedAnimationEngine.killAll();
+
+  // Build DOM into CUED root
+  // Dispose scene3d controllers before clearing
+  cuedRoot.querySelectorAll('[data-scene3d-type]').forEach(node => {
+    if (node.__scene3dController) node.__scene3dController.dispose();
+  });
+  cuedRoot.innerHTML = '';
+
+  cuedDomMap = buildOverlay(cuedRoot, cuedTemplate, referenceData);
+
+  // Create animation engine + binder for cued root
+  cuedAnimationEngine = new GsapAnimationEngine(cuedDomMap);
+  cuedDataBinder = new DataBinder(cuedTemplate.elements, cuedDomMap, cuedAnimationEngine);
+
+  // Apply target cars from config
+  if (config && config.targetCars) {
+    cuedDataBinder.setTargetCars(config.targetCars);
+  }
+
+  // Store reference data
+  if (referenceData && referenceData.drivers) {
+    const driversArray = Object.entries(referenceData.drivers).map(([carNum, d]) => ({
+      carNumber: carNum, ...d,
+    }));
+    cuedDataBinder.updateData('referenceData', driversArray);
+  }
+
+  // Apply element overrides
+  if (config && config.elementOverrides && cuedDomMap) {
+    applyElementOverrides(config.elementOverrides, cuedDomMap);
+  }
+
+  // CRITICAL: Keep cued root hidden (will be shown on TAKE ON)
+  cuedRoot.style.display = 'none';
+
+  // Pre-cache assets
+  precacheTemplate(cuedTemplate, referenceData || {}, cuedConfig || {});
+
+  // **PRECOMPUTATION: Build the GSAP timeline now but don't play it**
+  if (elementAnimations && elementAnimations.length > 0) {
+    console.log('[overlay] CUE: Pre-building GSAP timeline with', elementAnimations.length, 'element animations');
+
+    // Build the playout timeline (will be played on TAKE ON)
+    cuedPrebuiltTimeline = buildPlayoutTimeline(
+      cuedDomMap,
+      cuedAnimationEngine,
+      elementAnimations,
+      timeline,
+      { buildOnly: true }  // Flag to build but not play
+    );
+
+    console.log('[overlay] CUE: Timeline pre-built and ready (duration:', cuedPrebuiltTimeline?.duration(), 's)');
+  }
+
+  console.log('[overlay] CUE complete - template ready for instant TAKE ON');
 }
 
 // ---------------------------------------------------------------------------
@@ -311,21 +439,34 @@ const DATA_TYPE_MAP = {
 const SINGLE_CAR_TYPES = new Set(['lap', 'pit', 'carStatus']);
 
 function handleDataUpdate(msg) {
-  if (!dataBinder) return;
-
   const dataType = DATA_TYPE_MAP[msg.type] || msg.type;
 
-  // Single-car events send one car object; merge into array instead of replacing
-  if (SINGLE_CAR_TYPES.has(msg.type)) {
-    dataBinder.mergeCarData(dataType, msg.data);
-  } else {
-    dataBinder.updateData(dataType, msg.data);
+  // Update ACTIVE binder (on-air or ready to go on-air)
+  if (activeDataBinder) {
+    if (SINGLE_CAR_TYPES.has(msg.type)) {
+      activeDataBinder.mergeCarData(dataType, msg.data);
+    } else {
+      activeDataBinder.updateData(dataType, msg.data);
+    }
+    activeDataBinder.resolveBindings();
+    activeDataBinder.resolveGaugeBindings();
+    activeDataBinder.resolveScene3dBindings();
+    activeDataBinder.resolveUniversalBindings();
   }
 
-  dataBinder.resolveBindings();
-  dataBinder.resolveGaugeBindings();
-  dataBinder.resolveScene3dBindings();
-  dataBinder.resolveUniversalBindings();
+  // Update CUED binder (pre-built graphic waiting in background)
+  // This keeps cued graphics in sync with live data
+  if (cuedDataBinder) {
+    if (SINGLE_CAR_TYPES.has(msg.type)) {
+      cuedDataBinder.mergeCarData(dataType, msg.data);
+    } else {
+      cuedDataBinder.updateData(dataType, msg.data);
+    }
+    cuedDataBinder.resolveBindings();
+    cuedDataBinder.resolveGaugeBindings();
+    cuedDataBinder.resolveScene3dBindings();
+    cuedDataBinder.resolveUniversalBindings();
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -333,38 +474,69 @@ function handleDataUpdate(msg) {
 // ---------------------------------------------------------------------------
 
 function handleVisibility(msg) {
-  if (!animationEngine) return;
-
   const { visible, elementId, animation, elementAnimations, timeline } = msg.data || {};
 
   console.log('[overlay] Visibility:', { visible, elementId, animation, elementAnimCount: elementAnimations?.length, timeline });
 
   // Single-element show/hide (not part of the playout lifecycle)
   if (elementId) {
-    if (visible) {
-      animationEngine.show(elementId, { type: animation });
-    } else {
-      animationEngine.hide(elementId, { type: animation });
+    if (activeAnimationEngine) {
+      if (visible) {
+        activeAnimationEngine.show(elementId, { type: animation });
+      } else {
+        activeAnimationEngine.hide(elementId, { type: animation });
+      }
     }
     return;
   }
 
   if (visible) {
     // ── TAKE ON ──
-    // Clean up any previous playout state
-    if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
-    if (exitHideTimer) { clearTimeout(exitHideTimer); exitHideTimer = null; }
-    if (playoutTimeline) { playoutTimeline.kill(); playoutTimeline = null; }
 
-    const rootEl = document.getElementById('overlay-root');
-    rootEl.style.display = '';
+    // Check if we have a pre-built cued template ready
+    const hasCuedTemplate = cuedPrebuiltTimeline !== null && cuedDomMap !== null;
+
+    if (hasCuedTemplate) {
+      console.log('[overlay] TAKE ON: Using prebuilt cued template - instant root swap!');
+
+      // Take off old active root (if visible)
+      if (activeRoot && activeRoot.style.display !== 'none') {
+        activeRoot.style.display = 'none';
+        if (activeHoldTimer) { clearTimeout(activeHoldTimer); activeHoldTimer = null; }
+        if (activeExitHideTimer) { clearTimeout(activeExitHideTimer); activeExitHideTimer = null; }
+        if (activePlayoutTimeline) { activePlayoutTimeline.kill(); activePlayoutTimeline = null; }
+        if (activeAnimationEngine) activeAnimationEngine.killAll();
+      }
+
+      // Swap roots: cued becomes active
+      swapRoots();
+
+      // Show new active root and play prebuilt timeline
+      activeRoot.style.display = '';
+      activePlayoutTimeline = cuedPrebuiltTimeline;
+      cuedPrebuiltTimeline = null;
+
+      console.log('[overlay] Playing prebuilt timeline (', activePlayoutTimeline.duration(), 's)');
+      activePlayoutTimeline.play();
+      return;  // Done!
+    }
+
+    // No cued template - build timeline now (normal flow)
+    console.log('[overlay] TAKE ON: No cued template, building now');
+
+    // Clean up any previous playout state
+    if (activeHoldTimer) { clearTimeout(activeHoldTimer); activeHoldTimer = null; }
+    if (activeExitHideTimer) { clearTimeout(activeExitHideTimer); activeExitHideTimer = null; }
+    if (activePlayoutTimeline) { activePlayoutTimeline.kill(); activePlayoutTimeline = null; }
+
+    activeRoot.style.display = '';
 
     // Reset display on ALL elements (not just animated ones) so scene3d and
     // other elements hidden by exit animations become visible again.
     // Skip mask elements that are intentionally hidden by clip-path system.
     // Also restore mask clip-paths that may have been cleared by killed exit animations.
-    if (domMap) {
-      for (const [elementId, node] of domMap) {
+    if (activeDomMap) {
+      for (const [elementId, node] of activeDomMap) {
         // Restore display for elements hidden by exit animations (skip mask-hidden and operator-hidden)
         if (node.style.display === 'none' && node.dataset.maskHidden !== 'true' && node.dataset.operatorHidden !== 'true') {
           node.style.display = node.dataset.baseDisplay || '';
@@ -383,11 +555,13 @@ function handleVisibility(msg) {
     if (elementAnimations && elementAnimations.length > 0) {
       // Build a GSAP master timeline for the IN phase with pause points
       console.log('[overlay] Building playout timeline with', elementAnimations.length, 'enter animations');
-      buildPlayoutTimeline(elementAnimations, timeline);
+      activePlayoutTimeline = buildPlayoutTimeline(activeDomMap, activeAnimationEngine, elementAnimations, timeline);
     } else if (animation) {
       // Simple root-level animation (no per-element orchestration)
       console.log('[overlay] Using root-level animation:', animation);
-      animationEngine.show('__root__', { type: animation, duration: 400, easing: 'power2.out' });
+      if (activeAnimationEngine) {
+        activeAnimationEngine.show('__root__', { type: animation, duration: 400, easing: 'power2.out' });
+      }
     } else {
       console.log('[overlay] No animations and no fallback animation — graphic shown without playout');
     }
@@ -402,26 +576,39 @@ function handleVisibility(msg) {
  * Build a GSAP master timeline for the IN (enter) phase.
  * Adds pause points so the operator can step through with RESUME.
  * On completion, enters the HOLD phase (loop or timed auto-exit).
+ *
+ * @param {Map} domMapToUse - The domMap to use (activeDomMap or cuedDomMap)
+ * @param {Object} animEngineToUse - The animation engine to use
+ * @param {Array} elementAnimations - Per-element animation configs
+ * @param {Object} timeline - Timeline config (pausePoints, holdDuration, loopRegion)
+ * @param {Object} options - { buildOnly: boolean } - if true, build but don't auto-play
+ * @returns {gsap.core.Timeline} - The built timeline
  */
-function buildPlayoutTimeline(elementAnimations, timeline) {
+function buildPlayoutTimeline(domMapToUse, animEngineToUse, elementAnimations, timeline, options = {}) {
+  const { buildOnly = false } = options;
   let tweenCount = 0;
+
   const tl = gsap.timeline({
+    paused: buildOnly,  // For CUE: build but don't play
     onComplete: () => {
       console.log('[overlay] IN phase complete — entering HOLD. Timeline duration was:', tl.duration(), 's, tweens:', tweenCount);
-      playoutTimeline = null;
-      onEnterComplete();
+      if (!buildOnly) {
+        activePlayoutTimeline = null;
+        onEnterComplete();
+      }
     },
   });
 
+  const templateToUse = buildOnly ? cuedTemplate : activeTemplate;
+
   for (const config of elementAnimations) {
-    const node = domMap ? domMap.get(config.elementId) : null;
+    const node = domMapToUse ? domMapToUse.get(config.elementId) : null;
     if (!node) { console.warn('[overlay] DOM node not found for', config.elementId); continue; }
 
-    // Kill any lingering tweens on this node (e.g. exit animations from a
-    // previous TAKE OFF whose onComplete would set display:none mid-TAKE ON)
+    // Kill any lingering tweens on this node
     gsap.killTweensOf(node);
 
-    // Reset display and restore base styles (exit animations may have altered them)
+    // Reset display and restore base styles
     // For mask-hidden elements: keep them invisible but in layout (for transform tracking)
     if (node.dataset.maskHidden === 'true') {
       console.log(`[overlay] Playing animation for mask-hidden element ${config.elementId} but keeping it invisible`);
@@ -440,10 +627,10 @@ function buildPlayoutTimeline(elementAnimations, timeline) {
     node.style.willChange = 'transform, opacity';
 
     // ── Check for keyframe animation override (enter) ──
-    const templateEl = currentTemplate?.elements?.find(e => e.id === config.elementId);
+    const templateEl = templateToUse?.elements?.find(e => e.id === config.elementId);
     const enterKf = templateEl?.enterKeyframeAnimation || templateEl?.keyframeAnimation;
     if (enterKf?.enabled && enterKf.tracks?.length > 0) {
-      const subTl = animationEngine.showWithKeyframes(config.elementId, enterKf);
+      const subTl = animEngineToUse.showWithKeyframes(config.elementId, enterKf);
       if (subTl) {
         const delay = (config.delay || 0) / 1000;
         tl.add(subTl, delay);
@@ -497,17 +684,17 @@ function buildPlayoutTimeline(elementAnimations, timeline) {
   // the clip-path on its dependent (clipped) elements from offset → rest position.
   // Supports both preset animations (pre-computed fromTo) and keyframe animations
   // (real-time onUpdate tracking of the mask's GSAP transform every frame).
-  if (currentTemplate?.elements) {
+  if (templateToUse?.elements) {
     const canvasW = window.innerWidth || 1920;
     const canvasH = window.innerHeight || 1080;
 
-    for (const el of currentTemplate.elements) {
+    for (const el of templateToUse.elements) {
       if (!el.clipMask?.elementId) continue;
 
-      const maskEl = currentTemplate.elements.find(m => m.id === el.clipMask.elementId);
+      const maskEl = templateToUse.elements.find(m => m.id === el.clipMask.elementId);
       if (!maskEl) continue;
 
-      const clippedNode = domMap?.get(el.id);
+      const clippedNode = domMapToUse?.get(el.id);
       if (!clippedNode) continue;
 
       // Build bounds objects (normalized elements use left/top)
@@ -523,7 +710,7 @@ function buildPlayoutTimeline(elementAnimations, timeline) {
       // ── Keyframe animation on mask (priority over preset) ──
       const maskEnterKf = maskEl.enterKeyframeAnimation || maskEl.keyframeAnimation;
       if (maskEnterKf?.enabled && maskEnterKf.tracks?.length > 0) {
-        const maskNode = domMap?.get(maskEl.id);
+        const maskNode = domMapToUse?.get(maskEl.id);
         if (!maskNode) continue;
 
         // Only animate clip-path if keyframes affect position/size/rotation
@@ -637,7 +824,6 @@ function buildPlayoutTimeline(elementAnimations, timeline) {
     }
   }
 
-  playoutTimeline = tl;
   return tl;
 }
 
@@ -659,33 +845,33 @@ function performTakeOff() {
   if (!rootEl) return;
 
   // Kill active playout timeline (if still in IN phase)
-  if (playoutTimeline) {
-    playoutTimeline.kill();
-    playoutTimeline = null;
+  if (activePlayoutTimeline) {
+    activePlayoutTimeline.kill();
+    activePlayoutTimeline = null;
   }
 
   // Clear hold timer
-  if (holdTimer) {
-    clearTimeout(holdTimer);
-    holdTimer = null;
+  if (activeHoldTimer) {
+    clearTimeout(activeHoldTimer);
+    activeHoldTimer = null;
   }
 
   // Clear any previous exit-hide timer (rapid TAKE OFF / TAKE ON cycles)
-  if (exitHideTimer) {
-    clearTimeout(exitHideTimer);
-    exitHideTimer = null;
+  if (activeExitHideTimer) {
+    clearTimeout(activeExitHideTimer);
+    activeExitHideTimer = null;
   }
 
   // Kill emphasis animations for a clean exit (no mid-animation jitter)
-  if (animationEngine) {
-    animationEngine.killEmphasis();
+  if (activeAnimationEngine) {
+    activeAnimationEngine.killEmphasis();
   }
 
   // Extract exit animations from the current template
-  const exitConfigs = extractExitAnimations(currentTemplate);
+  const exitConfigs = extractExitAnimations(activeTemplate);
 
   // Check for exit keyframe animations
-  const exitKfElements = (currentTemplate?.elements || []).filter(
+  const exitKfElements = (activeTemplate?.elements || []).filter(
     el => el.exitKeyframeAnimation?.enabled && el.exitKeyframeAnimation.tracks?.length > 0
   );
 
@@ -693,14 +879,14 @@ function performTakeOff() {
   const kfExitIds = new Set(exitKfElements.map(el => el.id));
   const presetExitConfigs = exitConfigs.filter(c => !kfExitIds.has(c.elementId));
 
-  if ((presetExitConfigs.length > 0 || exitKfElements.length > 0) && animationEngine) {
+  if ((presetExitConfigs.length > 0 || exitKfElements.length > 0) && activeAnimationEngine) {
     // Build exit keyframe timeline if any elements have keyframe exits
     let kfDurMs = 0;
     if (exitKfElements.length > 0) {
       const exitTl = gsap.timeline();
       for (const el of exitKfElements) {
         const exitDelay = (el.exitAnimationDelay || 0) / 1000;
-        const subTl = animationEngine.hideWithKeyframes(el.id, el.exitKeyframeAnimation);
+        const subTl = activeAnimationEngine.hideWithKeyframes(el.id, el.exitKeyframeAnimation);
         if (subTl) {
           exitTl.add(subTl, exitDelay);
           console.log('[overlay] Using exit keyframe animation for', el.id);
@@ -711,7 +897,7 @@ function performTakeOff() {
 
     // Fire preset exit animations
     for (const config of presetExitConfigs) {
-      animationEngine.hide(config.elementId, config);
+      activeAnimationEngine.hide(config.elementId, config);
     }
 
     // Calculate max preset exit duration
@@ -754,10 +940,9 @@ function extractExitAnimations(template) {
 function handleTemplateUpdate(msg) {
   const { template, referenceData } = msg.data || {};
 
-  console.log('[overlay] Template update received – rebuilding DOM');
+  console.log('[overlay] Template update received – rebuilding ACTIVE root');
 
-  // Reload custom fonts in background (picks up any newly uploaded fonts)
-  // Don't await — fonts from init are already registered
+  // Reload custom fonts in background
   loadCustomFonts();
 
   // Normalize builder elements to flat format
@@ -765,35 +950,33 @@ function handleTemplateUpdate(msg) {
     template.elements = normalizeElements(template.elements);
   }
 
-  currentTemplate = template;
+  activeTemplate = template;
 
-  // Clean up playout state from previous template (prevents zombie timelines
-  // running on detached DOM nodes if CUE fires mid-playout)
-  if (playoutTimeline) { playoutTimeline.kill(); playoutTimeline = null; }
-  if (holdTimer)       { clearTimeout(holdTimer); holdTimer = null; }
-  if (exitHideTimer)   { clearTimeout(exitHideTimer); exitHideTimer = null; }
+  // Clean up playout state from previous template
+  if (activePlayoutTimeline) { activePlayoutTimeline.kill(); activePlayoutTimeline = null; }
+  if (activeHoldTimer)       { clearTimeout(activeHoldTimer); activeHoldTimer = null; }
+  if (activeExitHideTimer)   { clearTimeout(activeExitHideTimer); activeExitHideTimer = null; }
 
-  // Kill previous animation engine (reverts gsap.context, frees GPU memory)
-  if (animationEngine) animationEngine.killAll();
+  // Kill previous animation engine
+  if (activeAnimationEngine) activeAnimationEngine.killAll();
 
-  // Hide root BEFORE clearing DOM to prevent flash during CUE
-  const rootEl = document.getElementById('overlay-root');
-  rootEl.style.display = 'none';
-  rootEl.className = '';
+  // Hide active root BEFORE clearing DOM
+  activeRoot.style.display = 'none';
+  activeRoot.className = '';
 
-  // Dispose scene3d controllers before clearing DOM (frees WebGL resources)
-  rootEl.querySelectorAll('[data-scene3d-type]').forEach(node => {
+  // Dispose scene3d controllers before clearing DOM
+  activeRoot.querySelectorAll('[data-scene3d-type]').forEach(node => {
     if (node.__scene3dController) node.__scene3dController.dispose();
   });
-  rootEl.innerHTML = '';
+  activeRoot.innerHTML = '';
 
-  domMap = buildOverlay(rootEl, template, referenceData || {});
+  activeDomMap = buildOverlay(activeRoot, template, referenceData || {});
 
-  animationEngine = new GsapAnimationEngine(domMap);
-  dataBinder      = new DataBinder(template.elements, domMap, animationEngine);
+  activeAnimationEngine = new GsapAnimationEngine(activeDomMap);
+  activeDataBinder      = new DataBinder(template.elements, activeDomMap, activeAnimationEngine);
 
-  if (currentConfig && currentConfig.targetCars) {
-    dataBinder.setTargetCars(currentConfig.targetCars);
+  if (activeConfig && activeConfig.targetCars) {
+    activeDataBinder.setTargetCars(activeConfig.targetCars);
   }
 
   // Store reference data as a flat array for data binding
@@ -802,17 +985,17 @@ function handleTemplateUpdate(msg) {
     const driversArray = Object.entries(refData.drivers).map(([carNum, d]) => ({
       carNumber: carNum, ...d,
     }));
-    dataBinder.updateData('referenceData', driversArray);
+    activeDataBinder.updateData('referenceData', driversArray);
   }
 
   // Re-resolve with whatever data we already have
-  dataBinder.resolveBindings();
-  dataBinder.resolveGaugeBindings();
-  dataBinder.resolveScene3dBindings();
-  dataBinder.resolveUniversalBindings();
+  activeDataBinder.resolveBindings();
+  activeDataBinder.resolveGaugeBindings();
+  activeDataBinder.resolveScene3dBindings();
+  activeDataBinder.resolveUniversalBindings();
 
   // Pre-cache image assets for the new template
-  precacheTemplate(currentTemplate, referenceData || {}, currentConfig || {});
+  precacheTemplate(activeTemplate, referenceData || {}, activeConfig || {});
 
   // Root stays hidden — visibility message (TAKE ON) will show it
 }
@@ -825,20 +1008,35 @@ function handleConfigUpdate(msg) {
   const config = msg.data || {};
   console.log('[overlay] Config update received');
 
-  currentConfig = { ...currentConfig, ...config };
+  // Update both active and cued configs
+  activeConfig = { ...activeConfig, ...config };
+  cuedConfig = { ...cuedConfig, ...config };
 
-  if (dataBinder && config.targetCars) {
-    dataBinder.setTargetCars(config.targetCars);
-    dataBinder.resolveBindings();
+  // Update active data binder
+  if (activeDataBinder && config.targetCars) {
+    activeDataBinder.setTargetCars(config.targetCars);
+    activeDataBinder.resolveBindings();
   }
 
-  // Apply element overrides from exposed elements
-  if (domMap && config.elementOverrides) {
-    applyElementOverrides(config.elementOverrides);
+  // Update cued data binder (so cued graphics have latest config)
+  if (cuedDataBinder && config.targetCars) {
+    cuedDataBinder.setTargetCars(config.targetCars);
+    cuedDataBinder.resolveBindings();
+  }
+
+  // Apply element overrides from exposed elements to active root
+  if (activeDomMap && config.elementOverrides) {
+    applyElementOverrides(config.elementOverrides, activeDomMap);
     // Re-resolve bindings in case prefix/suffix/fallback/car changed
-    if (dataBinder) dataBinder.resolveBindings();
+    if (activeDataBinder) activeDataBinder.resolveBindings();
     // Re-cache in case image sources were overridden
-    precacheTemplate(currentTemplate, {}, currentConfig);
+    precacheTemplate(activeTemplate, {}, activeConfig);
+  }
+
+  // Also apply to cued root if it exists
+  if (cuedDomMap && config.elementOverrides) {
+    applyElementOverrides(config.elementOverrides, cuedDomMap);
+    if (cuedDataBinder) cuedDataBinder.resolveBindings();
   }
 }
 
@@ -846,9 +1044,10 @@ function handleConfigUpdate(msg) {
  * Apply per-element overrides from the rundown config.
  * @param {Object} overrides - Map of elementId -> { text, src, fill, ... }
  */
-function applyElementOverrides(overrides) {
+function applyElementOverrides(overrides, domMapToUse = activeDomMap) {
+  if (!domMapToUse) return;
   for (const [elementId, props] of Object.entries(overrides)) {
-    const node = domMap.get(elementId);
+    const node = domMapToUse.get(elementId);
     if (!node) continue;
 
     // Element visibility (operator toggle)

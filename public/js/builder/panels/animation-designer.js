@@ -54,6 +54,8 @@ const ANIMATABLE_PROPERTIES = [
 // Module state
 // ---------------------------------------------------------------------------
 
+const MIN_KEYFRAME_SPACING_MS = 100;  // Minimum spacing between keyframes
+
 let _panelEl = null;
 let _element = null;
 let _onPropertyChange = null;
@@ -64,6 +66,47 @@ let _selectedKeyframe = null;   // { trackIndex, keyframeIndex }
 let _isPlaying = false;
 let _isLooping = false;
 let _previewScene3dSnapshot = null; // Original scene3d prop values before preview
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Constrain a keyframe time to maintain minimum spacing from adjacent keyframes.
+ * @param {number} desiredTime - The desired time position
+ * @param {Array} existingKeyframes - Array of existing keyframes (sorted by time)
+ * @param {number} [excludeIndex=-1] - Index to exclude (when dragging an existing keyframe)
+ * @returns {number} - Constrained time that maintains MIN_KEYFRAME_SPACING_MS from neighbors
+ */
+function _constrainKeyframeTime(desiredTime, existingKeyframes, excludeIndex = -1) {
+  const sorted = existingKeyframes
+    .map((kf, i) => ({ ...kf, originalIndex: i }))
+    .filter((kf, i) => i !== excludeIndex)
+    .sort((a, b) => a.time - b.time);
+
+  let constrainedTime = desiredTime;
+
+  // Find the nearest keyframes before and after the desired time
+  const before = sorted.filter(kf => kf.time < desiredTime).pop();
+  const after = sorted.find(kf => kf.time > desiredTime);
+
+  // Enforce minimum spacing from the keyframe before
+  if (before && constrainedTime - before.time < MIN_KEYFRAME_SPACING_MS) {
+    constrainedTime = before.time + MIN_KEYFRAME_SPACING_MS;
+  }
+
+  // Enforce minimum spacing from the keyframe after
+  if (after && after.time - constrainedTime < MIN_KEYFRAME_SPACING_MS) {
+    constrainedTime = after.time - MIN_KEYFRAME_SPACING_MS;
+  }
+
+  // If constraining from both sides creates a conflict, prefer the 'before' constraint
+  if (before && after && after.time - before.time < MIN_KEYFRAME_SPACING_MS * 2) {
+    constrainedTime = before.time + MIN_KEYFRAME_SPACING_MS;
+  }
+
+  return Math.max(0, constrainedTime);
+}
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -363,10 +406,14 @@ function _renderTimeline(kf) {
     bar.addEventListener('dblclick', (e) => {
       const rect = bar.getBoundingClientRect();
       const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-      const time = Math.round(pct * dur);
+      const desiredTime = Math.round(pct * dur);
 
       const currentKf = _getKeyframes();
       const currentTrack = currentKf.tracks[ti];
+
+      // Constrain to maintain minimum spacing from adjacent keyframes
+      const time = _constrainKeyframeTime(desiredTime, currentTrack.keyframes);
+
       const interpValue = _interpolateValueAtTime(currentTrack.keyframes, time, propDef);
 
       const newKfs = [...currentTrack.keyframes, { time, value: interpValue, easing: 'power2.out' }];
@@ -433,10 +480,14 @@ function _renderTimeline(kf) {
           document.removeEventListener('mouseup', onUp);
 
           const pct = Math.max(0, Math.min(1, (upE.clientX - barRect.left) / barRect.width));
-          const newTime = Math.round(pct * dur);
+          const desiredTime = Math.round(pct * dur);
 
           const currentKf = _getKeyframes();
           const currentTrack = currentKf.tracks[ti];
+
+          // Constrain to maintain minimum spacing from adjacent keyframes
+          const newTime = _constrainKeyframeTime(desiredTime, currentTrack.keyframes, ki);
+
           const newKfs = [...currentTrack.keyframes];
           newKfs[ki] = { ...newKfs[ki], time: newTime };
           newKfs.sort((a, b) => a.time - b.time);

@@ -30,12 +30,15 @@
       margin: 0;
     }
 
-    #overlay-root {
-      position: relative;
+    .overlay-root {
+      position: absolute;
+      top: 0;
+      left: 0;
       width: 100%;
       height: 100%;
       perspective: 1200px;
       transform-style: preserve-3d;
+      display: none; /* Hidden by default, shown during TAKE ON */
     }
 
     /* ── Connection Status Indicator ── */
@@ -101,7 +104,9 @@
     <span class="status-dot"></span>
     <span class="status-text">Connecting...</span>
   </div>
-  <div id="overlay-root"></div>
+  <!-- Dual-root architecture: one root can be on-air while the other is being cued -->
+  <div id="overlay-root-a" class="overlay-root"></div>
+  <div id="overlay-root-b" class="overlay-root"></div>
 
   <script>
     // Extract the access token from the URL path: /overlay/{accessToken}

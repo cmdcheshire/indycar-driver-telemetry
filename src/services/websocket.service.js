@@ -388,6 +388,26 @@ function sendOverlayResume(instanceId) {
   }
 }
 
+function sendOverlayCue(instanceId, templateData, config, elementAnimations, timeline) {
+  const message = JSON.stringify({
+    type: 'cue',
+    timestamp: Date.now(),
+    data: {
+      template: templateData.template_data || templateData,
+      config: config || {},
+      referenceData: state.referenceData,
+      elementAnimations: elementAnimations || [],
+      timeline: timeline || null,
+    },
+  });
+
+  for (const [ws, client] of overlayClients) {
+    if (client.instanceId === instanceId && ws.readyState === 1) {
+      ws.send(message);
+    }
+  }
+}
+
 function sendOverlayConfigUpdate(instanceId, config) {
   const message = JSON.stringify({
     type: 'configUpdate',
@@ -442,6 +462,7 @@ module.exports = {
   updateOverlayDelay,
   sendOverlayVisibility,
   sendOverlayResume,
+  sendOverlayCue,
   sendOverlayTemplateUpdate,
   sendOverlayConfigUpdate,
   setTcpStatus,

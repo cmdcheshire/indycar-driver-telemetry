@@ -319,7 +319,7 @@ router.delete('/rundown/:itemId', requireRole('admin'), (req, res) => {
   }
 });
 
-router.post('/rundown/:itemId/take', requireRole('operator', 'admin'), (req, res) => {
+router.post('/rundown/:itemId/take', requireRole('operator', 'admin'), async (req, res) => {
   try {
     const { action } = req.body;
     if (action !== 'on' && action !== 'off' && action !== 'cue' && action !== 'resume') {
@@ -392,20 +392,41 @@ router.post('/rundown/:itemId/take', requireRole('operator', 'admin'), (req, res
     }
 
     if (action === 'cue') {
-      // CUE: load the template but don't make it visible (no flash)
+      // CUE: Pre-build the template with all animations for instant TAKE ON
       if (!templateData) return res.status(404).json({ error: 'Template not found' });
 
-      wsService.sendOverlayTemplateUpdate(instanceId, templateData);
+      // Send comprehensive CUE message with template, config, and pre-computed animations
+      wsService.sendOverlayCue(
+        instanceId,
+        templateData,
+        configOverrides,
+        enterElementAnims,
+        timelineConfig
+      );
 
-      // Apply config overrides (e.g. target car numbers) if any
-      if (Object.keys(configOverrides).length > 0) {
-        wsService.sendOverlayConfigUpdate(instanceId, configOverrides);
-      }
+      console.log('[cue] CUE sent with', enterElementAnims.length, 'enter animations');
 
     } else if (action === 'on') {
       if (!templateData) return res.status(404).json({ error: 'Template not found' });
 
-      // Take off any other currently on-air items for this instance
+      // PERFORMANCE OPTIMIZATION: Always CUE first, then TAKE ON
+      // This ensures the template is pre-built and ready for instant playout
+      console.log('[take] TAKE ON - sending CUE first for pre-computation');
+
+      // Step 1: Send CUE to pre-build the template
+      wsService.sendOverlayCue(
+        instanceId,
+        templateData,
+        configOverrides,
+        enterElementAnims,
+        timelineConfig
+      );
+
+      // Step 2: Brief delay to allow CUE to complete (async operations)
+      // In production with fast connection, 100ms is plenty for DOM building
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Step 3: Take off any other currently on-air items for this instance
       const onAirItems = db.prepare(
         'SELECT id FROM rundown_items WHERE instance_id = ? AND is_on_air = 1 AND id != ?'
       ).all(instanceId, itemId);
@@ -415,14 +436,8 @@ router.post('/rundown/:itemId/take', requireRole('operator', 'admin'), (req, res
         overlayService.setRundownItemOnAir(onAirItem.id, false);
       }
 
-      // Send template update, config overrides, then visibility
-      wsService.sendOverlayTemplateUpdate(instanceId, templateData);
-
-      if (Object.keys(configOverrides).length > 0) {
-        wsService.sendOverlayConfigUpdate(instanceId, configOverrides);
-      }
-
-      console.log('[take] TAKE ON — enterAnims:', enterElementAnims.length, 'timeline:', JSON.stringify(timelineConfig));
+      // Step 4: Send TAKE ON visibility (will use pre-built cued template)
+      console.log('[take] TAKE ON — using pre-built template. enterAnims:', enterElementAnims.length, 'timeline:', JSON.stringify(timelineConfig));
       wsService.sendOverlayVisibility(instanceId, true, enterAnimation, enterElementAnims, timelineConfig);
       overlayService.setRundownItemOnAir(itemId, true);
     } else if (action === 'resume') {
