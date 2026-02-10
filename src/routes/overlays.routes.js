@@ -414,9 +414,25 @@ router.post('/rundown/:itemId/take', requireRole('operator', 'admin'), async (re
         'SELECT id FROM rundown_items WHERE instance_id = ? AND is_on_air = 1 AND id != ?'
       ).all(instanceId, itemId);
 
-      for (const onAirItem of onAirItems) {
-        wsService.sendOverlayVisibility(instanceId, false, exitAnimation, exitElementAnims);
-        overlayService.setRundownItemOnAir(onAirItem.id, false);
+      let exitDurationMs = 0;
+      if (onAirItems.length > 0) {
+        // Send TAKE OFF to currently on-air items
+        for (const onAirItem of onAirItems) {
+          wsService.sendOverlayVisibility(instanceId, false, exitAnimation, exitElementAnims);
+          overlayService.setRundownItemOnAir(onAirItem.id, false);
+        }
+
+        // Calculate max exit animation duration (delay + duration)
+        exitDurationMs = exitElementAnims.reduce(
+          (max, anim) => Math.max(max, (anim.delay || 0) + (anim.duration || 300)),
+          0
+        );
+
+        // Add buffer for safety
+        exitDurationMs += 100;
+
+        console.log('[take] Waiting', exitDurationMs, 'ms for exit animations to complete');
+        await new Promise(resolve => setTimeout(resolve, exitDurationMs));
       }
 
       // Send TAKE ON visibility (overlay will use cued template if available, otherwise build now)
