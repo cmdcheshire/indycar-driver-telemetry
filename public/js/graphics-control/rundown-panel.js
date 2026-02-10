@@ -551,6 +551,24 @@ async function handleTakeOn(itemId) {
     cuedItemId = null; // Clear cued state — item is now on-air
     showToast('Graphic taken ON AIR', 'success');
     if (callbacks.onRefresh) await callbacks.onRefresh();
+
+    // If auto-cue is enabled, refresh again after a brief delay to pick up the auto-cued state
+    if (autoCue && callbacks.onRefresh) {
+      setTimeout(async () => {
+        await callbacks.onRefresh();
+        // Find the next item in the DOM and set it as cued
+        const rundownItems = Array.from(document.querySelectorAll('.gc-rundown-item'));
+        const currentIndex = rundownItems.findIndex(el =>
+          parseInt(el.dataset.itemId) === itemId
+        );
+        if (currentIndex >= 0 && currentIndex < rundownItems.length - 1) {
+          const nextItem = rundownItems[currentIndex + 1];
+          const nextItemId = parseInt(nextItem.dataset.itemId);
+          cuedItemId = nextItemId;
+          await callbacks.onRefresh();
+        }
+      }, 200); // Wait for backend auto-cue to complete
+    }
   } catch (err) {
     console.error('Failed to take on:', err);
     showToast(err.message || 'Failed to take on', 'error');
