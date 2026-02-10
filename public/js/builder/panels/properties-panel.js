@@ -23,6 +23,7 @@ import { getCustomFontOptions, registerUploadedFont } from '/js/shared/font-load
 import { openAnimationDesigner } from './animation-designer.js';
 import { BINDABLE_PROPERTIES } from '/js/shared/expression-engine.js';
 import { SCENE3D_SUBTYPES } from '/js/shared/scene3d-utils.js';
+import { showColorPicker } from '/js/shared/color-picker.js';
 
 /** @type {Function} */
 let onPropertyChange = null;
@@ -2197,24 +2198,21 @@ function _colorInputWithSwatch(label, value, onChange, showClearButton = false) 
   swatch.className = 'color-swatch';
   const normalizedColor = _normalizeColor(value);
   swatch.style.backgroundColor = value === 'transparent' ? 'transparent' : normalizedColor;
+  swatch.style.cursor = 'pointer';
   wrapper.appendChild(swatch);
 
-  // Hidden color input
-  const input = document.createElement('input');
-  input.type = 'color';
-  input.style.position = 'absolute';
-  input.style.opacity = '0';
-  input.style.width = '0';
-  input.style.height = '0';
-  input.value = normalizedColor;
-  wrapper.appendChild(input);
+  // Click swatch to open custom color picker
+  swatch.addEventListener('click', async () => {
+    const result = await showColorPicker({
+      initialColor: value === 'transparent' ? 'rgba(0, 0, 0, 0)' : value,
+      title: `Choose ${label}`,
+      showAlpha: true,
+    });
 
-  // Click swatch to open picker
-  swatch.addEventListener('click', () => input.click());
-
-  input.addEventListener('input', () => {
-    swatch.style.backgroundColor = input.value;
-    onChange(input.value);
+    if (result) {
+      swatch.style.backgroundColor = result;
+      onChange(result);
+    }
   });
 
   // Optional clear button (for backgrounds)

@@ -7,6 +7,7 @@
 import { authenticatedFetch } from '/js/modules/auth.js';
 import { showToast, showConfirm } from '/js/modules/ui.js';
 import { getSettingDef, EXPOSABLE_SETTINGS } from '/js/shared/exposed-settings.js';
+import { showColorPicker } from '/js/shared/color-picker.js';
 
 let callbacks = { onRefresh: null };
 let currentInstanceId = null;
@@ -177,12 +178,19 @@ export function renderRundown(instanceId, items, overlayUrl) {
                 </div>
               </div>`;
           } else if (def.inputType === 'color') {
+            const colorVal = String(currentVal || '#ffffff');
             exposedHtml += `
               <div class="gc-config-row">
                 <span class="gc-config-label">${escapeHtml(def.label)}</span>
-                <input type="color" class="gc-config-input gc-exposed-input"
+                <div style="display: flex; align-items: center; gap: 6px; flex: 1;">
+                  <div class="gc-color-swatch" data-color="${escapeHtml(colorVal)}"
                        data-element-id="${el.id}" data-prop-key="${settingKey}" data-item-id="${item.id}"
-                       value="${escapeHtml(String(currentVal || '#ffffff'))}">
+                       style="width: 32px; height: 24px; border-radius: 4px; border: 1px solid var(--border, #3a3d45); background: ${escapeHtml(colorVal)}; cursor: pointer; flex-shrink: 0;">
+                  </div>
+                  <input type="hidden" class="gc-config-input gc-exposed-input gc-color-value"
+                         data-element-id="${el.id}" data-prop-key="${settingKey}" data-item-id="${item.id}"
+                         value="${escapeHtml(colorVal)}">
+                </div>
               </div>`;
           } else if (def.inputType === 'number') {
             exposedHtml += `
@@ -323,6 +331,35 @@ export function renderRundown(instanceId, items, overlayUrl) {
 
     // Wire initial secondary input
     wireSecondary();
+  });
+
+  // Wire up color swatches
+  listEl.querySelectorAll('.gc-color-swatch').forEach(swatch => {
+    swatch.addEventListener('click', async () => {
+      const currentColor = swatch.dataset.color;
+      const elementId = swatch.dataset.elementId;
+      const propKey = swatch.dataset.propKey;
+      const itemId = parseInt(swatch.dataset.itemId, 10);
+
+      const result = await showColorPicker({
+        initialColor: currentColor === 'transparent' ? 'rgba(0, 0, 0, 0)' : currentColor,
+        title: 'Choose Color',
+        showAlpha: true,
+      });
+
+      if (result) {
+        // Update swatch appearance
+        swatch.style.background = result;
+        swatch.dataset.color = result;
+
+        // Update hidden input value
+        const hiddenInput = swatch.parentElement.querySelector('.gc-color-value');
+        if (hiddenInput) {
+          hiddenInput.value = result;
+          saveConfigOverrides(itemId);
+        }
+      }
+    });
   });
 
   // Wire up inline rename (double-click)
