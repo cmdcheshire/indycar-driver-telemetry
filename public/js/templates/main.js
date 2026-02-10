@@ -4,6 +4,7 @@
  */
 import { initAuth, isAuthenticated, getUser, getToken, logout, authenticatedFetch } from '/js/modules/auth.js';
 import { showToast, showConfirm, showPrompt } from '/js/modules/ui.js';
+import { createSkeleton } from '/js/shared/loading-spinner.js';
 
 // ── State ──
 
@@ -412,6 +413,27 @@ function renderFolderNodes(nodes, depth) {
 
 // ── Rendering: Template Grid ──
 
+function showSkeletonGrid() {
+  let html = '';
+  for (let i = 0; i < 8; i++) {
+    html += `
+      <div class="tmpl-card" style="pointer-events: none;">
+        <div class="tmpl-card-thumb" style="background: #1a1d2e;">
+          ${createSkeleton({ width: '100%', height: 180 }).outerHTML}
+        </div>
+        <div class="tmpl-card-info" style="padding: 12px;">
+          ${createSkeleton({ width: '80%', height: 16, borderRadius: 4 }).outerHTML}
+          <div style="margin-top: 8px; display: flex; gap: 6px;">
+            ${createSkeleton({ width: 60, height: 12, borderRadius: 3 }).outerHTML}
+            ${createSkeleton({ width: 50, height: 12, borderRadius: 3 }).outerHTML}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+  templateGridEl.innerHTML = html;
+}
+
 function renderTemplateGrid() {
   // Filter by current folder
   let filtered = templates.filter(t => {
@@ -683,6 +705,7 @@ async function selectFolder(folderId) {
 }
 
 async function refreshAll() {
+  showSkeletonGrid();
   await Promise.all([loadFolders(), loadTemplates()]);
   renderFolderTree();
   renderTemplateGrid();

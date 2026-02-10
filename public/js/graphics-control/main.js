@@ -10,6 +10,7 @@ import { initRundownPanel, renderRundown, clearRundown } from '/js/graphics-cont
 import { initTemplateLibrary, renderTemplateLibrary } from '/js/graphics-control/template-library.js';
 import { initPreviewPanel, updatePreview, clearPreview } from '/js/graphics-control/preview-panel.js';
 import { loadCustomFonts } from '/js/shared/font-loader.js';
+import { createSpinner } from '/js/shared/loading-spinner.js';
 
 // ── State ──
 
@@ -84,6 +85,19 @@ async function refreshRundown() {
     clearRundown();
     return;
   }
+
+  // Show loading spinner in rundown list
+  const listEl = document.getElementById('rundownList');
+  if (listEl) {
+    const spinner = createSpinner({ size: 32 });
+    listEl.innerHTML = `
+      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px; gap: 12px; color: var(--text-muted, #8892b0);">
+        ${spinner.outerHTML}
+        <span style="font-size: 13px;">Loading rundown...</span>
+      </div>
+    `;
+  }
+
   const items = await fetchRundown(selectedOutputId);
 
   // Build overlay URL for the selected output

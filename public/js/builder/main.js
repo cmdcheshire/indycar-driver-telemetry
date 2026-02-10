@@ -5,6 +5,7 @@
 
 import { initAuth, isAuthenticated } from '/js/modules/auth.js';
 import { showToast } from '/js/modules/ui.js';
+import { setButtonLoading } from '/js/shared/loading-spinner.js';
 
 import { CanvasEngine } from './canvas-engine.js';
 import { SelectionManager } from './selection-manager.js';
@@ -1298,6 +1299,9 @@ async function _save() {
   //   - Alternative screenshot library with better CSS support
   let thumbnail = null;
 
+  const saveBtn = document.getElementById('btnSave');
+  const restoreButton = saveBtn ? setButtonLoading(saveBtn, 'Saving...') : null;
+
   try {
     await templateManager.save(name, type, elements, groups, width, height, timelineData, thumbnail);
     showToast('Template saved', 'success');
@@ -1309,6 +1313,8 @@ async function _save() {
   } catch (err) {
     showToast(`Save failed: ${err.message}`, 'error');
     console.error('Save error:', err);
+  } finally {
+    if (restoreButton) restoreButton();
   }
 }
 
