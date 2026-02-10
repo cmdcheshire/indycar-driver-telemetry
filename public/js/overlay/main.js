@@ -349,10 +349,18 @@ async function handleInit(msg) {
 // CUE - Pre-build template with full precomputation (performance critical!)
 // ---------------------------------------------------------------------------
 
+/**
+ * Yield control to the main thread to prevent blocking on-air graphics.
+ * @param {number} delayMs - Milliseconds to wait (default 10ms for ~60fps headroom)
+ */
+function yieldToMainThread(delayMs = 10) {
+  return new Promise(resolve => setTimeout(resolve, delayMs));
+}
+
 async function handleCue(msg) {
   const { template, config, referenceData, elementAnimations, timeline } = msg.data || {};
 
-  console.log('[overlay] CUE received – pre-building in cued root with precomputation');
+  console.log('[overlay] CUE received – pre-building in cued root with async precomputation (protects on-air graphics)');
 
   // Load custom fonts from library before rendering
   await loadCustomFonts();
@@ -368,6 +376,9 @@ async function handleCue(msg) {
   // Kill previous cued animation engine (if re-cueing)
   if (cuedAnimationEngine) cuedAnimationEngine.killAll();
 
+  // Yield after cleanup to give main thread headroom
+  await yieldToMainThread(10);
+
   // Build DOM into CUED root
   // Dispose scene3d controllers before clearing
   cuedRoot.querySelectorAll('[data-scene3d-type]').forEach(node => {
@@ -376,6 +387,9 @@ async function handleCue(msg) {
   cuedRoot.innerHTML = '';
 
   cuedDomMap = buildOverlay(cuedRoot, cuedTemplate, referenceData);
+
+  // Yield after DOM build (potentially heavy operation with many elements)
+  await yieldToMainThread(15);
 
   // Create animation engine + binder for cued root
   cuedAnimationEngine = new GsapAnimationEngine(cuedDomMap);
@@ -402,8 +416,14 @@ async function handleCue(msg) {
   // CRITICAL: Keep cued root hidden (will be shown on TAKE ON)
   cuedRoot.style.display = 'none';
 
+  // Yield before asset precaching
+  await yieldToMainThread(10);
+
   // Pre-cache assets
   precacheTemplate(cuedTemplate, referenceData || {}, cuedConfig || {});
+
+  // Yield before timeline precomputation (most intensive operation)
+  await yieldToMainThread(20);
 
   // **PRECOMPUTATION: Build the GSAP timeline now but don't play it**
   if (elementAnimations && elementAnimations.length > 0) {
