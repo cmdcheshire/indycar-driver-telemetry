@@ -37,6 +37,7 @@ import {
 } from './group-manager.js';
 import { resolveBindingPreview } from './data-binding.js';
 import { getEnterPreset, getExitPreset, getEmphasisPreset } from '/js/shared/animation-presets.js';
+import { computeClipPath } from '/js/shared/clip-path.js';
 
 import { initToolsPanel, getActiveTool, setActiveTool, handleToolShortcut } from './panels/tools-panel.js';
 import { initLayerPanel, renderLayerPanel } from './panels/layer-panel.js';
@@ -1134,26 +1135,98 @@ async function _save() {
   const type = document.getElementById('templateType').value;
   const { width, height } = canvas.canvasSize;
 
-  // Capture thumbnail from canvas
+  // Capture thumbnail from canvas at HOLD state
   let thumbnail = null;
   const canvasContainer = document.getElementById('canvasContainer');
   const canvasWrapper = document.getElementById('canvasWrapper');
-  // Temporarily reset zoom on real DOM — html2canvas uses source layout for measurement
   const savedZoom = canvasWrapper ? canvasWrapper.style.zoom : '';
+
+  // Save current GSAP state of all elements so we can restore after capture
+  const savedStates = new Map();
+
   try {
     canvasContainer.classList.add('capturing');
     if (canvasWrapper) canvasWrapper.style.zoom = '1';
 
-    // Force exact 1920x1080 dimensions before capture
+    // Apply HOLD state to all elements (snap to end of enter animations)
+    const enterElements = elements.filter(el => {
+      const enterKf = el.animation?.enterKeyframes || el.animation?.keyframes;
+      const enterPreset = el.animation?.enter?.type;
+      return (enterKf?.enabled && enterKf.tracks?.length > 0) || enterPreset;
+    });
+
+    for (const el of enterElements) {
+      const node = document.querySelector(`#canvasContainer [data-element-id="${el.id}"]`);
+      if (!node) continue;
+
+      // Save current transform/opacity state
+      const savedState = {
+        transform: node.style.transform,
+        opacity: node.style.opacity,
+        clipPath: node.style.clipPath,
+      };
+      savedStates.set(el.id, savedState);
+
+      // Apply hold state based on animation type
+      const enterKf = el.animation?.enterKeyframes || el.animation?.keyframes;
+      if (enterKf?.enabled && enterKf.tracks?.length > 0) {
+        // Keyframe: snap to final keyframe value for each track
+        const endState = {};
+        for (const track of enterKf.tracks) {
+          if (track.keyframes.length > 0) {
+            const last = track.keyframes.reduce((a, b) => a.time > b.time ? a : b);
+            // Map x/y to xPercent/yPercent (same as timeline panel)
+            const gsapProp = track.property === 'x' ? 'xPercent'
+                           : track.property === 'y' ? 'yPercent'
+                           : track.property;
+            endState[gsapProp] = last.value;
+          }
+        }
+        if (Object.keys(endState).length > 0) {
+          gsap.set(node, endState);
+        }
+      } else {
+        // Preset: clear animation props and restore base transform
+        const anim = el.animation?.enter;
+        const preset = anim?.type ? getEnterPreset(anim.type) : null;
+        if (preset) {
+          const safeClearProps = preset.clearProps || Object.keys(preset.vars).join(',');
+          gsap.set(node, { clearProps: safeClearProps });
+
+          // Restore base transform
+          const transforms = [];
+          if (el.rotation) transforms.push(`rotate(${el.rotation}deg)`);
+          if (el.rotationX) transforms.push(`rotateX(${el.rotationX}deg)`);
+          if (el.rotationY) transforms.push(`rotateY(${el.rotationY}deg)`);
+          if (el.z) transforms.push(`translateZ(${el.z}px)`);
+          node.style.transform = transforms.join(' ');
+          if (el.opacity !== undefined) node.style.opacity = String(el.opacity);
+        }
+      }
+    }
+
+    // Restore static clip-paths on mask-dependent elements
+    for (const el of elements) {
+      if (!el.clipMask?.elementId) continue;
+      const maskEl = elements.find(m => m.id === el.clipMask.elementId);
+      if (!maskEl) continue;
+      const clippedNode = document.querySelector(`#canvasContainer [data-element-id="${el.id}"]`);
+      if (!clippedNode) continue;
+      const cp = computeClipPath(el, maskEl);
+      clippedNode.style.clipPath = cp || 'none';
+    }
+
+    // Force exact 1920x1080 dimensions
     const savedContainerWidth = canvasContainer.style.width;
     const savedContainerHeight = canvasContainer.style.height;
     canvasContainer.style.width = '1920px';
     canvasContainer.style.height = '1080px';
 
+    // Capture with background hidden
     const shot = await html2canvas(canvasContainer, {
       width: 1920,
       height: 1080,
-      scale: 0.2,  // 0.2 scale gives 384x216 thumbnail (maintains 16:9 ratio)
+      scale: 0.2,  // 384x216 thumbnail
       useCORS: true,
       backgroundColor: null,
       logging: false,
@@ -1165,11 +1238,13 @@ async function _save() {
           c.style.height = '1080px';
           c.style.perspective = 'none';
           c.style.transformStyle = 'flat';
+          c.style.background = 'transparent';  // Hide checkerboard
         }
         const w = clonedDoc.getElementById('canvasWrapper');
         if (w) w.style.zoom = '1';
         const style = clonedDoc.createElement('style');
         style.textContent = `
+          .canvas-container { background: transparent !important; }
           .canvas-container.capturing::after { content: none !important; display: none !important; box-shadow: none !important; }
           .selection-handle, .selection-outline, .rotation-handle, .snap-guide { display: none !important; }
           .canvas-element.has-bindings::after { content: none !important; }
@@ -1182,6 +1257,16 @@ async function _save() {
     // Restore original dimensions
     canvasContainer.style.width = savedContainerWidth;
     canvasContainer.style.height = savedContainerHeight;
+
+    // Restore saved element states
+    for (const [elementId, state] of savedStates) {
+      const node = document.querySelector(`#canvasContainer [data-element-id="${elementId}"]`);
+      if (node) {
+        node.style.transform = state.transform;
+        node.style.opacity = state.opacity;
+        node.style.clipPath = state.clipPath;
+      }
+    }
   } catch (e) {
     console.warn('Failed to capture thumbnail:', e);
   } finally {
