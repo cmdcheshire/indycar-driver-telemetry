@@ -5,7 +5,7 @@
 import { initAuth, isAuthenticated, getUser, getToken, logout, authenticatedFetch } from '/js/modules/auth.js';
 import { showToast } from '/js/modules/ui.js';
 import { WebSocketClient } from '/js/modules/websocket-client.js';
-import { initOutputBrowser, renderOutputBrowser, getSelectedOutputId, updateCacheStatus } from '/js/graphics-control/output-browser.js';
+import { initOutputBrowser, renderOutputBrowser, getSelectedOutputId, updateCacheStatus, restoreSavedSelection } from '/js/graphics-control/output-browser.js';
 import { initRundownPanel, renderRundown, clearRundown } from '/js/graphics-control/rundown-panel.js';
 import { initTemplateLibrary, renderTemplateLibrary } from '/js/graphics-control/template-library.js';
 import { initPreviewPanel, updatePreview, clearPreview } from '/js/graphics-control/preview-panel.js';
@@ -68,9 +68,15 @@ async function fetchRundown(instanceId) {
 
 // ── Refresh Helpers ──
 
-async function refreshOutputBrowser() {
+async function refreshOutputBrowser(restoreSelection = false) {
   await Promise.all([fetchFolders(), fetchInstances()]);
   renderOutputBrowser(folders, instances);
+
+  // Restore saved selection on initial load or when explicitly requested
+  if (restoreSelection) {
+    const availableIds = instances.map(i => i.id);
+    restoreSavedSelection(availableIds);
+  }
 }
 
 async function refreshRundown() {
@@ -89,9 +95,9 @@ async function refreshRundown() {
   renderRundown(selectedOutputId, items, overlayUrl);
 }
 
-async function refreshAll() {
+async function refreshAll(restoreSelection = false) {
   await Promise.all([
-    refreshOutputBrowser(),
+    refreshOutputBrowser(restoreSelection),
     fetchTemplates(),
   ]);
   renderTemplateLibrary(templates);
@@ -241,8 +247,8 @@ async function init() {
   // Load custom fonts from library (for exposed font selectors)
   await loadCustomFonts();
 
-  // Load initial data
-  await refreshAll();
+  // Load initial data and restore last selected output
+  await refreshAll(true);
 
   // Connect WebSocket for cache status
   connectWebSocket();

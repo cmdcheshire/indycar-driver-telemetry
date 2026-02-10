@@ -166,6 +166,13 @@ function renderOutputItem(inst, inFolder) {
 function selectOutput(id) {
   selectedId = id;
 
+  // Persist selection to localStorage
+  if (id) {
+    localStorage.setItem('gc-selected-instance-id', String(id));
+  } else {
+    localStorage.removeItem('gc-selected-instance-id');
+  }
+
   // Update visual selection
   document.querySelectorAll('.gc-output-item').forEach(el => {
     el.classList.toggle('selected', parseInt(el.dataset.instanceId, 10) === id);
@@ -179,6 +186,26 @@ function selectOutput(id) {
 
   if (callbacks.onSelect) {
     callbacks.onSelect(id);
+  }
+}
+
+/**
+ * Restore the last selected output from localStorage.
+ * Call this after output browser data is loaded.
+ * @param {number[]} availableInstanceIds - Array of valid instance IDs currently loaded
+ */
+export function restoreSavedSelection(availableInstanceIds) {
+  const savedId = localStorage.getItem('gc-selected-instance-id');
+  if (!savedId) return;
+
+  const id = parseInt(savedId, 10);
+
+  // Only restore if the saved instance still exists
+  if (availableInstanceIds.includes(id)) {
+    selectOutput(id);
+  } else {
+    // Clear stale selection
+    localStorage.removeItem('gc-selected-instance-id');
   }
 }
 
