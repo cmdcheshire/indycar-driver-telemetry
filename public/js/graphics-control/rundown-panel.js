@@ -248,7 +248,7 @@ export function renderRundown(instanceId, items, overlayUrl) {
             <button class="gc-btn-cue ${isCued ? 'active' : ''}" data-action="cue" data-item-id="${item.id}" title="Cue (load without showing)">CUE</button>
             <button class="gc-btn-take-on ${isOnAir ? 'active' : ''}" data-action="take-on" data-item-id="${item.id}" title="Take On Air">TAKE ON</button>
             <button class="gc-btn-take-off ${isOnAir ? '' : 'active'}" data-action="take-off" data-item-id="${item.id}" title="Take Off Air">TAKE OFF</button>
-            <button class="gc-btn-resume disabled" data-action="resume" data-item-id="${item.id}" title="Resume (advance past pause point)" style="${isOnAir ? '' : 'display: none;'}">RESUME</button>
+            <button class="gc-btn-resume disabled" data-action="resume" data-item-id="${item.id}" title="Resume (advance past pause point)">RESUME</button>
             <button class="gc-btn-remove" data-action="remove" data-item-id="${item.id}" title="Remove from rundown">${ICONS.remove}</button>
           </div>
         </div>
