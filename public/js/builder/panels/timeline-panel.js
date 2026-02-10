@@ -321,7 +321,10 @@ export function renderTimelinePanel() {
   // When idle, position playhead: at START if user clicked GO TO START, else at HOLD
   if (_currentPhase === 'idle' && !_isScrubbing && !_masterTl) {
     if (_atStartPosition) {
-      if (_playheadEl) _playheadEl.style.left = `${LABEL_WIDTH}px`;
+      if (_playheadEl) {
+        _playheadEl.style.left = `${LABEL_WIDTH}px`;
+        _playheadEl.classList.add('active');
+      }
     } else {
       _snapPlayheadToHold();
     }
@@ -1535,10 +1538,10 @@ function _goToStart() {
   _isPlaying = false;
   _atStartPosition = true;
 
-  // Snap playhead to the START of the timeline (left edge) and deactivate
+  // Snap playhead to the START of the timeline (left edge) and show it
   if (_playheadEl) {
     _playheadEl.style.left = `${LABEL_WIDTH}px`;
-    _playheadEl.classList.remove('active');
+    _playheadEl.classList.add('active');
   }
 
   _updateTransportButtons();

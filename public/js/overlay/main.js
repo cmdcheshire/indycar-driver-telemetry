@@ -416,7 +416,10 @@ function buildPlayoutTimeline(elementAnimations, timeline) {
     gsap.killTweensOf(node);
 
     // Reset display and restore base styles (exit animations may have altered them)
-    node.style.display = node.dataset.baseDisplay || '';
+    // Skip restoring display for mask-hidden elements (clip-path system)
+    if (node.dataset.maskHidden !== 'true') {
+      node.style.display = node.dataset.baseDisplay || '';
+    }
     node.style.opacity = node.dataset.baseOpacity || '';
     if (node.dataset.baseColor) node.style.color = node.dataset.baseColor;
     if (node.dataset.baseBg) node.style.backgroundColor = node.dataset.baseBg;
