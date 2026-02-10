@@ -1228,16 +1228,34 @@ async function _save() {
       }
     }
 
+    // Force browser reflow by reading layout property
+    void canvasContainer.offsetHeight;
+
+    // Small delay to ensure all styles are applied
+    await new Promise(resolve => setTimeout(resolve, 100));
+
     // Capture the canvas container
     const shot = await html2canvas(canvasContainer, {
       width: 1920,
       height: 1080,
       scale: 0.2,
       useCORS: true,
+      allowTaint: true,
       backgroundColor: null,
-      logging: false,
+      logging: true,  // Enable logging to debug
+      onclone: (clonedDoc) => {
+        // Ensure the cloned container also has exact dimensions
+        const cloned = clonedDoc.getElementById('canvasContainer');
+        if (cloned) {
+          cloned.style.width = '1920px';
+          cloned.style.height = '1080px';
+          cloned.style.perspective = 'none';
+          cloned.style.transformStyle = 'flat';
+        }
+      },
     });
     thumbnail = shot.toDataURL('image/webp', 0.7);
+    console.log('[Builder] Thumbnail captured:', thumbnail.substring(0, 50) + '...');
 
     // Restore element states
     for (const [elementId, state] of savedStates) {
