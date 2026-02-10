@@ -538,12 +538,11 @@ router.post('/rundown/:itemId/take', requireRole('operator', 'admin'), async (re
               nextTimelineConfig
             );
           }
-          }
         }
-        } catch (err) {
-          console.warn('[auto-cue] Failed to cue next item:', err.message);
-          // Don't fail the TAKE ON if auto-cue fails
-        }
+      } catch (err) {
+        console.warn('[auto-cue] Failed to cue next item:', err.message);
+        // Don't fail the TAKE ON if auto-cue fails
+      }
       }
     } else if (action === 'resume') {
       wsService.sendOverlayResume(instanceId);
