@@ -1234,6 +1234,11 @@ function _resetAllElements(restoreHoldState = true) {
     if (propsToReset.size > 0) {
       gsap.set(node, { clearProps: [...propsToReset].join(',') });
       _restoreBaseTransform(el, node);
+
+      // If going to start state (not hold), apply enterPreset vars (the FROM state)
+      if (!restoreHoldState && enterPreset) {
+        gsap.set(node, enterPreset.vars);
+      }
     }
   }
 
