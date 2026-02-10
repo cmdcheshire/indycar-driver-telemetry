@@ -35,7 +35,7 @@ const TOOLS = [
     id: 'shape',
     label: 'Shape',
     shortcut: 'R',
-    icon: `<svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="14" height="14" rx="1"/></svg>`,
+    icon: `<svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="10" y="10" width="6" height="6" rx="0.5"/><circle cx="5" cy="5" r="3.5"/><path d="M11 2 14.5 8 7.5 8z"/></svg>`,
   },
   {
     id: 'data',
