@@ -411,21 +411,54 @@ router.post('/rundown/:itemId/take', requireRole('operator', 'admin'), async (re
 
       // Take off any other currently on-air items for this instance
       const onAirItems = db.prepare(
-        'SELECT id FROM rundown_items WHERE instance_id = ? AND is_on_air = 1 AND id != ?'
+        'SELECT * FROM rundown_items WHERE instance_id = ? AND is_on_air = 1 AND id != ?'
       ).all(instanceId, itemId);
 
       let exitDurationMs = 0;
       if (onAirItems.length > 0) {
-        // Send TAKE OFF to currently on-air items
-        for (const onAirItem of onAirItems) {
-          wsService.sendOverlayVisibility(instanceId, false, exitAnimation, exitElementAnims);
-          overlayService.setRundownItemOnAir(onAirItem.id, false);
+        // Extract exit animations from the CURRENTLY ON-AIR template (not the new one)
+        const onAirItem = onAirItems[0]; // Take first on-air item
+        const onAirTemplateData = overlayService.getTemplate(onAirItem.template_id);
+        let onAirExitAnims = [];
+        let onAirExitAnimation = 'fadeOut';
+
+        if (onAirTemplateData) {
+          try {
+            const tData = typeof onAirTemplateData.template_data === 'string'
+              ? JSON.parse(onAirTemplateData.template_data)
+              : onAirTemplateData.template_data;
+
+            if (tData && tData.animation && tData.animation.exit) {
+              onAirExitAnimation = tData.animation.exit.type || 'fadeOut';
+            }
+
+            // Extract per-element exit animations from on-air template
+            if (tData && Array.isArray(tData.elements)) {
+              for (const el of tData.elements) {
+                if (el.animation && el.animation.exit && el.animation.exit.type && el.animation.exit.type !== 'none') {
+                  onAirExitAnims.push({
+                    elementId: el.id,
+                    type: el.animation.exit.type,
+                    duration: el.animation.exit.duration || 300,
+                    delay: el.animation.exit.delay || 0,
+                    easing: el.animation.exit.easing || 'power2.in',
+                  });
+                }
+              }
+            }
+          } catch (_) { /* ignore parse errors */ }
         }
 
-        // Calculate max exit animation duration (delay + duration)
-        exitDurationMs = exitElementAnims.reduce(
+        // Send TAKE OFF to currently on-air items with THEIR exit animations
+        for (const item of onAirItems) {
+          wsService.sendOverlayVisibility(instanceId, false, onAirExitAnimation, onAirExitAnims);
+          overlayService.setRundownItemOnAir(item.id, false);
+        }
+
+        // Calculate max exit animation duration from on-air template (delay + duration)
+        exitDurationMs = onAirExitAnims.reduce(
           (max, anim) => Math.max(max, (anim.delay || 0) + (anim.duration || 300)),
-          0
+          300 // Default 300ms if no exit animations
         );
 
         // Add buffer for safety
