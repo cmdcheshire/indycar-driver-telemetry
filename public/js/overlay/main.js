@@ -364,9 +364,11 @@ function handleVisibility(msg) {
     // Skip mask elements that are intentionally hidden by clip-path system.
     // Also restore mask clip-paths that may have been cleared by killed exit animations.
     if (domMap) {
-      for (const [, node] of domMap) {
+      for (const [elementId, node] of domMap) {
         if (node.style.display === 'none' && node.dataset.maskHidden !== 'true' && node.dataset.operatorHidden !== 'true') {
           node.style.display = node.dataset.baseDisplay || '';
+        } else if (node.style.display === 'none' && node.dataset.maskHidden === 'true') {
+          console.log(`[overlay] Keeping mask-hidden element ${elementId} hidden during TAKE ON`);
         }
         if (node.dataset.maskClipPath) {
           node.style.clipPath = node.dataset.maskClipPath;
@@ -419,6 +421,8 @@ function buildPlayoutTimeline(elementAnimations, timeline) {
     // Skip restoring display for mask-hidden elements (clip-path system)
     if (node.dataset.maskHidden !== 'true') {
       node.style.display = node.dataset.baseDisplay || '';
+    } else {
+      console.log(`[overlay] Skipping display restore for mask-hidden element ${config.elementId}`);
     }
     node.style.opacity = node.dataset.baseOpacity || '';
     if (node.dataset.baseColor) node.style.color = node.dataset.baseColor;
