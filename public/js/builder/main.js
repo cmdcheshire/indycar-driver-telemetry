@@ -1143,8 +1143,17 @@ async function _save() {
   try {
     canvasContainer.classList.add('capturing');
     if (canvasWrapper) canvasWrapper.style.zoom = '1';
+
+    // Force exact 1920x1080 dimensions before capture
+    const savedContainerWidth = canvasContainer.style.width;
+    const savedContainerHeight = canvasContainer.style.height;
+    canvasContainer.style.width = '1920px';
+    canvasContainer.style.height = '1080px';
+
     const shot = await html2canvas(canvasContainer, {
-      scale: 0.15,
+      width: 1920,
+      height: 1080,
+      scale: 0.2,  // 0.2 scale gives 384x216 thumbnail (maintains 16:9 ratio)
       useCORS: true,
       backgroundColor: null,
       logging: false,
@@ -1152,6 +1161,8 @@ async function _save() {
         const c = clonedDoc.getElementById('canvasContainer');
         if (c) {
           c.classList.add('capturing');
+          c.style.width = '1920px';
+          c.style.height = '1080px';
           c.style.perspective = 'none';
           c.style.transformStyle = 'flat';
         }
@@ -1167,6 +1178,10 @@ async function _save() {
       },
     });
     thumbnail = shot.toDataURL('image/webp', 0.7);
+
+    // Restore original dimensions
+    canvasContainer.style.width = savedContainerWidth;
+    canvasContainer.style.height = savedContainerHeight;
   } catch (e) {
     console.warn('Failed to capture thumbnail:', e);
   } finally {
