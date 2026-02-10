@@ -1192,24 +1192,29 @@ function _resetAllElements(restoreHoldState = true) {
       }
       gsap.set(node, { clearProps: [...clearSet].join(',') });
       _restoreBaseTransform(el, node);
-      // Re-apply final keyframe values so element stays in hold state, not CSS rest
-      if (restoreHoldState && enterKf?.enabled && enterKf.tracks?.length > 0) {
-        const endState = {};
+
+      if (enterKf?.enabled && enterKf.tracks?.length > 0) {
+        const state = {};
         for (const track of enterKf.tracks) {
           if (track.keyframes.length > 0) {
-            const last = track.keyframes.reduce((a, b) => a.time > b.time ? a : b);
+            // restoreHoldState=true: use last keyframe (hold state)
+            // restoreHoldState=false: use first keyframe (start state)
+            const keyframe = restoreHoldState
+              ? track.keyframes.reduce((a, b) => a.time > b.time ? a : b)
+              : track.keyframes.reduce((a, b) => a.time < b.time ? a : b);
+
             if (SCENE3D_KEYS.has(track.property)) {
-              applyScene3dProp(node, track.property, last.value);
+              applyScene3dProp(node, track.property, keyframe.value);
             } else {
               const gsapProp = track.property === 'x' ? 'xPercent'
                              : track.property === 'y' ? 'yPercent'
                              : track.property;
-              endState[gsapProp] = last.value;
+              state[gsapProp] = keyframe.value;
             }
           }
         }
-        if (Object.keys(endState).length > 0) {
-          gsap.set(node, endState);
+        if (Object.keys(state).length > 0) {
+          gsap.set(node, state);
         }
       }
       continue;
