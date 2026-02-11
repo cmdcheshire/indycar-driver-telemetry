@@ -232,6 +232,57 @@ const EMPHASIS_PRESETS = {
   },
 };
 
+// ─── Update Presets ──────────────────────────────────────────────────────────
+
+const UPDATE_PRESETS = {
+  // Crossfade variant
+  updateCrossfade: {
+    keyframes: [
+      { opacity: 0, duration: 0.15 },
+      { opacity: 1, duration: 0.15 },
+    ],
+  },
+
+  // Quick scale pulse (data refresh feel)
+  updatePulse: {
+    keyframes: [
+      { scale: 1.08, duration: 0.06, ease: 'dataPunch' },
+      { scale: 1, duration: 0.06, ease: 'springFirm' },
+    ],
+  },
+
+  // Slide exchange (content slides out, new slides in)
+  updateSlideLeft: {
+    keyframes: [
+      { x: 20, opacity: 0, duration: 0.12, ease: 'power2.in' },
+      { x: 0, opacity: 1, duration: 0.12, ease: 'power2.out' },
+    ],
+  },
+
+  updateSlideRight: {
+    keyframes: [
+      { x: -20, opacity: 0, duration: 0.12, ease: 'power2.in' },
+      { x: 0, opacity: 1, duration: 0.12, ease: 'power2.out' },
+    ],
+  },
+
+  // Wipe refresh (motorsport-style)
+  updateWipe: {
+    keyframes: [
+      { clipPath: 'inset(0 100% 0 0)', duration: 0.1, ease: 'wipeDrive' },
+      { clipPath: 'inset(0 0 0 0)', duration: 0.1, ease: 'wipeDrive' },
+    ],
+  },
+
+  // Snap update (tower-style)
+  updateSnap: {
+    keyframes: [
+      { scale: 0.95, opacity: 0.5, duration: 0.08, ease: 'power2.in' },
+      { scale: 1, opacity: 1, duration: 0.08, ease: 'towerSnap' },
+    ],
+  },
+};
+
 // ─── Categorized Lists (for UI dropdowns) ────────────────────────────────────
 
 export const ENTER_ANIMATION_CATEGORIES = [
@@ -387,6 +438,16 @@ export const EMPHASIS_ANIMATIONS = [
   { value: 'retirement', label: 'Retirement Gray-Out' },
 ];
 
+export const UPDATE_ANIMATIONS = [
+  { label: 'None', value: 'none' },
+  { label: 'Crossfade', value: 'updateCrossfade' },
+  { label: 'Pulse', value: 'updatePulse' },
+  { label: 'Slide Left', value: 'updateSlideLeft' },
+  { label: 'Slide Right', value: 'updateSlideRight' },
+  { label: 'Wipe', value: 'updateWipe' },
+  { label: 'Snap', value: 'updateSnap' },
+];
+
 // ─── GSAP Easings ────────────────────────────────────────────────────────────
 
 export const GSAP_EASINGS = [
@@ -472,4 +533,13 @@ export function getExitPreset(name) {
  */
 export function getEmphasisPreset(name) {
   return EMPHASIS_PRESETS[name] || null;
+}
+
+/**
+ * Get the GSAP keyframes for an update animation preset.
+ * @param {string} name - Preset name (e.g. 'updateCrossfade', 'updatePulse')
+ * @returns {{ keyframes: object[] }|null}
+ */
+export function getUpdatePreset(name) {
+  return UPDATE_PRESETS[name] || null;
 }

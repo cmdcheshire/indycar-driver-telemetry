@@ -408,6 +408,22 @@ function sendOverlayCue(instanceId, templateData, config, elementAnimations, tim
   }
 }
 
+/**
+ * Send template transition message (same template, different data)
+ * @param {string} instanceId
+ * @param {object} configOverrides
+ * @param {array} updateElementAnims
+ */
+function sendOverlayTransition(instanceId, configOverrides, updateElementAnims) {
+  broadcastToOverlays(instanceId, {
+    type: 'templateTransition',
+    data: {
+      config: configOverrides,
+      updateAnimations: updateElementAnims,
+    },
+  });
+}
+
 function sendOverlayConfigUpdate(instanceId, config) {
   const message = JSON.stringify({
     type: 'configUpdate',
@@ -463,6 +479,7 @@ module.exports = {
   sendOverlayVisibility,
   sendOverlayResume,
   sendOverlayCue,
+  sendOverlayTransition,
   sendOverlayTemplateUpdate,
   sendOverlayConfigUpdate,
   setTcpStatus,

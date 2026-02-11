@@ -38,6 +38,9 @@ let activePlayoutTimeline = null;
 let activeHoldTimer = null;
 let activeExitHideTimer = null;
 
+// Reference data (drivers, images, etc.) — shared across both roots
+let referenceData = null;
+
 // Cued root (being prepared in background during CUE)
 let cuedRootId = 'overlay-root-b';
 let cuedRoot = null;
@@ -240,7 +243,10 @@ function processMessage(msg) {
       break;
 
     case 'visibility':
-      handleVisibility(msg);
+      // Handle async for image preloading on direct TAKE ON
+      handleVisibility(msg).catch(err => {
+        console.error('[overlay] Error in handleVisibility:', err);
+      });
       break;
 
     case 'templateUpdate':
@@ -249,6 +255,10 @@ function processMessage(msg) {
 
     case 'configUpdate':
       handleConfigUpdate(msg);
+      break;
+
+    case 'templateTransition':
+      handleTemplateTransition(msg);
       break;
 
     case 'resume':
@@ -276,9 +286,12 @@ function drainPendingMessages() {
 // ---------------------------------------------------------------------------
 
 async function handleInit(msg) {
-  const { template, config, referenceData, snapshot } = msg.data || {};
+  const { template, config, referenceData: refData, snapshot } = msg.data || {};
 
   console.log('[overlay] Received init – building into active root');
+
+  // Store reference data at module level for access in handleVisibility
+  referenceData = refData || {};
 
   // Load custom fonts from library before rendering
   await loadCustomFonts();
@@ -301,7 +314,7 @@ async function handleInit(msg) {
   });
   activeRoot.innerHTML = '';
 
-  activeDomMap = buildOverlay(activeRoot, activeTemplate, referenceData);
+  activeDomMap = buildOverlay(activeRoot, activeTemplate, refData);
 
   // Create shared animation engine + binder
   activeAnimationEngine = new GsapAnimationEngine(activeDomMap);
@@ -313,8 +326,8 @@ async function handleInit(msg) {
   }
 
   // Store reference data as a flat array for data binding
-  if (referenceData && referenceData.drivers) {
-    const driversArray = Object.entries(referenceData.drivers).map(([carNum, d]) => ({
+  if (refData && refData.drivers) {
+    const driversArray = Object.entries(refData.drivers).map(([carNum, d]) => ({
       carNumber: carNum, ...d,
     }));
     activeDataBinder.updateData('referenceData', driversArray);
@@ -342,7 +355,7 @@ async function handleInit(msg) {
   }
 
   // Pre-cache image assets for this template
-  precacheTemplate(activeTemplate, referenceData || {}, activeConfig || {});
+  precacheTemplate(activeTemplate, refData || {}, activeConfig || {});
 }
 
 // ---------------------------------------------------------------------------
@@ -358,9 +371,12 @@ function yieldToMainThread(delayMs = 10) {
 }
 
 async function handleCue(msg) {
-  const { template, config, referenceData, elementAnimations, timeline } = msg.data || {};
+  const { template, config, referenceData: refData, elementAnimations, timeline } = msg.data || {};
 
   console.log('[overlay] CUE received – pre-building in cued root with async precomputation (protects on-air graphics)');
+
+  // Update module-level reference data
+  if (refData) referenceData = refData;
 
   // Load custom fonts from library before rendering
   await loadCustomFonts();
@@ -386,7 +402,7 @@ async function handleCue(msg) {
   });
   cuedRoot.innerHTML = '';
 
-  cuedDomMap = buildOverlay(cuedRoot, cuedTemplate, referenceData);
+  cuedDomMap = buildOverlay(cuedRoot, cuedTemplate, refData);
 
   // Yield after DOM build (potentially heavy operation with many elements)
   await yieldToMainThread(15);
@@ -401,8 +417,8 @@ async function handleCue(msg) {
   }
 
   // Store reference data
-  if (referenceData && referenceData.drivers) {
-    const driversArray = Object.entries(referenceData.drivers).map(([carNum, d]) => ({
+  if (refData && refData.drivers) {
+    const driversArray = Object.entries(refData.drivers).map(([carNum, d]) => ({
       carNumber: carNum, ...d,
     }));
     cuedDataBinder.updateData('referenceData', driversArray);
@@ -420,7 +436,7 @@ async function handleCue(msg) {
   await yieldToMainThread(10);
 
   // Pre-cache assets
-  precacheTemplate(cuedTemplate, referenceData || {}, cuedConfig || {});
+  precacheTemplate(cuedTemplate, refData || {}, cuedConfig || {});
 
   // Yield before timeline precomputation (most intensive operation)
   await yieldToMainThread(20);
@@ -493,7 +509,7 @@ function handleDataUpdate(msg) {
 // Visibility — GSAP master timeline playout system
 // ---------------------------------------------------------------------------
 
-function handleVisibility(msg) {
+async function handleVisibility(msg) {
   const { visible, elementId, animation, elementAnimations, timeline } = msg.data || {};
 
   console.log('[overlay] Visibility:', { visible, elementId, animation, elementAnimCount: elementAnimations?.length, timeline });
@@ -544,7 +560,7 @@ function handleVisibility(msg) {
     }
 
     // No cued template - build timeline now (normal flow)
-    console.log('[overlay] TAKE ON: No cued template, building now');
+    console.log('[overlay] TAKE ON: No cued template, building now and preloading assets');
 
     // **FIX: Verify activeDomMap exists before attempting to build**
     if (!activeDomMap || activeDomMap.size === 0) {
@@ -556,6 +572,12 @@ function handleVisibility(msg) {
     if (activeHoldTimer) { clearTimeout(activeHoldTimer); activeHoldTimer = null; }
     if (activeExitHideTimer) { clearTimeout(activeExitHideTimer); activeExitHideTimer = null; }
     if (activePlayoutTimeline) { activePlayoutTimeline.kill(); activePlayoutTimeline = null; }
+
+    // **PRELOAD IMAGES BEFORE SHOWING GRAPHIC**
+    // This prevents image pop when TAKE ON is used without CUE
+    const { precacheTemplateAsync } = await import('./asset-cache.js');
+    await precacheTemplateAsync(activeTemplate, referenceData, activeConfig || {});
+    console.log('[overlay] Assets preloaded, showing graphic');
 
     activeRoot.style.display = 'block';  // Explicit value to override CSS class
 
@@ -974,9 +996,12 @@ function extractExitAnimations(template) {
 // ---------------------------------------------------------------------------
 
 function handleTemplateUpdate(msg) {
-  const { template, referenceData } = msg.data || {};
+  const { template, referenceData: refData } = msg.data || {};
 
   console.log('[overlay] Template update received – rebuilding ACTIVE root');
+
+  // Update module-level reference data
+  if (refData) referenceData = refData;
 
   // Reload custom fonts in background
   loadCustomFonts();
@@ -1006,7 +1031,7 @@ function handleTemplateUpdate(msg) {
   });
   activeRoot.innerHTML = '';
 
-  activeDomMap = buildOverlay(activeRoot, template, referenceData || {});
+  activeDomMap = buildOverlay(activeRoot, template, refData || {});
 
   activeAnimationEngine = new GsapAnimationEngine(activeDomMap);
   activeDataBinder      = new DataBinder(template.elements, activeDomMap, activeAnimationEngine);
@@ -1016,9 +1041,9 @@ function handleTemplateUpdate(msg) {
   }
 
   // Store reference data as a flat array for data binding
-  const refData = referenceData || {};
-  if (refData.drivers) {
-    const driversArray = Object.entries(refData.drivers).map(([carNum, d]) => ({
+  const refDataLocal = refData || {};
+  if (refDataLocal.drivers) {
+    const driversArray = Object.entries(refDataLocal.drivers).map(([carNum, d]) => ({
       carNumber: carNum, ...d,
     }));
     activeDataBinder.updateData('referenceData', driversArray);
@@ -1031,7 +1056,7 @@ function handleTemplateUpdate(msg) {
   activeDataBinder.resolveUniversalBindings();
 
   // Pre-cache image assets for the new template
-  precacheTemplate(activeTemplate, referenceData || {}, activeConfig || {});
+  precacheTemplate(activeTemplate, refData || {}, activeConfig || {});
 
   // Root stays hidden — visibility message (TAKE ON) will show it
 }
@@ -1073,6 +1098,44 @@ function handleConfigUpdate(msg) {
   if (cuedDomMap && config.elementOverrides) {
     applyElementOverrides(config.elementOverrides, cuedDomMap);
     if (cuedDataBinder) cuedDataBinder.resolveBindings();
+  }
+}
+
+/**
+ * Handle template transition (same template, different data).
+ * Applies config updates and plays update animations.
+ */
+function handleTemplateTransition(msg) {
+  const { config, updateAnimations } = msg.data || {};
+
+  console.log('[overlay] Template transition:', updateAnimations?.length, 'update animations');
+
+  // Apply config updates (target cars, element overrides, etc.)
+  if (config) {
+    activeConfig = { ...activeConfig, ...config };
+
+    if (activeDataBinder && config.targetCars) {
+      activeDataBinder.setTargetCars(config.targetCars);
+    }
+
+    if (activeDomMap && config.elementOverrides) {
+      applyElementOverrides(config.elementOverrides, activeDomMap);
+    }
+
+    // Re-resolve data bindings with new config
+    if (activeDataBinder) {
+      activeDataBinder.resolveBindings();
+      activeDataBinder.resolveGaugeBindings();
+      activeDataBinder.resolveScene3dBindings();
+      activeDataBinder.resolveUniversalBindings();
+    }
+  }
+
+  // Play update animations if configured
+  if (updateAnimations && updateAnimations.length > 0 && activeAnimationEngine) {
+    for (const animConfig of updateAnimations) {
+      activeAnimationEngine.playUpdate(animConfig.elementId, animConfig);
+    }
   }
 }
 

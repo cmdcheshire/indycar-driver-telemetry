@@ -414,6 +414,51 @@ router.post('/rundown/:itemId/take', requireRole('operator', 'admin'), async (re
         'SELECT * FROM rundown_items WHERE instance_id = ? AND is_on_air = 1 AND id != ?'
       ).all(instanceId, itemId);
 
+      // Check if same template as currently on-air (for smooth transitions)
+      if (onAirItems.length > 0) {
+        const currentOnAir = onAirItems[0];
+        const sameTemplate = currentOnAir.template_id === rundownItem.template_id;
+
+        if (sameTemplate) {
+          // Same template, different data → send templateTransition instead of full cycle
+          console.log('[Rundown] Same template detected, using transition instead of full cycle');
+
+          // Extract UPDATE animations from element configs
+          const updateElementAnims = [];
+          if (templateData) {
+            try {
+              const tData = typeof templateData.template_data === 'string'
+                ? JSON.parse(templateData.template_data)
+                : templateData.template_data;
+
+              if (tData && Array.isArray(tData.elements)) {
+                for (const el of tData.elements) {
+                  if (el.animation && el.animation.update && el.animation.update.type && el.animation.update.type !== 'none') {
+                    updateElementAnims.push({
+                      elementId: el.id,
+                      type: el.animation.update.type,
+                      duration: el.animation.update.duration || 300,
+                      delay: 0,
+                    });
+                  }
+                }
+              }
+            } catch (err) {
+              console.warn('[Rundown] Error extracting update animations:', err);
+            }
+          }
+
+          // Send transition message
+          wsService.sendOverlayTransition(instanceId, configOverrides, updateElementAnims);
+
+          // Update on-air status
+          overlayService.setRundownItemOnAir(currentOnAir.id, false);
+          overlayService.setRundownItemOnAir(itemId, true);
+
+          return res.json({ success: true, message: 'Template transition complete' });
+        }
+      }
+
       let exitDurationMs = 0;
       if (onAirItems.length > 0) {
         // Extract exit animations from the CURRENTLY ON-AIR template (not the new one)

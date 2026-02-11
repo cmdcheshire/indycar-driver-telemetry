@@ -1,6 +1,6 @@
 {
   "name": "indycar-telemetry-overlay",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Real-time IndyCar telemetry overlay application with visual builder and browser-based overlays",
   "main": "server.js",
   "scripts": {

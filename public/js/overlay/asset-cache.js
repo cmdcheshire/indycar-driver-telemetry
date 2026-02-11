@@ -73,6 +73,89 @@ export function precacheTemplate(template, referenceData, config) {
   }
 }
 
+/**
+ * Pre-cache and wait for all images to load before resolving.
+ * Use this for critical paths like TAKE ON without CUE.
+ *
+ * @param {Object} template      - The current template definition
+ * @param {Object} referenceData - Reference data (drivers, tireImages, etc.)
+ * @param {Object} config        - Current config (may contain elementOverrides)
+ * @returns {Promise<void>} Resolves when all images are loaded or failed
+ */
+export function precacheTemplateAsync(template, referenceData, config) {
+  return new Promise((resolve) => {
+    // Cancel any in-flight fetches from a previous call
+    for (const [, img] of _activeFetches) {
+      img.onload = null;
+      img.onerror = null;
+      img.src = '';
+    }
+    _activeFetches.clear();
+
+    // Reset counters (but keep _cachedUrls — browser cache persists)
+    _status = _freshStatus();
+
+    const urls = _collectImageUrls(template, referenceData, config);
+
+    if (urls.size === 0) {
+      _status.ready = true;
+      _reportStatus();
+      resolve();
+      return;
+    }
+
+    let pending = 0;
+    const checkComplete = () => {
+      pending--;
+      if (pending === 0) {
+        _status.ready = true;
+        _reportStatus();
+        resolve();
+      }
+    };
+
+    for (const url of urls) {
+      if (_cachedUrls.has(url)) {
+        _status.total++;
+        _status.loaded++;
+      } else {
+        pending++;
+        _status.total++;
+        _status.pending++;
+
+        const img = new Image();
+        _activeFetches.set(url, img);
+
+        img.onload = () => {
+          _cachedUrls.add(url);
+          _activeFetches.delete(url);
+          _status.loaded++;
+          _status.pending--;
+          _reportStatus();
+          checkComplete();
+        };
+
+        img.onerror = () => {
+          _activeFetches.delete(url);
+          _status.failed++;
+          _status.pending--;
+          _reportStatus();
+          checkComplete();
+        };
+
+        img.src = url;
+      }
+    }
+
+    // If everything was already cached, resolve immediately
+    if (pending === 0) {
+      _status.ready = true;
+      _reportStatus();
+      resolve();
+    }
+  });
+}
+
 // ── URL Collection ──
 
 /**

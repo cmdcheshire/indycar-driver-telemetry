@@ -15,6 +15,7 @@ import {
   ENTER_ANIMATION_CATEGORIES,
   EXIT_ANIMATION_CATEGORIES,
   EMPHASIS_ANIMATIONS,
+  UPDATE_ANIMATIONS,
   GSAP_EASINGS,
 } from '/js/shared/animation-presets.js';
 
@@ -1732,23 +1733,27 @@ function _addAnimationSection(element) {
       _emitAnimation({ exit: { easing: v } });
     }),
     exitAdvBtn,
+
+    _separator(),
+
+    // ── Update Animation ──
+    _selectInput('Update', update.type, UPDATE_ANIMATIONS, (v) => {
+      _emitAnimation({ update: { type: v } });
+    }),
   ];
 
-  // ── Update transition (data elements only) ──
+  // Only show update duration if a type is selected
+  if (update.type && update.type !== 'none') {
+    children.push(
+      _rangeInput('Duration', update.duration, 100, 2000, 50, 'ms', (v) => {
+        _emitAnimation({ update: { duration: v } });
+      })
+    );
+  }
+
+  // ── Emphasis (data elements only) ──
   if (element.type === 'data') {
     children.push(
-      _separator(),
-      _selectInput('Update', update.type, [
-        { value: 'none', label: 'None' },
-        { value: 'crossfade', label: 'Crossfade' },
-      ], (v) => {
-        _emitAnimation({ update: { type: v } });
-      }),
-      _rangeInput('Duration', update.duration, 50, 1000, 25, 'ms', (v) => {
-        _emitAnimation({ update: { duration: v } });
-      }),
-
-      // ── Emphasis (data elements only) ──
       _separator(),
       _selectInput('Emphasis', emphasis.type, EMPHASIS_ANIMATIONS, (v) => {
         _emitAnimation({ emphasis: { type: v } });
@@ -1763,14 +1768,29 @@ function _addAnimationSection(element) {
         }),
         _selectInput('Trigger', emphasis.trigger || 'onChange', [
           { value: 'onChange', label: 'On Value Change' },
-          { value: 'always', label: 'Always (loop)' },
+          { value: 'always', label: 'Always (loop during HOLD)' },
         ], (v) => {
-          _emitAnimation({ emphasis: { trigger: v } });
+          const updates = { emphasis: { trigger: v } };
+          // Auto-set repeat to infinite for "always"
+          if (v === 'always') {
+            _emitAnimation({ emphasis: { trigger: v, repeat: -1 } });
+          } else {
+            _emitAnimation({ emphasis: { trigger: v } });
+          }
         }),
-        _numberInput('Repeat', emphasis.repeat || 0, 0, 10, 1, (v) => {
+        _numberInput('Repeat', emphasis.repeat || 0, -1, 10, 1, (v) => {
           _emitAnimation({ emphasis: { repeat: v } });
         }),
       );
+
+      // Add performance warning for "always" trigger
+      if (emphasis.trigger === 'always') {
+        const warning = document.createElement('div');
+        warning.className = 'text-xs';
+        warning.style.cssText = 'margin-top: 4px; padding: 6px 8px; background: rgba(255, 193, 7, 0.1); border-left: 2px solid #FFC107; color: #FFC107; font-size: 11px; line-height: 1.4;';
+        warning.textContent = '⚠️ Always trigger keeps animation running continuously during HOLD. Use sparingly (max 3-5 elements).';
+        children.push(warning);
+      }
     }
   }
 

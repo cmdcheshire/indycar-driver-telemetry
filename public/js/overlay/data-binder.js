@@ -350,22 +350,45 @@ export class DataBinder {
    */
   resolveValue(binding) {
     const { source, field, car } = binding;
-    if (!source || !field) return undefined;
+    console.log('[resolveValue] binding:', { source, field, car });
+
+    if (!source || !field) {
+      console.log('[resolveValue] Missing source or field');
+      return undefined;
+    }
 
     const data = this._dataStore[source];
-    if (!data) return undefined;
+    if (!data) {
+      console.log('[resolveValue] No data for source:', source);
+      return undefined;
+    }
+
+    console.log('[resolveValue] Data type:', Array.isArray(data) ? 'array' : typeof data, 'length:', Array.isArray(data) ? data.length : 'n/a');
 
     // If the data is an array of car entries (telemetry, leaderboard, carStatus, etc.)
     if (Array.isArray(data)) {
       const carNumber = this.resolveCarNumber(car);
-      if (!carNumber) return undefined;
+      console.log('[resolveValue] Resolved car number:', carNumber, 'from selector:', car);
+
+      if (!carNumber) {
+        console.log('[resolveValue] No car number resolved');
+        return undefined;
+      }
 
       // Find the entry matching the car number
       const entry = data.find(item =>
         String(item.carNumber || item.Car || item.car) === String(carNumber)
       );
 
-      return entry ? entry[field] : undefined;
+      console.log('[resolveValue] Found entry:', !!entry);
+      if (entry) {
+        console.log('[resolveValue] Entry keys:', Object.keys(entry));
+        console.log('[resolveValue] Field value for', field, ':', entry[field]);
+        return entry[field];
+      }
+
+      console.log('[resolveValue] No entry found for car:', carNumber);
+      return undefined;
     }
 
     // If the data is a plain object (flag, race info, etc.)
@@ -398,6 +421,9 @@ export class DataBinder {
    * @returns {string|undefined}
    */
   resolveCarNumber(selector) {
+    console.log('[resolveCarNumber] selector:', selector);
+    console.log('[resolveCarNumber] targetCars:', this._targetCars);
+
     if (!selector) return undefined;
 
     const selectorStr = String(selector);
@@ -406,23 +432,29 @@ export class DataBinder {
     const targetMatch = selectorStr.match(/^target(\d+)$/);
     if (targetMatch) {
       const idx = parseInt(targetMatch[1], 10) - 1;
-      return this._targetCars[idx] || undefined;
+      const result = this._targetCars[idx] || undefined;
+      console.log('[resolveCarNumber] target match, idx:', idx, 'result:', result);
+      return result;
     }
 
     // byRank:N - look up the car occupying rank N
     const rankMatch = selectorStr.match(/^byRank:(\d+)$/);
     if (rankMatch) {
       const targetRank = rankMatch[1];
-      return this._findCarByRank(targetRank);
+      const result = this._findCarByRank(targetRank);
+      console.log('[resolveCarNumber] rank match, targetRank:', targetRank, 'result:', result);
+      return result;
     }
 
     // byCar:X - literal car number
     const carMatch = selectorStr.match(/^byCar:(.+)$/);
     if (carMatch) {
+      console.log('[resolveCarNumber] byCar match, result:', carMatch[1]);
       return carMatch[1];
     }
 
     // Plain number or string
+    console.log('[resolveCarNumber] plain selector, result:', selectorStr);
     return selectorStr;
   }
 
