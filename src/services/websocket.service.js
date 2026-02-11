@@ -272,15 +272,31 @@ function broadcastToDashboard(type, data) {
 }
 
 function broadcastToOverlays(type, data) {
-  if (overlayClients.size === 0) return;
+  if (overlayClients.size === 0) {
+    // Log if no overlay clients are connected (helps debug "no data" issues)
+    if (type !== 'metrics') { // Don't spam for metrics
+      console.log(`[ws] No overlay clients connected for ${type} broadcast`);
+    }
+    return;
+  }
   const message = JSON.stringify({ type, timestamp: Date.now(), data });
+  let sentCount = 0;
   for (const [ws, client] of overlayClients) {
     if (ws.readyState !== 1) continue;
     if (client.delayBuffer.delayMs === 0) {
       ws.send(message);
+      sentCount++;
     } else {
       client.delayBuffer.push(message);
+      sentCount++;
     }
+  }
+
+  // Log telemetry broadcasts occasionally for debugging
+  if (type === 'telemetry' && Math.random() < 0.01) { // 1% sample rate
+    console.log(`[ws] Broadcast ${type} to ${sentCount} overlay clients`);
+  } else if (type !== 'telemetry' && type !== 'metrics') {
+    console.log(`[ws] Broadcast ${type} to ${sentCount} overlay clients`);
   }
 }
 

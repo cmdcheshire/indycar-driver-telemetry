@@ -582,7 +582,7 @@ class SimulatorService {
   /**
    * Process the current chunk and schedule the next one.
    */
-  _playNext() {
+  async _playNext() {
     if (this.state !== 'playing') return;
 
     if (this.position >= this.chunks.length) {
@@ -599,7 +599,17 @@ class SimulatorService {
     // Send to message processor if it has a mapped type (not metadata)
     if (chunk.msgType) {
       metricsService.recordMessage(chunk.msgType);
-      processMessage({ type: chunk.msgType, raw: chunk.xml });
+
+      // Log every 100th message or non-telemetry messages for debugging
+      if (this.position % 100 === 0 || chunk.msgType !== 'telemetry') {
+        console.log(`[simulator] Processing ${chunk.msgType} at position ${this.position}/${this.chunks.length}`);
+      }
+
+      try {
+        await processMessage({ type: chunk.msgType, raw: chunk.xml });
+      } catch (err) {
+        console.error(`[simulator] Error processing ${chunk.msgType}:`, err.message);
+      }
     }
 
     this.position++;
