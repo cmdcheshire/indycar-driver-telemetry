@@ -218,7 +218,7 @@ function populateTargetCarDropdowns() {
     for (const driver of driverList) {
       const opt = document.createElement('option');
       opt.value = driver.car_number;
-      opt.textContent = `#${driver.car_number} - ${driver.driver_name || driver.name || 'Unknown'}`;
+      opt.textContent = `#${driver.car_number} - ${driver.display_name || 'Unknown'}`;
       el.appendChild(opt);
     }
 
@@ -259,7 +259,7 @@ function populateDnfList() {
 
     const driverName = document.createElement('span');
     driverName.className = 'dnf-driver-name';
-    driverName.textContent = driver.driver_name || driver.name || '';
+    driverName.textContent = driver.display_name || '';
 
     item.appendChild(checkbox);
     item.appendChild(carNum);
