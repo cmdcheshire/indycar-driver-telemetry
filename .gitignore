@@ -1,0 +1,9 @@
+node_modules/
+data/
+*.pem
+*-account.json
+indycar-live-data-*.json
+.env
+.DS_Store
+telemetry.xml
+just_race_telemetry/

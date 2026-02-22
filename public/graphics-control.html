@@ -1,0 +1,1336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live Rundowns - Nexus Kinetica</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <style>
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    /* ================================================================ *
+     *  Layout -- CSS Grid
+     * ================================================================ */
+    .gc-layout {
+      display: grid;
+      grid-template-rows: 56px 1fr 280px;
+      grid-template-columns: 300px 1fr;
+      grid-template-areas:
+        "topbar  topbar"
+        "sidebar main"
+        "sidebar bottom";
+      height: 100vh;
+      width: 100vw;
+    }
+
+    /* ================================================================ *
+     *  Top Bar
+     * ================================================================ */
+    .top-bar {
+      grid-area: topbar;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      height: 56px;
+      min-height: 56px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      z-index: 100;
+    }
+
+    .top-bar-left {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .app-title {
+      font-size: 1.125rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+
+    .app-title span {
+      color: var(--accent);
+    }
+
+    .top-bar-nav {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .top-bar-nav a {
+      font-size: 0.825rem;
+      color: var(--text-muted);
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      transition: all var(--transition);
+    }
+
+    .top-bar-nav a:hover {
+      color: var(--text);
+      background: var(--surface-alt);
+    }
+
+    .top-bar-nav a.active {
+      color: var(--accent);
+      background: var(--accent-light);
+    }
+
+    .top-bar-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .user-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 12px;
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .user-badge .user-avatar {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      font-weight: 700;
+    }
+
+    .user-badge .user-name {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .user-badge .user-role {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    #logoutBtn {
+      padding: 6px 14px;
+      font-size: 0.8rem;
+    }
+
+    /* ================================================================ *
+     *  Left Sidebar -- Output Browser
+     * ================================================================ */
+    .gc-sidebar {
+      grid-area: sidebar;
+      display: flex;
+      flex-direction: column;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    .gc-sidebar-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .gc-sidebar-header h2 {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+    }
+
+    .gc-sidebar-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .gc-sidebar-actions .btn {
+      padding: 4px 10px;
+      font-size: 0.75rem;
+    }
+
+    .gc-output-tree {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 8px;
+    }
+
+    /* Folder styles */
+    .gc-folder {
+      margin-bottom: 2px;
+    }
+
+    .gc-folder-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px 6px 12px;
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      font-weight: 600;
+      transition: background var(--transition);
+      user-select: none;
+    }
+
+    .gc-folder-header:hover {
+      background: var(--surface-alt);
+      color: var(--text);
+    }
+
+    .gc-folder-chevron {
+      width: 16px;
+      height: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform var(--transition);
+      flex-shrink: 0;
+    }
+
+    .gc-folder-chevron.open {
+      transform: rotate(90deg);
+    }
+
+    .gc-folder-chevron svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    .gc-folder-icon {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+      opacity: 0.6;
+    }
+
+    .gc-folder-name {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Output item styles -- list rows */
+    .gc-output-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      cursor: pointer;
+      color: var(--text);
+      font-size: 0.8rem;
+      border-radius: var(--radius-sm);
+      transition: all var(--transition);
+      user-select: none;
+    }
+
+    .gc-folder-children {
+      padding-left: 24px;
+      display: none;
+    }
+
+    .gc-folder-children.open {
+      display: block;
+    }
+
+    .gc-output-item:hover {
+      border-color: var(--accent);
+      background: var(--surface-alt);
+    }
+
+    .gc-output-item.selected {
+      background: var(--accent-light);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .gc-output-icon {
+      width: 12px;
+      height: 12px;
+      flex-shrink: 0;
+      opacity: 0.5;
+    }
+
+    .gc-output-item.selected .gc-output-icon {
+      opacity: 1;
+    }
+
+    .gc-output-name {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 160px;
+    }
+
+    .gc-output-actions {
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .gc-btn-dots {
+      padding: 0 2px;
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      font-size: 0.9rem;
+      line-height: 1;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+    }
+
+    .gc-btn-dots:hover {
+      color: var(--text);
+      background: var(--surface-alt);
+    }
+
+    .gc-on-air-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      display: none;
+    }
+
+    .gc-on-air-dot.active {
+      display: block;
+      background: var(--danger);
+      box-shadow: 0 0 6px var(--danger);
+      animation: pulse 2s infinite;
+    }
+
+    /* Cache status dot */
+    .gc-cache-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      display: none;
+      margin-left: 2px;
+    }
+    .gc-cache-dot.loading { display: inline-block; background: var(--accent); animation: cache-pulse 1s infinite; }
+    .gc-cache-dot.ready   { display: inline-block; background: var(--success); box-shadow: 0 0 4px var(--success); }
+    .gc-cache-dot.warn    { display: inline-block; background: var(--warning); }
+    @keyframes cache-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+    /* ================================================================ *
+     *  Context Menu
+     * ================================================================ */
+    .gc-context-menu {
+      position: fixed;
+      z-index: 9000;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 4px 0;
+      min-width: 160px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      display: none;
+    }
+
+    .gc-context-menu.show {
+      display: block;
+    }
+
+    .gc-context-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 14px;
+      font-size: 0.8rem;
+      color: var(--text);
+      cursor: pointer;
+      transition: background var(--transition);
+    }
+
+    .gc-context-item:hover {
+      background: var(--surface-alt);
+    }
+
+    .gc-context-item.danger {
+      color: var(--danger);
+    }
+
+    .gc-context-separator {
+      height: 1px;
+      background: var(--border);
+      margin: 4px 0;
+    }
+
+    /* ================================================================ *
+     *  Main Area -- Rundown Panel
+     * ================================================================ */
+    .gc-main {
+      grid-area: main;
+      display: flex;
+      flex-direction: column;
+      background: var(--deep-space);
+      overflow: hidden;
+    }
+
+    .gc-rundown-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 20px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .gc-rundown-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .gc-rundown-title h2 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .gc-rundown-title .badge {
+      font-size: 0.65rem;
+    }
+
+    .gc-rundown-empty {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      font-size: 0.875rem;
+    }
+
+    .gc-rundown-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 0;
+    }
+
+    /* Rundown item row */
+    .gc-rundown-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 20px;
+      border-bottom: 1px solid var(--border);
+      transition: background var(--transition);
+    }
+
+    .gc-rundown-item:hover {
+      background: var(--surface-alt);
+    }
+
+    .gc-rundown-item.on-air {
+      background: rgba(239, 68, 68, 0.06);
+      border-left: 3px solid var(--danger);
+      padding-left: 17px;
+    }
+
+    .gc-rundown-item.cued {
+      background: rgba(245, 158, 11, 0.06);
+      border-left: 3px solid var(--warning);
+      padding-left: 17px;
+    }
+
+    .gc-cued-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 1px 6px;
+      border-radius: 999px;
+      font-size: 0.6rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--warning);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      white-space: nowrap;
+      animation: cued-pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes cued-pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+
+    .gc-drag-handle {
+      cursor: grab;
+      color: var(--text-dim);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      padding: 2px;
+    }
+
+    .gc-drag-handle:active {
+      cursor: grabbing;
+    }
+
+    .gc-drag-handle svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .gc-rundown-info {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .gc-rundown-template-name {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .gc-type-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 1px 8px;
+      border-radius: 999px;
+      font-size: 0.65rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      background: var(--surface-alt);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    .gc-rundown-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .gc-btn-take-on {
+      padding: 4px 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      background: transparent;
+      border: 1px solid var(--success);
+      color: var(--success);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+
+    .gc-btn-take-on:hover {
+      background: rgba(16, 185, 129, 0.15);
+    }
+
+    .gc-btn-take-on.active {
+      background: var(--success);
+      color: white;
+    }
+
+    .gc-btn-take-off {
+      padding: 4px 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      background: transparent;
+      border: 1px solid var(--danger);
+      color: var(--danger);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+
+    .gc-btn-take-off:hover {
+      background: rgba(239, 68, 68, 0.15);
+    }
+
+    .gc-btn-take-off.active {
+      background: var(--danger);
+      color: white;
+    }
+
+    .gc-btn-resume {
+      padding: 4px 10px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      border: 1px solid var(--accent);
+      background: transparent;
+      color: var(--accent);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+
+    .gc-btn-resume:hover {
+      background: rgba(59, 130, 246, 0.15);
+    }
+
+    .gc-btn-resume.active {
+      background: var(--accent);
+      color: white;
+      animation: resume-pulse 1.5s ease-in-out infinite;
+    }
+
+    .gc-btn-resume.disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    @keyframes resume-pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+      50% { box-shadow: 0 0 0 6px rgba(59, 130, 246, 0); }
+    }
+
+    .gc-btn-cue {
+      padding: 4px 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      background: transparent;
+      border: 1px solid var(--warning);
+      color: var(--warning);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+
+    .gc-btn-cue:hover {
+      background: rgba(245, 158, 11, 0.15);
+    }
+
+    .gc-btn-cue.active {
+      background: var(--warning);
+      color: white;
+    }
+
+    /* Live indicator badge (matches cued badge style) */
+    .gc-live-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 1px 6px;
+      border-radius: 999px;
+      font-size: 0.6rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--danger);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      white-space: nowrap;
+      animation: live-pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes live-pulse {
+      0%, 100% { opacity: 1; box-shadow: 0 0 6px rgba(239, 68, 68, 0.4); }
+      50% { opacity: 0.7; box-shadow: 0 0 12px rgba(239, 68, 68, 0.6); }
+    }
+
+    .gc-rundown-on-air {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      display: none;
+    }
+
+    .gc-btn-remove {
+      padding: 4px 6px;
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      border-radius: var(--radius-sm);
+      transition: all var(--transition);
+      display: flex;
+      align-items: center;
+    }
+
+    .gc-btn-remove:hover {
+      color: var(--danger);
+      background: rgba(239, 68, 68, 0.1);
+    }
+
+    .gc-btn-remove svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .gc-rundown-footer {
+      padding: 10px 20px;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    /* ================================================================ *
+     *  Bottom Area
+     * ================================================================ */
+    .gc-bottom {
+      grid-area: bottom;
+      display: flex;
+      border-top: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    /* ── Template Library (left 60%) ── */
+    .gc-template-library {
+      flex: 0 0 60%;
+      display: flex;
+      flex-direction: column;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    .gc-template-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .gc-template-header h3 {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+    }
+
+    /* Template browser layout */
+    .gc-template-browser {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    .gc-template-tree {
+      flex: 0 0 200px;
+      overflow-y: auto;
+      border-right: 1px solid var(--border);
+      padding: 8px;
+    }
+
+    .gc-template-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 16px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 8px;
+      align-content: start;
+    }
+
+    /* Template folder tree */
+    .gc-tmpl-folder-item { margin-bottom: 1px; }
+
+    .gc-tmpl-folder-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 5px 8px;
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      font-weight: 500;
+      border-radius: var(--radius-sm);
+      transition: all var(--transition);
+      user-select: none;
+    }
+
+    .gc-tmpl-folder-row:hover { background: var(--surface-alt); color: var(--text); }
+    .gc-tmpl-folder-row.selected { background: var(--accent-light); color: var(--accent); }
+    .gc-tmpl-folder-row.drag-over { background: var(--accent-light); outline: 1px dashed var(--accent); }
+
+    .gc-tmpl-folder-chevron {
+      width: 14px;
+      height: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform var(--transition);
+      flex-shrink: 0;
+    }
+    .gc-tmpl-folder-chevron.open { transform: rotate(90deg); }
+    .gc-tmpl-folder-chevron svg { width: 10px; height: 10px; }
+    .gc-tmpl-folder-chevron.empty { visibility: hidden; }
+
+    .gc-tmpl-folder-name {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .gc-tmpl-folder-children { padding-left: 14px; display: none; }
+    .gc-tmpl-folder-children.open { display: block; }
+
+    .gc-template-card {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 12px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+
+    .gc-template-card:hover {
+      border-color: var(--accent);
+      background: var(--surface-alt);
+    }
+
+    .gc-template-card-name {
+      font-size: 0.825rem;
+      font-weight: 500;
+      color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .gc-template-card-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* ── Preview Panel (right 40%) ── */
+    .gc-preview-panel {
+      flex: 0 0 40%;
+      display: flex;
+      flex-direction: column;
+      background: var(--deep-space);
+      overflow: hidden;
+    }
+
+    .gc-preview-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .gc-preview-header h3 {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+    }
+
+    .gc-preview-container {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .gc-preview-wrapper {
+      position: relative;
+      width: 100%;
+      max-height: 100%;
+      aspect-ratio: 16 / 9;
+      background: #000;
+      border-radius: var(--radius);
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .gc-preview-wrapper iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 1920px;
+      height: 1080px;
+      border: none;
+      transform-origin: top left;
+    }
+
+    .gc-preview-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: var(--text-dim);
+      font-size: 0.8rem;
+      height: 100%;
+    }
+
+    .gc-preview-empty svg {
+      width: 32px;
+      height: 32px;
+      opacity: 0.3;
+    }
+
+    /* ================================================================ *
+     *  Empty states
+     * ================================================================ */
+    .gc-empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 32px 16px;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      text-align: center;
+    }
+
+    .gc-empty-state svg {
+      width: 28px;
+      height: 28px;
+      opacity: 0.3;
+    }
+
+    /* ================================================================ *
+     *  Drag and drop
+     * ================================================================ */
+    .gc-rundown-item.dragging {
+      opacity: 0.4;
+    }
+
+    .gc-rundown-item.drag-over {
+      border-top: 2px solid var(--accent);
+    }
+
+    /* ================================================================ *
+     *  Output URL Bar
+     * ================================================================ */
+    .gc-url-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 20px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .gc-url-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-dim);
+      white-space: nowrap;
+    }
+
+    .gc-url-input {
+      flex: 1;
+      padding: 4px 8px;
+      font-size: 0.75rem;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      color: var(--text-muted);
+      background: var(--deep-space);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      outline: none;
+      min-width: 0;
+    }
+
+    .gc-url-copy-btn {
+      padding: 4px 10px;
+      font-size: 0.7rem;
+      font-weight: 500;
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all var(--transition);
+      white-space: nowrap;
+    }
+
+    .gc-url-copy-btn:hover {
+      background: var(--accent-light);
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+
+    /* ================================================================ *
+     *  Rundown Item Config Panel
+     * ================================================================ */
+    .gc-rundown-item-wrapper {
+      border-bottom: 1px solid var(--border);
+    }
+
+    .gc-rundown-item-wrapper .gc-rundown-item {
+      border-bottom: none;
+    }
+
+    .gc-item-config {
+      display: none;
+      padding: 8px 20px 12px 44px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    .gc-item-config.open {
+      display: block;
+    }
+
+    .gc-config-row {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .gc-config-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .gc-config-label {
+      font-size: 0.68rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+      line-height: 1.2;
+    }
+
+    .gc-config-input {
+      width: 100%;
+      padding: 5px 8px;
+      font-size: 0.75rem;
+      background: var(--deep-space);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      outline: none;
+      box-sizing: border-box;
+      transition: border-color 0.15s;
+    }
+
+    .gc-config-input[type="color"] {
+      width: 100%;
+      height: 32px;
+      padding: 2px;
+      cursor: pointer;
+    }
+
+    .gc-config-input:focus {
+      border-color: var(--accent);
+    }
+
+    /* Car selector special handling - needs to wrap cleanly */
+    .gc-car-selector-row {
+      grid-column: 1 / -1; /* Full width for car selector */
+    }
+
+    .gc-config-divider {
+      font-size: 0.68rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-dim);
+      padding: 8px 0 4px;
+      margin-top: 4px;
+      border-top: 1px solid var(--border);
+    }
+
+    .gc-exposed-input {
+      flex: 1;
+      width: auto;
+    }
+
+    .gc-exposed-group {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px;
+      margin: 6px 0;
+      background: rgba(22, 25, 40, 0.4);
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 8px;
+      align-items: start;
+    }
+
+    .gc-exposed-group-label {
+      display: block;
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 2px;
+      letter-spacing: 0.03em;
+      grid-column: 1 / -1; /* Span full width */
+    }
+
+    .gc-exposed-group select {
+      background: var(--surface-alt);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 4px;
+      font-size: 0.75rem;
+    }
+
+    .gc-exposed-group textarea {
+      background: var(--surface-alt);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 4px 6px;
+      font-size: 0.75rem;
+      font-family: inherit;
+    }
+
+    .gc-btn-config {
+      padding: 4px 6px;
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      border-radius: var(--radius-sm);
+      transition: all var(--transition);
+      display: flex;
+      align-items: center;
+    }
+
+    .gc-btn-config:hover {
+      color: var(--accent);
+      background: var(--accent-light);
+    }
+
+    .gc-btn-config.active {
+      color: var(--accent);
+    }
+
+    .gc-btn-config svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    /* ================================================================ *
+     *  Inline Rename
+     * ================================================================ */
+    .gc-rundown-template-name[contenteditable="true"] {
+      background: var(--deep-space);
+      border: 1px solid var(--accent);
+      border-radius: var(--radius-sm);
+      padding: 1px 6px;
+      outline: none;
+      min-width: 60px;
+    }
+
+    /* ================================================================ *
+     *  Auto-Cue Toggle
+     * ================================================================ */
+    .gc-auto-cue-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 10px;
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all var(--transition);
+      user-select: none;
+    }
+
+    .gc-auto-cue-toggle:hover {
+      background: var(--accent-light);
+      border-color: var(--accent);
+    }
+
+    .gc-auto-cue-toggle.active {
+      background: var(--accent-light);
+      border-color: var(--accent);
+    }
+
+    .gc-auto-cue-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+    }
+
+    .gc-auto-cue-toggle.active .gc-auto-cue-label {
+      color: var(--accent);
+    }
+
+    .gc-toggle-switch {
+      position: relative;
+      width: 32px;
+      height: 18px;
+      background: var(--border);
+      border-radius: 999px;
+      transition: background var(--transition);
+    }
+
+    .gc-toggle-switch::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 14px;
+      height: 14px;
+      background: white;
+      border-radius: 50%;
+      transition: transform var(--transition);
+    }
+
+    .gc-auto-cue-toggle.active .gc-toggle-switch {
+      background: var(--accent);
+    }
+
+    .gc-auto-cue-toggle.active .gc-toggle-switch::after {
+      transform: translateX(14px);
+    }
+  </style>
+</head>
+<body>
+  <div class="gc-layout">
+
+    <!-- ── Top Bar ── -->
+    <header class="top-bar">
+      <div class="top-bar-left">
+        <img src="/assets/medialive-nexus-kinetica-logo.png" alt="Nexus Kinetica" style="height: 32px; margin-right: 20px;">
+        <nav class="top-bar-nav">
+          <a href="/dashboard">Dashboard</a>
+          <a href="/templates">Templates</a>
+          <a href="/graphics-control" class="active">Live Rundowns</a>
+          <a href="/drivers">Drivers</a>
+          <a href="/simulator">Simulator</a>
+          <a href="/library">Library</a>
+        </nav>
+      </div>
+      <div class="top-bar-right">
+        <div class="user-badge" id="userBadge">
+          <div class="user-avatar" id="userAvatar">--</div>
+          <div>
+            <div class="user-name" id="userName">---</div>
+            <div class="user-role" id="userRole">---</div>
+          </div>
+        </div>
+        <button class="btn btn-sm" id="logoutBtn">Logout</button>
+      </div>
+    </header>
+
+    <!-- ── Left Sidebar: Output Browser ── -->
+    <aside class="gc-sidebar">
+      <div class="gc-sidebar-header">
+        <h2>Outputs</h2>
+        <div class="gc-sidebar-actions">
+          <button class="btn btn-sm btn-primary" id="btnNewOutput">+ Output</button>
+          <button class="btn btn-sm" id="btnNewFolder">+ Folder</button>
+        </div>
+      </div>
+      <div class="gc-output-tree" id="outputTree">
+        <div class="gc-empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="18" rx="2"/><path d="M8 7h8M8 12h5"/></svg>
+          <span>No outputs yet</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ── Main Area: Rundown Panel ── -->
+    <main class="gc-main">
+      <div class="gc-rundown-header">
+        <div class="gc-rundown-title">
+          <h2 id="rundownTitle">Select an Output</h2>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div class="gc-auto-cue-toggle" id="autoCueToggle" title="Automatically cue the next graphic when one goes live">
+            <span class="gc-auto-cue-label">Auto-Cue</span>
+            <div class="gc-toggle-switch"></div>
+          </div>
+        </div>
+      </div>
+      <div class="gc-url-bar hidden" id="urlBar">
+        <span class="gc-url-label">URL</span>
+        <input type="text" class="gc-url-input" id="urlInput" readonly>
+        <button class="gc-url-copy-btn" id="urlCopyBtn">Copy</button>
+      </div>
+      <div class="gc-rundown-list" id="rundownList">
+        <div class="gc-rundown-empty" id="rundownEmpty">
+          <div class="gc-empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+            <span>Select an output from the left panel to view its rundown</span>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- ── Bottom Area: Template Library + Preview ── -->
+    <div class="gc-bottom">
+
+      <!-- Template Library -->
+      <div class="gc-template-library">
+        <div class="gc-template-header">
+          <h3>Template Library</h3>
+          <button class="btn btn-sm" id="templateNewFolder">+ Folder</button>
+        </div>
+        <div class="gc-template-browser">
+          <div class="gc-template-tree" id="templateTree"></div>
+          <div class="gc-template-list" id="templateList">
+            <div class="gc-empty-state"><span>Loading templates...</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Preview Panel -->
+      <div class="gc-preview-panel">
+        <div class="gc-preview-header">
+          <h3>Live Preview</h3>
+        </div>
+        <div class="gc-preview-container" id="previewContainer">
+          <div class="gc-preview-empty" id="previewEmpty">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+            <span>Select an output to preview</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- Context Menu (rendered via JS) -->
+  <div class="gc-context-menu" id="contextMenu"></div>
+
+  <script type="module" src="/js/graphics-control/main.js"></script>
+</body>
+</html>

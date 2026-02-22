@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - Nexus Kinetica</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <style>
+    /* ── Dashboard Layout ── */
+    .dashboard {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── Top Bar ── */
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      height: 56px;
+      min-height: 56px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      z-index: 100;
+    }
+
+    .top-bar-left {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .app-title {
+      font-size: 1.125rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+
+    .app-title span {
+      color: var(--accent);
+    }
+
+    .top-bar-nav {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .top-bar-nav a {
+      font-size: 0.825rem;
+      color: var(--text-muted);
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      transition: all var(--transition);
+    }
+
+    .top-bar-nav a:hover {
+      color: var(--text);
+      background: var(--surface-alt);
+    }
+
+    .top-bar-nav a.active {
+      color: var(--accent);
+      background: var(--accent-light);
+    }
+
+    .top-bar-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .user-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 12px;
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .user-badge .user-avatar {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      font-weight: 700;
+    }
+
+    .user-badge .user-name {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .user-badge .user-role {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    #logoutBtn {
+      padding: 6px 14px;
+      font-size: 0.8rem;
+    }
+
+    /* ── Three Column Layout ── */
+    .dashboard-body {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .col-left {
+      width: 300px;
+      min-width: 300px;
+      border-right: 1px solid var(--border);
+      background: var(--surface);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .col-center {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      background: var(--deep-space);
+    }
+
+    .col-right {
+      width: 280px;
+      min-width: 280px;
+      border-left: 1px solid var(--border);
+      background: var(--surface);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    /* ── Panel Sections ── */
+    .panel-section {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .panel-section:last-child {
+      border-bottom: none;
+    }
+
+    .panel-title {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    /* ── Control Panel (Left Column) ── */
+    .online-toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .online-label {
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
+    .online-status-text {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .online-status-text.on { color: var(--success); }
+    .online-status-text.off { color: var(--danger); }
+
+    .tcp-config-form {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .tcp-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .tcp-row .input-group { flex: 1; }
+
+    .tcp-row .input-group.port { flex: 0 0 90px; }
+
+    .tcp-config-form .input {
+      width: 100%;
+      padding: 6px 10px;
+      font-size: 0.825rem;
+    }
+
+    #reconnectBtn {
+      width: 100%;
+      margin-top: 4px;
+    }
+
+    .target-car-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .target-car-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .target-car-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      min-width: 48px;
+    }
+
+    .target-car-row .select {
+      flex: 1;
+      padding: 6px 10px;
+      font-size: 0.825rem;
+    }
+
+    .dnf-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .dnf-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 0;
+      font-size: 0.825rem;
+    }
+
+    .dnf-item input[type="checkbox"] {
+      accent-color: var(--danger);
+      width: 14px;
+      height: 14px;
+    }
+
+    .dnf-car-number {
+      font-weight: 600;
+      min-width: 32px;
+      color: var(--text);
+    }
+
+    .dnf-driver-name {
+      color: var(--text-muted);
+      font-size: 0.75rem;
+    }
+
+    /* ── Flag Banner (Center Column) ── */
+    .flag-banner {
+      height: 48px;
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      transition: background 400ms ease, color 400ms ease;
+      background: var(--surface-alt);
+      color: var(--text-muted);
+    }
+
+    .flag-banner.green { background: var(--flag-green); color: white; }
+    .flag-banner.yellow { background: var(--flag-yellow); color: #1a1a1a; }
+    .flag-banner.red { background: var(--flag-red); color: white; }
+    .flag-banner.white { background: var(--flag-white); color: #1a1a1a; }
+    .flag-banner.finish { background: var(--flag-finish); color: #1a1a1a; }
+
+    /* ── Race Info Bar ── */
+    .race-info-bar {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      padding: 12px 20px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .race-stat {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .race-stat-label {
+      font-size: 0.65rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+    }
+
+    .race-stat-value {
+      font-size: 1.125rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ── Leaderboard Table ── */
+    .leaderboard-container {
+      flex: 1;
+      padding: 0;
+      overflow-y: auto;
+    }
+
+    .leaderboard-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+    }
+
+    .leaderboard-table th {
+      position: sticky;
+      top: 0;
+      background: var(--surface);
+      padding: 8px 12px;
+      text-align: left;
+      font-size: 0.65rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      z-index: 1;
+    }
+
+    .leaderboard-table th:first-child,
+    .leaderboard-table td:first-child {
+      text-align: center;
+      width: 44px;
+    }
+
+    .leaderboard-table td {
+      padding: 6px 12px;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .leaderboard-table tr:hover td {
+      background: var(--surface-alt);
+    }
+
+    .leaderboard-rank {
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .leaderboard-car {
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    .leaderboard-driver {
+      color: var(--text);
+      max-width: 150px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .leaderboard-laps {
+      color: var(--text-muted);
+    }
+
+    .leaderboard-gap {
+      color: var(--warning);
+    }
+
+    /* ── Overlay Instances List (Center Column, below leaderboard) ── */
+    .overlay-instances-section {
+      padding: 16px 20px;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .overlay-instances-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .overlay-instance-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      gap: 12px;
+    }
+
+    .overlay-instance-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .overlay-instance-name {
+      font-size: 0.825rem;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .overlay-instance-meta {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .overlay-instance-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .delay-control {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .delay-control label {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    .delay-slider {
+      width: 80px;
+      accent-color: var(--accent);
+    }
+
+    .delay-value {
+      font-size: 0.7rem;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+      min-width: 28px;
+      text-align: right;
+    }
+
+    .visibility-btn {
+      padding: 4px 10px;
+      font-size: 0.75rem;
+    }
+
+    .visibility-btn.is-hidden {
+      border-color: var(--warning);
+      color: var(--warning);
+    }
+
+    .overlay-instance-url {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 4px;
+    }
+
+    .overlay-url-text {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      font-family: monospace;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .overlay-instance-url .btn {
+      flex-shrink: 0;
+      font-size: 0.7rem;
+      padding: 2px 8px;
+    }
+
+    /* ── System Status (Right Column) ── */
+    .connection-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0;
+    }
+
+    .connection-row:first-child {
+      padding-top: 0;
+    }
+
+    .connection-label-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .connection-label {
+      font-size: 0.825rem;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .connection-detail {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
+
+    .connection-badge {
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 999px;
+    }
+
+    .connection-badge.connected {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--success);
+    }
+
+    .connection-badge.disconnected {
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--danger);
+    }
+
+    /* ── Throughput Table ── */
+    .throughput-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .throughput-table td {
+      padding: 4px 0;
+      font-size: 0.8rem;
+    }
+
+    .throughput-table td:first-child {
+      color: var(--text-muted);
+      font-size: 0.75rem;
+    }
+
+    .throughput-table td:last-child {
+      text-align: right;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      color: var(--text);
+    }
+
+    .throughput-total {
+      border-top: 1px solid var(--border);
+      margin-top: 4px;
+      padding-top: 8px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+    }
+
+    .throughput-total span:first-child {
+      color: var(--text-muted);
+    }
+
+    .throughput-total span:last-child {
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    /* ── Connected Clients List ── */
+    .client-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .client-card {
+      padding: 8px 10px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+    }
+
+    .client-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+
+    .client-name {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .client-delay {
+      font-size: 0.7rem;
+      color: var(--accent);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .client-meta {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
+
+    .client-health {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.7rem;
+      margin-left: 8px;
+    }
+
+    .client-health .status-dot {
+      width: 6px;
+      height: 6px;
+    }
+
+    /* ── Empty States ── */
+    .empty-state {
+      text-align: center;
+      padding: 24px 16px;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+    }
+
+    .empty-state-icon {
+      font-size: 1.5rem;
+      margin-bottom: 8px;
+      opacity: 0.4;
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard">
+
+    <!-- ── Top Bar ── -->
+    <header class="top-bar">
+      <div class="top-bar-left">
+        <img src="/assets/medialive-nexus-kinetica-logo.png" alt="Nexus Kinetica" style="height: 32px; margin-right: 20px;">
+        <nav class="top-bar-nav">
+          <a href="/dashboard" class="active">Dashboard</a>
+          <a href="/templates">Templates</a>
+          <a href="/graphics-control">Live Rundowns</a>
+          <a href="/drivers">Drivers</a>
+          <a href="/simulator">Simulator</a>
+          <a href="/library">Library</a>
+        </nav>
+      </div>
+      <div class="top-bar-right">
+        <div class="user-badge" id="userBadge">
+          <div class="user-avatar" id="userAvatar">--</div>
+          <div>
+            <div class="user-name" id="userName">---</div>
+            <div class="user-role" id="userRole">---</div>
+          </div>
+        </div>
+        <button class="btn btn-sm" id="logoutBtn">Logout</button>
+      </div>
+    </header>
+
+    <!-- ── Three Column Body ── -->
+    <div class="dashboard-body">
+
+      <!-- ── Left Column: Control Panel ── -->
+      <aside class="col-left">
+
+        <!-- Online Toggle -->
+        <div class="panel-section">
+          <div class="panel-title">System Control</div>
+          <div class="online-toggle-row">
+            <div>
+              <div class="online-label">Online Mode</div>
+              <div class="online-status-text off" id="onlineStatusText">OFFLINE</div>
+            </div>
+            <input type="checkbox" class="toggle" id="onlineToggle" />
+          </div>
+        </div>
+
+        <!-- TCP Configuration -->
+        <div class="panel-section">
+          <div class="panel-title">TCP Connection</div>
+          <div class="tcp-config-form">
+            <div class="tcp-row">
+              <div class="input-group">
+                <label for="tcpHost">Host</label>
+                <input class="input" type="text" id="tcpHost" placeholder="localhost" />
+              </div>
+              <div class="input-group port">
+                <label for="tcpPort">Port</label>
+                <input class="input" type="number" id="tcpPort" placeholder="5000" />
+              </div>
+            </div>
+            <button class="btn btn-sm btn-primary" id="saveTcpBtn">Save Config</button>
+            <button class="btn btn-sm" id="reconnectBtn">Reconnect TCP</button>
+          </div>
+        </div>
+
+        <!-- Target Cars -->
+        <div class="panel-section">
+          <div class="panel-title">Target Cars</div>
+          <div class="target-car-group">
+            <div class="target-car-row">
+              <span class="target-car-label">Car 1</span>
+              <select class="select" id="targetCar0"><option value="">-- None --</option></select>
+            </div>
+            <div class="target-car-row">
+              <span class="target-car-label">Car 2</span>
+              <select class="select" id="targetCar1"><option value="">-- None --</option></select>
+            </div>
+            <div class="target-car-row">
+              <span class="target-car-label">Car 3</span>
+              <select class="select" id="targetCar2"><option value="">-- None --</option></select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Manual DNF Override -->
+        <div class="panel-section">
+          <div class="panel-title">Manual DNF Override</div>
+          <div class="dnf-list" id="dnfList">
+            <div class="empty-state">No drivers loaded</div>
+          </div>
+        </div>
+
+      </aside>
+
+      <!-- ── Center Column: Race Status ── -->
+      <main class="col-center">
+
+        <!-- Flag Color Banner -->
+        <div class="flag-banner" id="flagBanner">NO SIGNAL</div>
+
+        <!-- Race Info Bar -->
+        <div class="race-info-bar">
+          <div class="race-stat">
+            <span class="race-stat-label">Current Lap</span>
+            <span class="race-stat-value" id="currentLap">--</span>
+          </div>
+          <div class="race-stat">
+            <span class="race-stat-label">Elapsed Time</span>
+            <span class="race-stat-value" id="elapsedTime">--:--:--</span>
+          </div>
+          <div class="race-stat">
+            <span class="race-stat-label">Cars</span>
+            <span class="race-stat-value" id="carCount">--</span>
+          </div>
+        </div>
+
+        <!-- Leaderboard -->
+        <div class="leaderboard-container">
+          <table class="leaderboard-table">
+            <thead>
+              <tr>
+                <th>Pos</th>
+                <th>Car</th>
+                <th>Driver</th>
+                <th>Laps</th>
+                <th>Gap</th>
+              </tr>
+            </thead>
+            <tbody id="leaderboardBody">
+              <tr>
+                <td colspan="5" class="empty-state">Waiting for race data...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Overlay Instances -->
+        <div class="overlay-instances-section">
+          <div class="panel-title">Overlay Instances</div>
+          <div class="overlay-instances-list" id="overlayInstancesList">
+            <div class="empty-state">No overlay instances</div>
+          </div>
+        </div>
+
+      </main>
+
+      <!-- ── Right Column: System Status ── -->
+      <aside class="col-right">
+
+        <!-- Connection Status -->
+        <div class="panel-section">
+          <div class="panel-title">Connection Status</div>
+          <div class="connection-row">
+            <div class="connection-label-group">
+              <span class="status-dot offline" id="tcpDot"></span>
+              <div>
+                <div class="connection-label">TCP Feed</div>
+                <div class="connection-detail" id="tcpDetail">Not connected</div>
+              </div>
+            </div>
+            <span class="connection-badge disconnected" id="tcpBadge">Offline</span>
+          </div>
+          <div class="connection-row">
+            <div class="connection-label-group">
+              <span class="status-dot offline" id="wsDot"></span>
+              <div>
+                <div class="connection-label">WebSocket</div>
+                <div class="connection-detail" id="wsDetail">Connecting...</div>
+              </div>
+            </div>
+            <span class="connection-badge disconnected" id="wsBadge">Offline</span>
+          </div>
+          <div class="connection-row">
+            <div class="connection-label-group">
+              <span class="status-dot offline" id="simDot"></span>
+              <div>
+                <div class="connection-label">Simulator</div>
+                <div class="connection-detail" id="simDetail">Stopped</div>
+              </div>
+            </div>
+            <span class="connection-badge disconnected" id="simBadge">Stopped</span>
+          </div>
+        </div>
+
+        <!-- Message Throughput -->
+        <div class="panel-section">
+          <div class="panel-title">Message Throughput</div>
+          <table class="throughput-table" id="throughputTable">
+            <tr><td>Telemetry</td><td id="rateTelemetry">0/s</td></tr>
+            <tr><td>Leaderboard</td><td id="rateLeaderboard">0/s</td></tr>
+            <tr><td>Pit</td><td id="ratePit">0/s</td></tr>
+            <tr><td>Completed Lap</td><td id="rateCompletedLap">0/s</td></tr>
+            <tr><td>Car Status</td><td id="rateCarStatus">0/s</td></tr>
+            <tr><td>Flag</td><td id="rateFlag">0/s</td></tr>
+          </table>
+          <div class="throughput-total">
+            <span>Total Messages</span>
+            <span id="totalMessages">0</span>
+          </div>
+        </div>
+
+        <!-- Connected Overlay Clients -->
+        <div class="panel-section">
+          <div class="panel-title">Connected Overlays</div>
+          <div class="client-list" id="overlayClientList">
+            <div class="empty-state">No overlays connected</div>
+          </div>
+        </div>
+
+      </aside>
+
+    </div>
+  </div>
+
+  <script type="module" src="/js/dashboard/main.js"></script>
+</body>
+</html>
